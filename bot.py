@@ -1,12 +1,15 @@
+import os
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-TOKEN = '7898142673:AAHSHjtleMrgdi_ZOduDu-RHc3V4x6B5KqAA'
-CHAT_ID = '@jineteras'
-IMAGE_URL = 'https://i.postimg.cc/MGQf6tKG/IMG-8234.jpg'
+# Leer variables desde el entorno
+TOKEN = os.environ.get("TOKEN")
+CHAT_ID = os.environ.get("CHAT_ID")
+IMAGE_URL = os.environ.get("IMAGE_URL")
 
 bot = telebot.TeleBot(TOKEN)
 
+# ✅ Botonera para el canal
 def botonera_para_canal():
     markup = InlineKeyboardMarkup(row_width=1)
     markup.add(
@@ -15,6 +18,7 @@ def botonera_para_canal():
     )
     return markup
 
+# ✅ Botonera para el chat privado
 def botonera_para_privado():
     markup = InlineKeyboardMarkup(row_width=1)
     markup.add(
@@ -23,6 +27,7 @@ def botonera_para_privado():
     )
     return markup
 
+# 📤 Publicar imagen en el canal
 bot.send_photo(
     chat_id=CHAT_ID,
     photo=IMAGE_URL,
@@ -30,6 +35,9 @@ bot.send_photo(
     reply_markup=botonera_para_canal()
 )
 
+print("✅ Imagen publicada en el canal con botones")
+
+# 📩 Responder cuando alguien entra en privado
 @bot.message_handler(commands=['start'])
 def start_handler(message):
     if 'como_desbloquear' in message.text:
@@ -40,6 +48,7 @@ def start_handler(message):
             reply_markup=botonera_para_privado()
         )
 
+# 🔔 Mostrar popup en privado
 @bot.callback_query_handler(func=lambda call: call.data == "mostrar_popup")
 def mostrar_popup(call):
     bot.answer_callback_query(
@@ -48,4 +57,5 @@ def mostrar_popup(call):
         show_alert=True
     )
 
+# 🟢 Escuchando mensajes
 bot.polling()
