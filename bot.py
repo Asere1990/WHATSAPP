@@ -24,6 +24,7 @@ UD_CODE = "code"
 UD_START_MSG_ID = "start_msg_id"
 UD_NATIVE_MSG_ID = "native_msg_id"
 UD_TUTORIAL_SENT = "tutorial_sent"
+UD_CHAT_MODE = "chat_mode"
 
 PENDING_BY_ADMIN_MSG = {}   # admin_msg_id -> data del caso
 PENDING_BY_USER_ID = {}     # telegram_id -> admin_msg_id
@@ -450,6 +451,8 @@ async def ask_question_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await q.answer()
 
+    context.user_data[UD_CHAT_MODE] = True
+
     await context.bot.send_message(
         chat_id=user.id,
         text=f"🙋🏻‍♀️Hola {nombre}, soy Sofia, asistente virtual de. Como puedo ayudarte."
@@ -745,12 +748,17 @@ async def lista_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(bloque, parse_mode="HTML", disable_web_page_preview=True)
 
 async def private_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_chat and update.effective_chat.type == "private":
-        await update.message.reply_text(
-            "⚠️ Eso no es tu número compartido con el botón nativo.\n\n"
-            "Por favor toca **📲 𝐕𝐄𝐑𝐈𝐅𝐈𝐂𝐀** para enviarlo automáticamente.",
-            reply_markup=share_phone_kb()
-        )
+    if not update.effective_chat or update.effective_chat.type != "private":
+        return
+
+    if context.user_data.get(UD_CHAT_MODE):
+        return
+
+    await update.message.reply_text(
+        "⚠️ Eso no es tu número compartido con el botón nativo.\n\n"
+        "Por favor toca **📲 𝐕𝐄𝐑𝐈𝐅𝐈𝐂𝐀** para enviarlo automáticamente.",
+        reply_markup=share_phone_kb()
+    )
 
 async def id_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"chat_id: {update.effective_chat.id}")
