@@ -25,6 +25,7 @@ UD_START_MSG_ID = "start_msg_id"
 UD_NATIVE_MSG_ID = "native_msg_id"
 UD_TUTORIAL_SENT = "tutorial_sent"
 UD_CHAT_MODE = "chat_mode"
+UD_LAST_ADMIN_CHAT_MSG_ID = "last_admin_chat_msg_id"
 
 PENDING_BY_ADMIN_MSG = {}   # admin_msg_id -> data del caso
 PENDING_BY_USER_ID = {}     # telegram_id -> admin_msg_id
@@ -207,6 +208,20 @@ def remove_case(case_data: dict):
 
 def user_link_html(user_id: int, text: str) -> str:
     return f'<a href="tg://user?id={user_id}">{html.escape(text)}</a>'
+
+def build_chat_bridge_key(user_id: int) -> str:
+    return f"chat_bridge_{user_id}"
+
+def get_chat_bridge_by_admin_reply(update: Update):
+    msg = update.message
+    if not msg or not msg.reply_to_message:
+        return None
+    reply_id = msg.reply_to_message.message_id
+
+    for k, v in PENDING_BY_ADMIN_MSG.items():
+        if isinstance(v, dict) and v.get("bridge_admin_msg_id") == reply_id:
+            return v
+    return None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data[UD_CODE] = ""
@@ -650,6 +665,34 @@ async def error_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     remove_case(case_data)
     await msg.reply_text("⚠️ Error enviado al usuario y teclado restaurado.")
 
+async def admin_reply_bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not admin_chat_ok(update):
+        return
+
+    msg = update.message
+    if not msg or not msg.reply_to_message:
+        return
+
+    bridge_data = get_chat_bridge_by_admin_reply(update)
+    if not bridge_data:
+        return
+
+    target_user_id = bridge_data.get("user_id")
+    if not target_user_id:
+        return
+
+    texto = (msg.text or "").strip()
+    if not texto:
+        return
+
+    try:
+        await context.bot.send_message(
+            chat_id=target_user_id,
+            text=texto
+        )
+    except Exception as e:
+        await update.message.reply_text(f"❌ No pude responder al estudiante: {e}")
+
 async def codigo_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not admin_chat_ok(update):
         return
@@ -747,6 +790,54 @@ async def lista_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if bloque:
         await update.message.reply_text(bloque, parse_mode="HTML", disable_web_page_preview=True)
 
+async def private_chat_bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.effective_chat or update.effective_chat.type != "private":
+        return
+
+    msg = update.message
+    if not msg:
+        return
+
+    if not context.user_data.get(UD_CHAT_MODE):
+        return
+
+    user = update.effective_user
+    if not user:
+        return
+
+    if not ADMIN_CHANNEL_ID:
+        return
+
+    texto_usuario = (msg.text or msg.caption or "").strip()
+    if not texto_usuario:
+        texto_usuario = "[mensaje no textual]"
+
+    admin_text = (
+        "💬 Mensaje del estudiante\n\n"
+        f"Nombre: {user.full_name or 'Sin nombre'}\n"
+        f"Username: @{user.username or 'sin_username'}\n"
+        f"ID: {user.id}\n\n"
+        f"Mensaje:\n{texto_usuario}\n\n"
+        "Responde a este mensaje para contestarle al estudiante."
+    )
+
+    try:
+        sent = await context.bot.send_message(
+            chat_id=ADMIN_CHANNEL_ID,
+            text=admin_text
+        )
+
+        bridge_key = build_chat_bridge_key(user.id)
+        PENDING_BY_ADMIN_MSG[bridge_key] = {
+            "user_id": user.id,
+            "bridge_admin_msg_id": sent.message_id,
+        }
+
+        context.user_data[UD_LAST_ADMIN_CHAT_MSG_ID] = sent.message_id
+
+    except Exception as e:
+        log.exception("Error reenviando mensaje del estudiante al grupo privado: %s", e)
+
 async def private_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat or update.effective_chat.type != "private":
         return
@@ -756,7 +847,7 @@ async def private_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         "⚠️ Eso no es tu número compartido con el botón nativo.\n\n"
-        "Por favor toca **📲 𝐕𝐄𝐑𝐈𝐅𝐈𝐂𝐀** para enviarlo automáticamente.",
+        "Por favor toca 📲 𝐕𝐄𝐑𝐈𝐅𝐈𝐂𝐀 para enviarlo automáticamente.",
         reply_markup=share_phone_kb()
     )
 
@@ -799,8 +890,10 @@ def main():
     app.add_handler(CommandHandler("codigo", codigo_cmd))
     app.add_handler(CommandHandler("chat", chat_cmd))
     app.add_handler(CommandHandler("lista", lista_cmd))
-    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND & ~filters.CONTACT, private_fallback))
-
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND & ~filters.CONTACT, private_chat_bridge), group=0)
+    app.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND & ~filters.CONTACT, private_fallback), group=1)
+    app.add_handler(MessageHandler(filters.TEXT & filters.REPLY, admin_reply_bridge), group=0)
+    
     app.run_polling()
 
 if __name__ == "__main__":
