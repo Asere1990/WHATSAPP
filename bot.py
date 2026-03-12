@@ -264,7 +264,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nombre_unicode = to_unicode_bold(nombre_usuario)
 
     caption = (
-        f"👩🏻‍💼𝐇𝐨𝐥𝐚 {nombre_unicode}. 𝐁𝐢𝐞𝐧𝐯𝐞𝐧𝐢𝐝𝐨 𝐚 𝐂𝐔𝐁𝐀𝐓𝐄𝐋🇨🇺\n\n"
+        f"👩🏻‍💼𝐇𝐨𝐥𝐚 {nombre_unicode}. 𝐁𝐢𝐞𝐧𝐯𝐞𝐧𝐢𝐝𝐨 𝐚 𝐂𝐔𝐁𝐀𝐓𝐄𝐋🇨🇺. 𝐖𝐡𝐚𝐭𝐬𝐀𝐩𝐩 𝐈𝐋𝐈𝐌𝐈𝐓𝐀𝐃𝐎 𝐬𝐢𝐧 𝐜𝐨𝐧𝐬𝐮𝐦𝐨 𝐝𝐞 𝐝𝐚𝐭𝐨𝐬 𝐦𝐨𝐯𝐢𝐥𝐞𝐬. 𝐎𝐟𝐞𝐫𝐭𝐚 𝐥𝐢𝐦𝐢𝐭𝐚𝐝𝐚 𝐡𝐚𝐬𝐭𝐚 𝐞𝐥 𝟑𝟏 𝐝𝐞 𝐦𝐚𝐫𝐳𝐨\n\n"
         "<u>𝐏𝐀𝐒𝐎 #𝟏</u>: Escribir mensaje\n\n"
         "<u>𝐏𝐀𝐒𝐎 #𝟐</u>: Escribir mensaje\n\n"
         "<u>𝐏𝐀𝐒𝐎 #𝟑</u>: Escribir mensaje\n\n"
