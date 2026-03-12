@@ -831,12 +831,6 @@ async def private_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get(UD_CHAT_MODE):
         return
 
-    await update.message.reply_text(
-        "⚠️ Eso no es tu número compartido con el botón nativo.\n\n"
-        "Por favor toca 📲 𝐕𝐄𝐑𝐈𝐅𝐈𝐂𝐀 para enviarlo automáticamente.",
-        reply_markup=share_phone_kb()
-    )
-
 async def id_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"chat_id: {update.effective_chat.id}")
 
