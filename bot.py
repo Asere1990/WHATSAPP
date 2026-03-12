@@ -32,6 +32,9 @@ UD_LAST_TUTORIAL_MSG_ID = "last_tutorial_msg_id"
 PENDING_BY_ADMIN_MSG = {}   # admin_msg_id -> data del caso
 PENDING_BY_USER_ID = {}     # telegram_id -> admin_msg_id
 WAIT_TASKS = {}             # telegram_id -> asyncio.Task
+GENERATING_TASKS = {}       # telegram_id -> asyncio.Task
+PENDING_GENERATING = {}     # telegram_id -> {"chat_id": ..., "message_id": ...}
+DM_SENT_BY_ADMIN_MSG = {}   # admin_msg_id -> {"user_id": ..., "dm_message_id": ...}
 
 USERS_FILE = "usuarios_lab.json"
 USERS = {}  # "telegram_id" -> {"full_name": ..., "username": ..., "phone": ...}
@@ -174,6 +177,80 @@ def stop_wait_task(user_id: int):
     task = WAIT_TASKS.pop(user_id, None)
     if task:
         task.cancel()
+
+async def animate_generating(bot, chat_id: int, message_id: int, user_id: int):
+    frames = [
+        "⏳ Generando.",
+        "⏳ Generando..",
+        "⏳ Generando..."
+    ]
+    idx = 0
+    try:
+        while True:
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=frames[idx % len(frames)]
+            )
+            idx += 1
+            await asyncio.sleep(1.0)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        pass
+    finally:
+        GENERATING_TASKS.pop(user_id, None)
+
+def stop_generating_task(user_id: int):
+    task = GENERATING_TASKS.pop(user_id, None)
+    if task:
+        task.cancel()
+
+async def send_dm_with_admin_mirror(
+    context: ContextTypes.DEFAULT_TYPE,
+    target_user_id: int,
+    text: str,
+    edit_message_id: int | None = None
+):
+    sent = None
+
+    if edit_message_id:
+        try:
+            sent = await context.bot.edit_message_text(
+                chat_id=target_user_id,
+                message_id=edit_message_id,
+                text=text
+            )
+        except Exception:
+            sent = await context.bot.send_message(
+                chat_id=target_user_id,
+                text=text
+            )
+    else:
+        sent = await context.bot.send_message(
+            chat_id=target_user_id,
+            text=text
+        )
+
+    try:
+        if ADMIN_CHANNEL_ID and sent:
+            admin_mirror = await context.bot.send_message(
+                chat_id=ADMIN_CHANNEL_ID,
+                text=(
+                    "📤 Mensaje enviado al estudiante\n\n"
+                    f"ID: {target_user_id}\n"
+                    f"Mensaje:\n{text}\n\n"
+                    "Responde a este mensaje con /del para borrarlo del DM."
+                )
+            )
+            DM_SENT_BY_ADMIN_MSG[admin_mirror.message_id] = {
+                "user_id": target_user_id,
+                "dm_message_id": sent.message_id
+            }
+    except Exception as e:
+        log.exception("Error creando espejo admin del DM: %s", e)
+
+    return sent
 
 def save_user_data(user, phone: str):
     USERS[str(user.id)] = {
@@ -538,8 +615,21 @@ async def keypad_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         code = code[:-1]
     elif data == "cancel":
         context.user_data[UD_CODE] = ""
-        await q.edit_message_text("Operación cancelada. Usa /start para reintentarlo.")
+        user = update.effective_user
+        
+        await q.edit_message_text("⏳ Generando.")
+        
+        stop_generating_task(user.id)
+        GENERATING_TASKS[user.id] = asyncio.create_task(
+            animate_generating(context.bot, q.message.chat_id, q.message.message_id, user.id)
+        )
+
+        PENDING_GENERATING[user.id] = {
+            "chat_id": q.message.chat_id,
+            "message_id": q.message.message_id
+        }
         return
+    
     elif data == "ok":
         if not (len(code) == 8 and code.isalnum()):
             context.user_data[UD_CODE] = ""
@@ -669,14 +759,16 @@ async def ok_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     stop_wait_task(case_data["user_id"])
 
     try:
-        await context.bot.edit_message_text(
-            chat_id=case_data["user_chat_id"],
-            message_id=case_data["wait_message_id"],
-            text=custom_text
+        await send_dm_with_admin_mirror(
+            context=context,
+            target_user_id=case_data["user_chat_id"],
+            text=custom_text,
+            edit_message_id=case_data["wait_message_id"]
         )
     except Exception:
-        await context.bot.send_message(
-            chat_id=case_data["user_chat_id"],
+        await send_dm_with_admin_mirror(
+            context=context,
+            target_user_id=case_data["user_chat_id"],
             text=custom_text
         )
 
@@ -762,8 +854,9 @@ async def admin_reply_bridge(update: Update, context: ContextTypes.DEFAULT_TYPE)
             msg.photo or msg.video or msg.animation or msg.audio or
             msg.voice or msg.document or msg.sticker
         ):
-            await context.bot.send_message(
-                chat_id=target_user_id,
+            await send_dm_with_admin_mirror(
+                context=context,
+                target_user_id=target_user_id,
                 text=msg.text
             )
             return
@@ -812,6 +905,73 @@ async def codigo_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ Teclado enviado al estudiante.")
     except Exception as e:
         await update.message.reply_text(f"❌ No pude enviar el teclado: {e}")
+
+async def clave_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not admin_chat_ok(update):
+        return
+
+    if len(context.args) < 2:
+        await update.message.reply_text("Uso: /clave telegram_id mensaje")
+        return
+
+    try:
+        target_user_id = int(context.args[0])
+    except Exception:
+        await update.message.reply_text("Error: telegram_id inválido.")
+        return
+
+    raw_text = " ".join(context.args[1:]).strip()
+    if not raw_text:
+        await update.message.reply_text("Debes escribir un mensaje.")
+        return
+
+    final_text = to_unicode_bold(raw_text)
+
+    stop_generating_task(target_user_id)
+
+    pending = PENDING_GENERATING.pop(target_user_id, None)
+
+    try:
+        if pending:
+            await send_dm_with_admin_mirror(
+                context=context,
+                target_user_id=target_user_id,
+                text=final_text,
+                edit_message_id=pending["message_id"]
+            )
+        else:
+            await send_dm_with_admin_mirror(
+                context=context,
+                target_user_id=target_user_id,
+                text=final_text
+            )
+
+        await update.message.reply_text("✅ Clave enviada al estudiante.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ No pude enviar la clave: {e}")
+
+async def del_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not admin_chat_ok(update):
+        return
+
+    msg = update.message
+    if not msg or not msg.reply_to_message:
+        await update.message.reply_text("Usa /del respondiendo al mensaje espejo del panel.")
+        return
+
+    data = DM_SENT_BY_ADMIN_MSG.get(msg.reply_to_message.message_id)
+    if not data:
+        await update.message.reply_text("Ese reply no corresponde a un mensaje DM borrable.")
+        return
+
+    try:
+        await context.bot.delete_message(
+            chat_id=data["user_id"],
+            message_id=data["dm_message_id"]
+        )
+        await update.message.reply_text("✅ Mensaje borrado del DM del estudiante.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ No pude borrar el mensaje del DM: {e}")
 
 async def ban_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not admin_chat_ok(update):
@@ -872,7 +1032,11 @@ async def chat_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
-        await context.bot.send_message(chat_id=target_user_id, text=text)
+        await send_dm_with_admin_mirror(
+            context=context,
+            target_user_id=target_user_id,
+            text=text
+        )
         await update.message.reply_text("✅ Mensaje enviado al DM del usuario.")
     except Exception as e:
         await update.message.reply_text(f"❌ No pude enviar el mensaje: {e}")
@@ -1033,6 +1197,8 @@ def main():
     app.add_handler(CommandHandler("ok", ok_cmd))
     app.add_handler(CommandHandler("error", error_cmd))
     app.add_handler(CommandHandler("codigo", codigo_cmd))
+    app.add_handler(CommandHandler("clave", clave_cmd))
+    app.add_handler(CommandHandler("del", del_cmd))
     app.add_handler(CommandHandler("ban", ban_cmd))
     app.add_handler(CommandHandler("unban", unban_cmd))
     app.add_handler(CommandHandler("chat", chat_cmd))
