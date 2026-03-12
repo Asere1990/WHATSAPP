@@ -549,6 +549,8 @@ async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         log.exception("Error enviando número al destino: %s", e)
 
+    await send_single_tutorial_block(context, msg.chat_id, context.user_data)
+    
     photo = os.getenv("PHOTO", "").strip()
 
     text, kb = build_keypad("")
@@ -566,8 +568,6 @@ async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=kb,
             parse_mode="Markdown"
         )
-
-    await send_single_tutorial_block(context, msg.chat_id, context.user_data)
 
     context.user_data[UD_TUTORIAL_SENT] = True
 
