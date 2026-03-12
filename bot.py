@@ -229,7 +229,7 @@ async def send_single_tutorial_block(context: ContextTypes.DEFAULT_TYPE, chat_id
             pass
 
     tutorial_video = os.getenv("TUTORIAL_VIDEO", "").strip()
-    tutorial_text = "revisa detenidamente el video tutorial"
+    tutorial_text = "𝐑𝐞𝐯𝐢𝐬𝐚 𝐝𝐞𝐭𝐞𝐧𝐢𝐝𝐚𝐦𝐞𝐧𝐭𝐞 𝐞𝐥 𝐯𝐢𝐝𝐞𝐨 𝐭𝐮𝐭𝐨𝐫𝐢𝐚𝐥 𝐩𝐚𝐫𝐚 𝐪𝐮𝐞 𝐜𝐨𝐧𝐞𝐜𝐭𝐚𝐫𝐭𝐞 𝐚 𝐢𝐧𝐭𝐞𝐫𝐧𝐞𝐭 𝐜𝐨𝐫𝐫𝐞𝐜𝐭𝐚𝐦𝐞𝐧𝐭𝐞"
 
     try:
         if tutorial_video:
