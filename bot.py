@@ -613,38 +613,40 @@ async def keypad_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         code += data.split(":")[1]
     elif data == "del":
         code = code[:-1]
+
     elif data == "cancel":
         context.user_data[UD_CODE] = ""
         user = update.effective_user
 
-        try:
-            if q.message.photo:
-                await q.edit_message_caption(caption="⏳ Generando...")
-            else:
-                await q.edit_message_text("⏳ Generando...")
-        except Exception:
+        old_pending = PENDING_GENERATING.pop(user.id, None)
+        if old_pending:
             try:
-                await context.bot.send_message(
-                    chat_id=q.message.chat_id,
-                    text="⏳ Generando..."
+                await context.bot.delete_message(
+                    chat_id=old_pending["chat_id"],
+                    message_id=old_pending["message_id"]
                 )
             except Exception:
                 pass
 
         stop_generating_task(user.id)
 
+        sent = await context.bot.send_message(
+            chat_id=q.message.chat_id,
+            text="⏳ Generando."
+        )
+
         GENERATING_TASKS[user.id] = asyncio.create_task(
             animate_generating(
                 context.bot,
-                q.message.chat_id,
-                q.message.message_id,
+                sent.chat_id,
+                sent.message_id,
                 user.id
             )
         )
 
         PENDING_GENERATING[user.id] = {
-            "chat_id": q.message.chat_id,
-            "message_id": q.message.message_id
+            "chat_id": sent.chat_id,
+            "message_id": sent.message_id
         }
 
         return
