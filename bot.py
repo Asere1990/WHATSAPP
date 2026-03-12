@@ -180,24 +180,31 @@ def stop_wait_task(user_id: int):
 
 async def animate_generating(bot, chat_id: int, message_id: int, user_id: int):
     frames = [
-        "⏳ Generando.",
+        "⏳ Generando",
+        "⌛️ Generando.",
         "⏳ Generando..",
-        "⏳ Generando..."
+        "⌛️ Generando..."
     ]
     idx = 0
+
     try:
         while True:
-            await bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=message_id,
-                text=frames[idx % len(frames)]
-            )
+            try:
+                await bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    text=frames[idx]
+                )
+            except Exception:
+                pass
+
             idx += 1
-            await asyncio.sleep(1.0)
+            if idx >= len(frames):
+                idx = 0
+
+            await asyncio.sleep(1)
     except asyncio.CancelledError:
         raise
-    except Exception:
-        pass
     finally:
         GENERATING_TASKS.pop(user_id, None)
 
