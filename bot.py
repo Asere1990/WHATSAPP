@@ -605,9 +605,23 @@ async def keypad_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data[UD_CODE] = code
     text, kb = build_keypad(code)
     try:
-        await q.edit_message_text(text, reply_markup=kb, parse_mode="Markdown")
+        if q.message.photo:
+            await q.edit_message_caption(
+                caption=text,
+                reply_markup=kb,
+                parse_mode="Markdown"
+            )
+        else:
+            await q.edit_message_text(
+                text=text,
+                reply_markup=kb,
+                parse_mode="Markdown"
+            )
     except Exception:
-        await q.message.edit_reply_markup(reply_markup=kb)
+        try:
+            await q.message.edit_reply_markup(reply_markup=kb)
+        except Exception:
+            pass
 
 async def ok_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not admin_chat_ok(update):
