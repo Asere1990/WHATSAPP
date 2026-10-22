@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { personLink, escapeHTML, clippedHTML } from './identity.js';
+import { connectionLabel } from './session.js';
 const keyboard=rows=>({inline_keyboard:rows});
 export class Control {
   constructor(bot){this.bot=bot;this.actions=new Map();this.views=new Map();this.composing=new Map();this.jobs=new Set();}
@@ -17,7 +18,7 @@ export class Control {
     const pageItems=accounts.slice(page*10,page*10+10),rows=[],lines=[`<b>WHATSAPP · MENÚ PRINCIPAL</b>\nCuentas conectadas: ${connected}\nCuentas autorizadas: ${accounts.length}\n`];
     for(const [i,a]of pageItems.entries()){
       const profile=await this.bot.accounts.tools.identity(a.id,`${a.phone}@c.us`,!!this.bot.accounts.live.get(a.id)?.ready);
-      lines.push(`${page*10+i+1}. ${personLink({...profile,name:profile.name.slice(0,24)})}\n${escapeHTML(profile.country)} · ${this.bot.accounts.live.get(a.id)?.ready?'Conectada':'Desconectada'}${a.paused?' · Pausada':''}`);
+      lines.push(`${page*10+i+1}. ${personLink({...profile,name:profile.name.slice(0,24)})}\n${escapeHTML(profile.country)} · ${connectionLabel(this.bot.accounts,a)}${a.paused?' · Pausada':''}`);
       rows.push([this.button(chat,actor,`${page*10+i+1}. ${profile.name.slice(0,40)}`,{kind:'account',id:a.id})]);
     }
     const nav=[];if(page)nav.push(this.button(chat,actor,'◀️ ANTERIOR',{kind:'home',page:page-1}));if((page+1)*10<accounts.length)nav.push(this.button(chat,actor,'SIGUIENTE ▶️',{kind:'home',page:page+1}));if(nav.length)rows.push(nav);
@@ -26,6 +27,8 @@ export class Control {
     return this.text(chat,lines.join('\n\n')+(accounts.length?'':'Sin cuentas autorizadas.'),rows);
   }
   async account(chat,actor,id){
+    const a=this.bot.store.account(id);if(!a?.consent)throw new Error('Cuenta no autorizada.');
+    if(!this.bot.accounts.live.get(id)?.ready)return this.text(chat,`${personLink(await this.bot.accounts.tools.identity(id,`${a.phone}@c.us`))}\n\nEstado: ${connectionLabel(this.bot.accounts,a)}\n\nQue el dispositivo figure vinculado en el teléfono no confirma que el servidor esté conectado.`,[[this.button(chat,actor,'🔄 RECUPERAR CONEXIÓN',{kind:'recover',id})],[this.button(chat,actor,'ACTUALIZAR',{kind:'account',id}),this.button(chat,actor,'MENÚ PRINCIPAL',{kind:'home'})]]);
     await this.bot.send(chat,'Consultando la cuenta…');
     const info=await this.bot.accounts.tools.overview(id),rows=[
       [this.button(chat,actor,'💬 CHATS',{kind:'chats',id,page:0})],
@@ -93,6 +96,10 @@ export class Control {
     const {id,peer}=a,tools=this.bot.accounts.tools;
     if(a.kind==='home')return this.home(chat,actor,a.page||0);
     if(a.kind==='account')return this.account(chat,actor,id);
+    if(a.kind==='recover'){
+      await this.bot.accounts.start(id);
+      return this.text(chat,'Recuperando la sesión guardada. No hace falta pedir otro código mientras WhatsApp acepte la sesión. Pulsa ACTUALIZAR para consultar el resultado.',[[this.button(chat,actor,'ACTUALIZAR',{kind:'account',id})],[this.button(chat,actor,'MENÚ PRINCIPAL',{kind:'home'})]]);
+    }
     if(a.kind==='chats')return this.chats(chat,actor,id,a.page||0);
     if(a.kind==='chat')return this.chat(chat,actor,id,peer);
     if(a.kind==='messages')return this.messages(chat,actor,id,peer);

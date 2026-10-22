@@ -1,10 +1,11 @@
 import { countryOf } from './identity.js';
+import { connectionLabel } from './session.js';
 const peerOK=peer=>typeof peer==='string'&&/^[0-9]+@(c\.us|lid)$/.test(peer);
 export class AccountTools {
   constructor(accounts){this.accounts=accounts;this.busy=new Set();}
   client(id,write=false){
     const a=this.accounts.store.account(id),e=this.accounts.live.get(id);
-    if(this.accounts.stopping||!a?.consent||!e?.ready)throw new Error('Cuenta desconectada.');
+    if(this.accounts.stopping||!a?.consent||!e?.ready)throw new Error(a?`Estado: ${connectionLabel(this.accounts,a)}. Abre la ficha de la cuenta para recuperar la conexión.`:'Cuenta no encontrada.');
     if(write&&a.paused)throw new Error('Cuenta pausada.');
     return e.client;
   }

@@ -5,15 +5,28 @@ import path from 'node:path';
 import { normalizeInbound } from './store.js';
 import { AccountTools } from './manage.js';
 import { personLink, escapeHTML, clippedHTML } from './identity.js';
+import { releaseStaleLock, connectionErrorCode } from './session.js';
 const { Client, LocalAuth, MessageMedia }=WA;
 export class Accounts {
-  constructor(store,dir,notify,max=2) { this.store=store;this.dir=dir;this.notify=notify;this.max=max;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this); }
+  constructor(store,dir,notify,max=2,createClient=options=>new Client(options)) { this.store=store;this.dir=dir;this.notify=notify;this.max=max;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this);this.createClient=createClient; }
+  lifecycle(id,event,code){console.log('WHATSAPP: session',JSON.stringify({account:id,event,...(code?{code}:{})}));}
+  async connectionFailed(id,entry,error){
+    if(this.live.get(id)!==entry||this.stopping)return;
+    const code=connectionErrorCode(error);clearTimeout(entry.timeout);entry.ready=false;entry.code=null;
+    this.store.update(id,'status','error');this.lifecycle(id,'initialize_failed',code);
+    try{this.store.recordIncident(id,'conexion',{code});}catch{}
+    await this.close(id);
+    await this.notify(`⚠️ No se pudo iniciar la conexión de la cuenta ${id} (${code}). La autorización y la sesión guardada se conservan. Revisa /pendientes o pulsa RECUPERAR CONEXIÓN.`).catch(()=>{});
+  }
   async start(id,pair=false) {
     const a=this.store.account(id);
     if (!a?.consent) throw new Error('Falta autorización del titular.');
     if(this.live.has(id)) return this.live.get(id);
     if(this.live.size>=this.max) throw new Error('Se alcanzó el límite de cuentas del servidor.');
-    const client=new Client({
+    const folder=path.join(this.dir,'sessions',`session-${id}`);
+    if(releaseStaleLock(folder))this.lifecycle(id,'stale_browser_lock_removed');
+    this.lifecycle(id,pair?'pairing_started':'restore_started');
+    const client=this.createClient({
       authStrategy:new LocalAuth({clientId:id,dataPath:path.join(this.dir,'sessions')}),
       webVersionCache:{type:'local',path:path.join(this.dir,'web-cache')},
       ...(pair?{pairWithPhoneNumber:{phoneNumber:a.phone,showNotification:true,intervalMs:180000}}:{}),
@@ -22,14 +35,18 @@ export class Accounts {
     });
     const entry={client,code:null,expires:0,ready:false,chain:Promise.resolve(),pending:0};
     this.live.set(id,entry);this.store.update(id,'status','connecting');
-    client.on('code', code=>{entry.code=code;entry.expires=Date.now()+180000;});
+    client.on('code', code=>{if(this.live.get(id)!==entry)return;entry.code=code;entry.expires=Date.now()+180000;});
     client.on('qr',()=>{
-      if(!pair){this.store.update(id,'status','auth_failure');this.close(id).catch(()=>{});}
+      if(this.live.get(id)!==entry)return;
+      if(!pair){this.store.update(id,'status','needs_pairing');this.lifecycle(id,'authorization_needed');this.close(id).catch(()=>{});this.notify(`⚠️ WhatsApp solicita volver a vincular la cuenta ${id}. La sesión guardada no fue eliminada por el gestor.`).catch(()=>{});}
     });
-    client.on('ready',()=>this.connected(id,entry).catch(()=>{}));
-    client.on('auth_failure',()=>{entry.ready=false;entry.code=null;this.store.update(id,'status','auth_failure');});
+    client.on('authenticated',()=>this.lifecycle(id,'authenticated'));
+    client.on('loading_screen',percent=>this.lifecycle(id,'syncing',String(Number(percent)||0)));
+    client.on('ready',()=>this.connected(id,entry).catch(error=>this.connectionFailed(id,entry,error)));
+    client.on('auth_failure',()=>{if(this.live.get(id)!==entry)return;entry.ready=false;entry.code=null;clearTimeout(entry.timeout);this.store.update(id,'status','auth_failure');this.lifecycle(id,'auth_failure');this.close(id).catch(()=>{});});
     client.on('disconnected',()=>{
-      entry.ready=false;entry.code=null;
+      if(this.live.get(id)!==entry)return;
+      entry.ready=false;entry.code=null;clearTimeout(entry.timeout);this.lifecycle(id,'disconnected');
       if(this.live.get(id)===entry) this.live.delete(id);
       if(this.store.account(id)?.consent) this.store.update(id,'status','disconnected');
       client.destroy().catch(()=>{});
@@ -40,21 +57,17 @@ export class Accounts {
       entry.pending++;
       entry.chain=entry.chain.then(()=>this.receive(id,msg)).catch(()=>{}).finally(()=>entry.pending--);
     });
-    client.initialize().catch(async()=>{
-      entry.ready=false;this.store.update(id,'status','error');
-      await client.destroy().catch(()=>{});
-      if(this.live.get(id)===entry)this.live.delete(id);
-    });
     entry.timeout=setTimeout(()=>{
-      if(!entry.ready) this.close(id).then(()=>this.store.update(id,'status','expired')).catch(()=>{});
+      if(this.live.get(id)===entry&&!entry.ready){this.lifecycle(id,'initialize_timeout');this.store.update(id,'status','expired');this.close(id).catch(()=>{});this.notify(`⚠️ La cuenta ${id} no terminó de iniciar. Pulsa RECUPERAR CONEXIÓN en su ficha.`).catch(()=>{});}
     },600000);entry.timeout.unref();
+    entry.initializing=Promise.resolve().then(()=>client.initialize()).catch(error=>this.connectionFailed(id,entry,error));
     return entry;
   }
   async connected(id,entry) {
     const a=this.store.account(id);
     if(this.live.get(id)!==entry || entry.ready || !a?.consent || this.stopping)return;
     if(entry.client.info?.wid?.user!==a.phone) {await this.disconnect(id).catch(()=>{});return;}
-    entry.ready=true;entry.code=null;this.store.update(id,'status','connected');
+    entry.ready=true;entry.code=null;clearTimeout(entry.timeout);this.store.update(id,'status','connected');this.lifecycle(id,'ready');
     this.store.audit(id,'connected');
     const profile=await this.tools.identity(id,`${a.phone}@c.us`,true);
     await this.notify(`✅ Cuenta conectada: ${personLink(profile)}\nPaís del número: ${escapeHTML(profile.country)}\nCuenta: ${id}`,null,{parse_mode:'HTML'}).catch(()=>{});
@@ -141,8 +154,11 @@ export class Accounts {
   }
   async restore() {
     for(const a of this.store.all()) {
-      if(a.consent && existsSync(path.join(this.dir,'sessions',`session-${a.id}`))) {
-        await this.start(a.id).catch(()=>this.store.update(a.id,'status','capacity'));
+      if(!a.consent)continue;
+      if(existsSync(path.join(this.dir,'sessions',`session-${a.id}`))) {
+        await this.start(a.id).catch(error=>{this.store.update(a.id,'status','error');this.lifecycle(a.id,'restore_failed',connectionErrorCode(error));});
+      }else{
+        this.store.update(a.id,'status','needs_pairing');this.lifecycle(a.id,'session_directory_missing');
       }
     }
   }

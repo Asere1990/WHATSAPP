@@ -12,5 +12,6 @@ RUN npm run check && npm test
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod 755 /app/docker-entrypoint.sh
 EXPOSE 10000
-ENTRYPOINT ["tini", "--", "/app/docker-entrypoint.sh"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["node", "src/main.js"]
+

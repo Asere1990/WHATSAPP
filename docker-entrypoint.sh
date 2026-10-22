@@ -12,6 +12,6 @@ if [ "$(id -u)" = 0 ]; then
   mkdir -p "$task_data_dir"
   chown node:node "$task_data_dir"
   chmod 700 "$task_data_dir"
-  exec gosu node "$@"
+  exec gosu node tini -g -- "$@"
 fi
-exec "$@"
+exec tini -g -- "$@"
