@@ -47,8 +47,7 @@ $('pause').onclick=async()=>{try{await api('pause',{paused:!state.paused});await
 $('disconnect').onclick=async()=>{if(!confirm('¿Quieres quitar al gestor el acceso a tu cuenta?'))return;try{await api('disconnect',{});session=false;clearInterval(timer);$('owner-actions').hidden=true;show('welcome');error('Cuenta desconectada. También puedes revisar tus dispositivos vinculados dentro de WhatsApp.');}catch(e){error(e.message);}};
 function updateGuideNext(){
   if(!guideData||!guideDevice)return;
-  const steps=guideData[guideDevice],current=steps?.[guideStep];
-  $('guide-next').disabled=current?.id==='prepare'&&!state?.code&&state?.status!=='connected';
+  $('guide-next').disabled=false;
 }
 function renderGuide(){
   const steps=guideData?.[guideDevice];$('guide-choose').hidden=!!steps;$('guide-content').hidden=!steps;
