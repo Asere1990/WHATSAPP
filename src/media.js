@@ -94,7 +94,21 @@ export async function nativeGalleryImplementation(page) {
       const implementation=props.result.find(p=>p.name==='w'&&p.value?.type==='function');
       if(implementation){
         const result=await client.send('Runtime.callFunctionOn',{objectId:implementation.value.objectId,functionDeclaration:'function(){return String(this)}',returnByValue:true});
-        return {implementation:String(result.result.value).slice(0,30000)};
+        let source=String(result.result.value),objectId=implementation.value.objectId;
+        if(source.includes('var r=this,o=arguments')){
+          const inner=await client.send('Runtime.getProperties',{objectId,ownProperties:true});
+          const innerScopes=inner.internalProperties?.find(p=>p.name==='[[Scopes]]')?.value?.objectId;
+          if(innerScopes){
+            const chain=await client.send('Runtime.getProperties',{objectId:innerScopes,ownProperties:true});
+            for(const local of chain.result){
+              if(!local.value?.objectId||!local.value.description?.startsWith('Closure'))continue;
+              const locals=await client.send('Runtime.getProperties',{objectId:local.value.objectId,ownProperties:true});
+              const generator=locals.result.find(p=>p.name==='t'&&p.value?.type==='function');
+              if(generator){const original=await client.send('Runtime.callFunctionOn',{objectId:generator.value.objectId,functionDeclaration:'function(){return String(this)}',returnByValue:true});source=String(original.result.value);break;}
+            }
+          }
+        }
+        return {implementation:source.slice(0,30000)};
       }
     }
     return {error:'NO_IMPLEMENTATION_BINDING'};
