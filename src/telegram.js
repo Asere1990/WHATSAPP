@@ -129,7 +129,14 @@ export class Telegram {
         const updates=await this.api('getUpdates',{offset:this.offset,timeout:25,allowed_updates:['message','callback_query']});
         for(const u of updates){
           this.offset=u.update_id+1;this.store.setConfig('telegram_offset',String(this.offset));
-          try{await this.handle(u);}catch(e){const m=u.message||u.callback_query?.message;const actor=u.message?.from||u.callback_query?.from;if(m&&this.admins().has(String(actor?.id)))await this.send(m.chat.id,`⚠️ ${e.message}`).catch(()=>{});}
+          try{await this.handle(u);}catch(e){
+            const m=u.message||u.callback_query?.message,actor=u.message?.from||u.callback_query?.from;
+            const scoped=u.callback_query?.data?.startsWith('ctl:')?this.control.actions.get(u.callback_query.data.slice(4)):null;
+            const code=e?.code||'MENU_ERROR';console.error('WHATSAPP: admin_action_failed',JSON.stringify({account:scoped?.id||null,code,frames:String(e?.stack||'').split('\n').filter(l=>l.trim().startsWith('at ')).slice(0,3)}));
+            if(scoped?.id)try{this.store.recordIncident(scoped.id,'menu',{code});}catch{}
+            const message=typeof e?.message==='string'&&e.message.length>3?e.message:'WhatsApp no pudo completar la consulta. La cuenta sigue vinculada; vuelve a intentarlo.';
+            if(m&&this.admins().has(String(actor?.id)))await this.send(m.chat.id,`⚠️ ${message}`).catch(()=>{});
+          }
         }
       }catch {if(this.running)await sleep(3000);}
     }

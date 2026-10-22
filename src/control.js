@@ -35,7 +35,8 @@ export class Control {
       [this.button(chat,actor,'📊 CHAT CON MÁS FOTOS Y VIDEOS',{kind:'ranking',id})],
       [this.button(chat,actor,'🔄 ACTUALIZAR',{kind:'account',id}),this.button(chat,actor,'MENÚ PRINCIPAL',{kind:'home'})]
     ];
-    const caption=`${personLink(info.profile)}\nPaís del número: ${escapeHTML(info.profile.country)}\n\nChats privados disponibles: ${info.total}\nChats abiertos (sin archivar): ${info.open}\nChats con candado visibles: ${info.locked}\nContactos bloqueados: ${info.blocked??'No disponible'}\n\nLos chats ocultos o no sincronizados pueden no aparecer.`;
+    const warning=info.total===null?'\n⚠️ No se pudo consultar la lista de chats. Pulsa ACTUALIZAR.':info.unreadable?`\n⚠️ Lista parcial: ${info.unreadable} chats no pudieron leerse.`:'';
+    const caption=`${personLink(info.profile)}\nPaís del número: ${escapeHTML(info.profile.country)}\n\nChats privados disponibles: ${info.total??'No disponible'}\nChats abiertos (sin archivar): ${info.open??'No disponible'}\nChats con candado visibles: ${info.locked??'No disponible'}\nContactos bloqueados: ${info.blocked??'No disponible'}${warning}\n\nLos chats ocultos o no sincronizados pueden no aparecer.`;
     if(info.photo)try{return await this.bot.api('sendPhoto',{chat_id:chat,photo:info.photo,caption,parse_mode:'HTML',reply_markup:keyboard(rows)});}catch{}
     return this.text(chat,caption+'\n\nFoto de perfil no disponible.',rows);
   }
@@ -49,7 +50,8 @@ export class Control {
     const nav=[];if(page)nav.push(this.button(chat,actor,'◀️ ANTERIOR',{kind:'chats',id,page:page-1}));if((page+1)*10<all.length)nav.push(this.button(chat,actor,'SIGUIENTE ▶️',{kind:'chats',id,page:page+1}));if(nav.length)rows.push(nav);
     rows.push([this.button(chat,actor,'ATRÁS',{kind:'account',id}),this.button(chat,actor,'MENÚ PRINCIPAL',{kind:'home'})]);
     this.views.set(this.key(chat,actor),{kind:'chats',id,items:all.map(c=>c.id._serialized),expires:Date.now()+1800000});
-    return this.text(chat,lines.join('\n\n')+(all.length?'':'\nSin chats disponibles.'),rows);
+    const unavailable=this.bot.accounts.tools.listProblems.get(id);
+    return this.text(chat,lines.join('\n\n')+(all.length?'':'\nSin chats disponibles.')+(unavailable?`\n⚠️ Lista parcial: ${unavailable} chats no pudieron leerse.`:''),rows);
   }
   chatButtons(chat,actor,id,peer){return [
     [this.button(chat,actor,'✍️ RESPONDER',{kind:'compose',id,peer}),this.button(chat,actor,'💬 VER MENSAJES',{kind:'messages',id,peer})],

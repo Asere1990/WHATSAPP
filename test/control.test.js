@@ -104,3 +104,15 @@ test('phone country comes from full numbering plan, including shared +1 prefix',
   assert.equal(countryOf('13215121897'),'Estados Unidos');assert.equal(countryOf('14165551234'),'Canadá');assert.equal(countryOf('5351234567'),'Cuba');
   const clipped=clippedHTML('<'.repeat(5000));assert.ok(clipped.length<2010);assert.doesNotMatch(clipped,/</);
 });
+test('account card remains available with explicit unavailable statistics when WhatsApp rejects chat reads',async t=>{
+  const {bot,a,client,calls}=setup(t);client.getChats=async()=>{throw Error('r');};
+  await bot.control.account(123,123,a.id);
+  assert.match(calls.at(-1).body.text,/Chats privados disponibles: No disponible/);
+  assert.match(calls.at(-1).body.text,/No se pudo consultar/);
+  assert.match(calls.at(-1).body.reply_markup.inline_keyboard[0][0].text,/CHATS/);
+});
+test('partial chat reads are disclosed in both account statistics and contact list',async t=>{
+  const {bot,a,client,calls}=setup(t);client.pupPage={evaluate:async()=>2};
+  await bot.control.account(123,123,a.id);assert.match(calls.at(-1).body.text,/Lista parcial: 2/);
+  await bot.control.chats(123,123,a.id);assert.match(calls.at(-1).body.text,/Lista parcial: 2/);
+});

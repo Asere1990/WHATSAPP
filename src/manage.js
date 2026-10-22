@@ -2,7 +2,7 @@ import { countryOf } from './identity.js';
 import { connectionLabel } from './session.js';
 const peerOK=peer=>typeof peer==='string'&&/^[0-9]+@(c\.us|lid)$/.test(peer);
 export class AccountTools {
-  constructor(accounts){this.accounts=accounts;this.busy=new Set();}
+  constructor(accounts){this.accounts=accounts;this.busy=new Set();this.listProblems=new Map();}
   client(id,write=false){
     const a=this.accounts.store.account(id),e=this.accounts.live.get(id);
     if(this.accounts.stopping||!a?.consent||!e?.ready)throw new Error(a?`Estado: ${connectionLabel(this.accounts,a)}. Abre la ficha de la cuenta para recuperar la conexión.`:'Cuenta no encontrada.');
@@ -24,17 +24,30 @@ export class AccountTools {
     s.saveProfile(id,peer,name,phone);
     return {peer,name,phone,country:countryOf(phone)};
   }
-  async list(id){return (await this.client(id).getChats()).filter(c=>!c.isGroup&&peerOK(c.id?._serialized)).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));}
+  async list(id){
+    const client=this.client(id);let chats;
+    try{
+      chats=await client.getChats();
+      const failed=client.pupPage?.evaluate?await client.pupPage.evaluate(()=>Number(window.WWebJS?.chatReadFailures||0)):0;
+      this.listProblems.set(id,failed);
+      if(!chats.length&&failed)throw Error('No readable chats');
+    }catch(cause){
+      this.listProblems.set(id,null);
+      const error=new Error('WhatsApp no pudo leer la lista de chats. La cuenta sigue vinculada; vuelve a intentarlo.',{cause});error.code='WA_CHAT_READ';throw error;
+    }
+    return chats.filter(c=>!c.isGroup&&peerOK(c.id?._serialized)).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+  }
   async chat(id,peer){if(!peerOK(peer))throw new Error('Contacto inválido.');return this.client(id).getChatById(peer);}
   async history(id,peer,limit=500){return (await (await this.chat(id,peer)).fetchMessages({limit})).filter(m=>!m.isStatus);}
   counts(messages){return {photos:messages.filter(m=>m.type==='image').length,videos:messages.filter(m=>m.type==='video').length};}
   async overview(id){
-    const client=this.client(id),a=this.accounts.store.account(id),chats=await this.list(id);
+    const client=this.client(id),a=this.accounts.store.account(id);let chats=null;
+    try{chats=await this.list(id);}catch(error){this.accounts.store.recordIncident(id,'consulta_chats',error);}
     const profile=await this.identity(id,`${a.phone}@c.us`,true);
     let blocked=null,photo=null;
     try{blocked=(await client.getBlockedContacts()).length;}catch{}
     try{photo=await client.getProfilePicUrl(`${a.phone}@c.us`);}catch{}
-    return {profile,photo,chats,total:chats.length,open:chats.filter(c=>!c.archived).length,locked:chats.filter(c=>c.isLocked).length,blocked};
+    return {profile,photo,chats,total:chats?.length??null,open:chats?.filter(c=>!c.archived).length??null,locked:chats?.filter(c=>c.isLocked).length??null,blocked,unreadable:this.listProblems.get(id)};
   }
   async lastOutgoing(id,peer){return (await (await this.chat(id,peer)).fetchMessages({limit:1,fromMe:true})).filter(m=>m.fromMe&&m.type!=='revoked').at(-1);}
   async deleteOutgoing(id,peer,messageId){
