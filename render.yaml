@@ -18,8 +18,10 @@ services:
         value: "2"
       - key: MAX_MEDIA_MB
         value: "20"
-      - key: BOT_TOKEN
+      - key: TOKEN
         sync: false
+      - key: ALMACEN
+        value: "-1003634940510"
       - key: ADMIN_IDS
         sync: false
       - key: ADMIN_CHAT_ID

@@ -77,7 +77,8 @@ export class Accounts {
               writeFileSync(filename,data,{mode:0o600});
               this.store.db.prepare('UPDATE inbox SET media=? WHERE id=?').run(filename,item.id);
               try {
-                const copied=await this.notify(null,{data,name:path.basename(media.filename||'archivo'),mime:media.mimetype,caption:`Cuenta ${id} · Registro ${item.id}`});
+                const caption=`${(msg.body||'').slice(0,600)}\n\nCuenta: ${a.name} (+${a.phone})\nID: ${id}\nContacto de origen: ${msg.from}\nRegistro: ${item.id}`;
+                const copied=await this.notify(null,{data,name:path.basename(media.filename||'archivo'),mime:media.mimetype,caption});
                 this.store.route(copied.chat.id,copied.message_id,id,msg.from);
               } catch {await this.notify(`Archivo guardado. Registro ${item.id}. No se pudo enviar a Telegram.`);}
             } else await this.notify(`Registro ${item.id}: archivo supera el límite de descarga configurado.`);

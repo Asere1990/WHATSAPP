@@ -15,7 +15,8 @@ export class Telegram {
   async notify(text,file) {
     if(!this.config.token||!this.config.panel)throw new Error('Falta panel de Telegram');
     if(!file)return this.send(this.config.panel,text);
-    const form=new FormData();form.set('chat_id',this.config.panel);form.set('caption',file.caption||'');form.set('document',new Blob([file.data],{type:file.mime}),file.name);
+    if(!this.config.storage)throw new Error('Falta configurar ALMACEN');
+    const form=new FormData();form.set('chat_id',this.config.storage);form.set('caption',(file.caption||'').slice(0,1024));form.set('document',new Blob([file.data],{type:file.mime}),file.name);
     return this.api('sendDocument',form);
   }
   menu() {return {inline_keyboard:[[{text:'🤖 CUENTAS',callback_data:'accounts'},{text:'➕ CONECTAR CUENTA',callback_data:'invite'}],[{text:'🎨 EDITAR PÁGINA',callback_data:'design'},{text:'📋 COMANDOS',callback_data:'help'}]]};}
@@ -35,7 +36,7 @@ export class Telegram {
     if(!m||!actor||!this.admins().has(String(actor.id)))return;
     const chat=m.chat.id, key=String(actor.id),cb=u.callback_query;
     // Management only in an admin's private DM or the configured panel.
-    if(m.chat.type!=='private'&&String(chat)!==String(this.config.panel))return;
+    if(m.chat.type!=='private'&&String(chat)!==String(this.config.panel)&&String(chat)!==String(this.config.storage))return;
     const reply=text=>this.send(chat,text);
     if(cb) {
       await this.api('answerCallbackQuery',{callback_query_id:cb.id});

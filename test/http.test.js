@@ -8,7 +8,7 @@ import { Store } from '../src/store.js';
 test('HTTP access requires a valid invitation, enforces origin and never exposes config secrets',async t=>{
   const dir=mkdtempSync(`${tmpdir()}/wa-http-`),s=new Store(dir),invite=s.invite('12025550123','Titular');s.setConfig('telegram_offset','private');s.db.close();
   const port=20000+(process.pid%20000),url=`http://localhost:${port}`;
-  const child=spawn(process.execPath,['src/main.js'],{env:{...process.env,PORT:String(port),DATA_DIR:dir,PUBLIC_URL:url,BOT_TOKEN:'',ADMIN_IDS:'',ADMIN_CHAT_ID:''},stdio:'pipe'});
+  const child=spawn(process.execPath,['src/main.js'],{env:{...process.env,PORT:String(port),DATA_DIR:dir,PUBLIC_URL:url,TOKEN:'',ADMIN_IDS:'',ADMIN_CHAT_ID:''},stdio:'pipe'});
   let logs='';child.stdout.on('data',b=>logs+=b);child.stderr.on('data',b=>logs+=b);
   t.after(async()=>{if(child.exitCode===null){const exited=once(child,'exit');child.kill('SIGTERM');await exited;}rmSync(dir,{recursive:true,force:true});});
   let ready=false;for(let n=0;n<100;n++){try{const r=await fetch(`${url}/health`);if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,50));}

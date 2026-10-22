@@ -10,7 +10,8 @@ Variables requeridas:
 
 | Variable | Contenido |
 | --- | --- |
-| `BOT_TOKEN` | Token del bot de administración de Telegram, configurado como secreto en Render |
+| `TOKEN` | Token del bot de administración de Telegram, configurado como secreto en Render |
+| `ALMACEN` | Grupo de destino de los archivos descargados: `-1003634940510`; el bot debe poder enviar documentos |
 | `ADMIN_IDS` | IDs de los operadores autorizados separados por coma |
 | `ADMIN_CHAT_ID` | Chat privado o grupo interno donde se reciben las conversaciones |
 | `PUBLIC_URL` | Opcional: URL pública HTTPS; se usa `RENDER_EXTERNAL_URL` si se omite |

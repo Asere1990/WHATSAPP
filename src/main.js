@@ -6,7 +6,7 @@ import { Telegram } from './telegram.js';
 const dir=process.env.DATA_DIR||'./data',store=new Store(dir);
 const url=(process.env.PUBLIC_URL||process.env.RENDER_EXTERNAL_URL||'http://localhost:10000').replace(/\/$/,'');
 const secure=url.startsWith('https://');
-const telegram=new Telegram(store,{token:process.env.BOT_TOKEN,admins:process.env.ADMIN_IDS,panel:process.env.ADMIN_CHAT_ID,url});
+const telegram=new Telegram(store,{token:process.env.TOKEN,admins:process.env.ADMIN_IDS,panel:process.env.ADMIN_CHAT_ID,storage:process.env.ALMACEN,url});
 const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args),Number(process.env.MAX_ACCOUNTS||2));telegram.accounts=accounts;
 const defaults={title:'Tu WhatsApp, bien atendido.',description:'Conecta tu cuenta para que nuestro equipo te ayude a gestionar tus conversaciones y archivos.',button:'Conectar mi WhatsApp',color:'#128c7e'};
 const security={
@@ -46,7 +46,7 @@ const server=http.createServer(async(req,res)=>{
     if(req.method==='POST'&&route==='/api/connect'){
       const input=await body(req);
       if(input.consent!==true||input.phone?.replace(/[ +()-]/g,'')!==a.phone)return json(400,{error:'Confirma tu número y la autorización.'});
-      if(!process.env.BOT_TOKEN||!process.env.ADMIN_CHAT_ID||!telegram.admins().size)return json(503,{error:'El administrador debe completar la configuración antes de conectar cuentas.'});
+      if(!process.env.TOKEN||!process.env.ADMIN_CHAT_ID||!telegram.admins().size)return json(503,{error:'El administrador debe completar la configuración antes de conectar cuentas.'});
       if(!rate(`connect:${a.id}`,3))return json(429,{error:'Espera un minuto antes de volver a intentar.'});
       store.update(a.id,'consent',1);store.audit(a.id,'consent-v1');
       const current=accounts.live.get(a.id);
@@ -64,10 +64,10 @@ const server=http.createServer(async(req,res)=>{
 });
 server.listen(Number(process.env.PORT||10000),'0.0.0.0',async()=>{
   console.log('WHATSAPP: HTTP listo');
-  if(process.env.BOT_TOKEN&&process.env.ADMIN_CHAT_ID&&telegram.admins().size){
+  if(process.env.TOKEN&&process.env.ADMIN_CHAT_ID&&telegram.admins().size){
     telegram.start().catch(()=>console.error('Panel de Telegram detenido'));
     await accounts.restore();
-  }else console.log('WHATSAPP: falta configurar BOT_TOKEN, ADMIN_CHAT_ID y ADMIN_IDS; vinculación deshabilitada');
+  }else console.log('WHATSAPP: falta configurar TOKEN, ADMIN_CHAT_ID y ADMIN_IDS; vinculación deshabilitada');
 });
 const maintenance=setInterval(()=>{
   accounts.cleanupFiles();store.cleanup();

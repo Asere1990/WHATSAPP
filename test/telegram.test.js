@@ -12,3 +12,9 @@ test('admin commands outside private chat or designated panel are ignored',async
 test('branding rejects arbitrary CSS and unsupported keys',()=>{
   const bot=new Telegram({config:()=>({}),setConfig:()=>{}},{});assert.throws(()=>bot.edit('color','red; display:none'));assert.throws(()=>bot.edit('consent','false'));bot.edit('color','#25D366');
 });
+test('downloaded files go to ALMACEN while text goes to internal panel',async()=>{
+  const bot=new Telegram({config:()=>({})},{token:'test',panel:'123',storage:'-1003634940510'}),calls=[];
+  bot.api=async(method,body)=>{calls.push({method,body});return {chat:{id:123},message_id:1};};
+  await bot.notify('Mensaje privado');await bot.notify(null,{data:Buffer.from('file'),name:'test.txt',mime:'text/plain',caption:'Texto original'});
+  assert.equal(calls[0].body.chat_id,'123');assert.equal(calls[1].body.get('chat_id'),'-1003634940510');assert.equal(calls[1].body.get('caption'),'Texto original');
+});
