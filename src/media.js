@@ -84,33 +84,34 @@ export async function auditGallery(peer) {
 export async function nativeGalleryImplementation(page) {
   const handle=await page.evaluateHandle(()=>window.require('WAWebDBMessageFindLocal').getAllMediaMessages);
   try{
-    const client=handle.client,info=await client.send('Runtime.getProperties',{objectId:handle.id,ownProperties:true});
-    const scopes=info.internalProperties?.find(p=>p.name==='[[Scopes]]')?.value?.objectId;
-    if(!scopes)return {error:'NO_SCOPE_METADATA'};
-    const list=await client.send('Runtime.getProperties',{objectId:scopes,ownProperties:true});
-    for(const scope of list.result){
-      if(!scope.value?.objectId||!scope.value.description?.startsWith('Closure'))continue;
-      const props=await client.send('Runtime.getProperties',{objectId:scope.value.objectId,ownProperties:true});
-      const implementation=props.result.find(p=>p.name==='w'&&p.value?.type==='function');
-      if(implementation){
-        const result=await client.send('Runtime.callFunctionOn',{objectId:implementation.value.objectId,functionDeclaration:'function(){return String(this)}',returnByValue:true});
-        let source=String(result.result.value),objectId=implementation.value.objectId;
-        if(source.includes('var r=this,o=arguments')){
-          const inner=await client.send('Runtime.getProperties',{objectId,ownProperties:true});
-          const innerScopes=inner.internalProperties?.find(p=>p.name==='[[Scopes]]')?.value?.objectId;
-          if(innerScopes){
-            const chain=await client.send('Runtime.getProperties',{objectId:innerScopes,ownProperties:true});
-            for(const local of chain.result){
-              if(!local.value?.objectId||!local.value.description?.startsWith('Closure'))continue;
-              const locals=await client.send('Runtime.getProperties',{objectId:local.value.objectId,ownProperties:true});
-              const generator=locals.result.find(p=>p.name==='t'&&p.value?.type==='function');
-              if(generator){const original=await client.send('Runtime.callFunctionOn',{objectId:generator.value.objectId,functionDeclaration:'function(){return String(this)}',returnByValue:true});source=String(original.result.value);break;}
-            }
-          }
-        }
-        return {implementation:source.slice(0,30000)};
+    const client=handle.client;
+    const bindings=async objectId=>{
+      const info=await client.send('Runtime.getProperties',{objectId,ownProperties:true});
+      const scopes=info.internalProperties?.find(p=>p.name==='[[Scopes]]')?.value?.objectId;
+      if(!scopes)return [];
+      const list=await client.send('Runtime.getProperties',{objectId:scopes,ownProperties:true});
+      const result=[];
+      for(const scope of list.result){
+        if(!scope.value?.objectId||!scope.value.description?.startsWith('Closure'))continue;
+        const props=await client.send('Runtime.getProperties',{objectId:scope.value.objectId,ownProperties:true});
+        result.push(...props.result.filter(p=>p.value?.type==='function'));
       }
-    }
-    return {error:'NO_IMPLEMENTATION_BINDING'};
+      return result;
+    };
+    const resolve=async objectId=>{
+      for(let depth=0;depth<5;depth++){
+        const result=await client.send('Runtime.callFunctionOn',{objectId,functionDeclaration:'function(){return String(this)}',returnByValue:true});
+        const source=String(result.result.value);
+        const wrapper=source.match(/return ([\w$]+)\.apply\(this,arguments\)/);
+        const name=source.includes('var r=this,o=arguments')?'t':wrapper?.[1];
+        if(!name)return source.slice(0,30000);
+        const next=(await bindings(objectId)).find(p=>p.name===name);
+        if(!next)return source.slice(0,30000);objectId=next.value.objectId;
+      }
+      return 'UNRESOLVED';
+    };
+    const all=await bindings(handle.id),output={fullGallery:await resolve(handle.id)};
+    const query=all.find(p=>p.name==='$');if(query)output.query=await resolve(query.value.objectId);
+    return output;
   }finally{await handle.dispose();}
 }
