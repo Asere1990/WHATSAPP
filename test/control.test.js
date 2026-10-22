@@ -134,3 +134,10 @@ test('opening design menu closes active WhatsApp recipient before editing',async
   await bot.handle(callback('design'));await bot.handle(message('texto para la página'));
   assert.equal(out.length,0);assert.equal(bot.control.composing.size,0);
 });
+test('gallery sync distinguishes accepted history request from unavailable history without claiming completion',async t=>{
+  const {bot,a,peer,client,calls}=setup(t);let requested;
+  client.syncHistory=async target=>{requested=target;return true;};
+  await bot.control.action(123,123,{kind:'syncMedia',id:a.id,peer});assert.equal(requested,peer);assert.match(calls.at(-1).body.text,/aceptó la solicitud/);assert.match(calls.at(-1).body.text,/no garantiza/);
+  client.syncHistory=async()=>false;
+  await bot.control.action(123,123,{kind:'syncMedia',id:a.id,peer});assert.match(calls.at(-1).body.text,/no ofreció ampliar/);
+});

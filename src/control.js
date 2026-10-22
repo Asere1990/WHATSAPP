@@ -57,6 +57,7 @@ export class Control {
     [this.button(chat,actor,'✍️ RESPONDER',{kind:'compose',id,peer}),this.button(chat,actor,'💬 VER MENSAJES',{kind:'messages',id,peer})],
     [this.button(chat,actor,'⬇️ DESCARGAR 10',{kind:'download',id,peer,media:'all'})],
     [this.button(chat,actor,'🖼 FOTOS 10',{kind:'download',id,peer,media:'photos'}),this.button(chat,actor,'🎬 VIDEOS 10',{kind:'download',id,peer,media:'videos'})],
+    [this.button(chat,actor,'🔄 SINCRONIZAR GALERÍA',{kind:'syncMedia',id,peer})],
     [this.button(chat,actor,'🗑 BORRAR ÚLTIMO MENSAJE',{kind:'deletePreview',id,peer})],
     [this.button(chat,actor,'ATRÁS',{kind:'chats',id,page:0}),this.button(chat,actor,'MENÚ PRINCIPAL',{kind:'home'})]
   ];}
@@ -113,6 +114,10 @@ export class Control {
     if(a.kind==='chats')return this.chats(chat,actor,id,a.page||0);
     if(a.kind==='chat')return this.chat(chat,actor,id,peer);
     if(a.kind==='messages')return this.messages(chat,actor,id,peer);
+    if(a.kind==='syncMedia'){
+      const accepted=await tools.client(id).syncHistory(peer);
+      return this.text(chat,accepted?'WhatsApp aceptó la solicitud de ampliar el historial de este chat. Cuando termine de sincronizar, pulsa ACTUALIZAR GALERÍA. Esto no garantiza recuperar todos los archivos guardados en el teléfono.':'WhatsApp no ofreció ampliar el historial de este chat. Puedes actualizar el índice disponible; el total del teléfono puede seguir siendo distinto.',[[this.button(chat,actor,'ACTUALIZAR GALERÍA',{kind:'chat',id,peer})],[this.button(chat,actor,'MENÚ PRINCIPAL',{kind:'home'})]]);
+    }
     if(a.kind==='ranking')return this.ranking(chat,actor,id);
     if(a.kind==='compose'){
       tools.client(id,true);const p=await tools.identity(id,peer),owner=this.bot.store.account(id);
