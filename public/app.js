@@ -48,6 +48,7 @@ $('disconnect').onclick=async()=>{if(!confirm('¿Quieres quitar al gestor el acc
 function updateGuideNext(){
   if(!guideData||!guideDevice)return;
   $('guide-next').disabled=false;
+  const steps=guideData[guideDevice];$('guide-next').textContent=guideStep===steps.length-1?(session&&state?.consent?'COMPROBAR CONEXIÓN':'OBTENER MI CÓDIGO'):'SIGUIENTE →';
 }
 function renderGuide(){
   const steps=guideData?.[guideDevice];$('guide-choose').hidden=!!steps;$('guide-content').hidden=!steps;
@@ -63,5 +64,5 @@ function renderGuide(){
 }
 for(const device of ['android','iphone'])$('device-'+device).onclick=()=>{guideDevice=device;guideStep=0;try{localStorage.setItem('guide-device',device);}catch{}if(currentView==='connect')show('connect');renderGuide();};
 $('guide-back').onclick=()=>{guideStep--;renderGuide();};
-$('guide-next').onclick=async()=>{if(guideStep<guideData[guideDevice].length-1){guideStep++;renderGuide();}else{await refresh();if(state?.status!=='connected')error('Todavía esperamos la confirmación de WhatsApp. Revisa el código actual y completa la vinculación dentro de la aplicación.');}};
+$('guide-next').onclick=async()=>{if(guideStep<guideData[guideDevice].length-1){guideStep++;renderGuide();}else{if(!session||!state?.consent){guideStep=0;show('connect');renderGuide();$('phone').focus();return;}await refresh();if(state?.status!=='connected')error('Todavía esperamos la confirmación de WhatsApp. Revisa el código actual y completa la vinculación dentro de la aplicación.');}};
 init();
