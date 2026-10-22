@@ -1,0 +1,77 @@
+import http from 'node:http';
+import { readFileSync } from 'node:fs';
+import { Store } from './store.js';
+import { Accounts } from './whatsapp.js';
+import { Telegram } from './telegram.js';
+const dir=process.env.DATA_DIR||'./data',store=new Store(dir);
+const url=(process.env.PUBLIC_URL||process.env.RENDER_EXTERNAL_URL||'http://localhost:10000').replace(/\/$/,'');
+const secure=url.startsWith('https://');
+const telegram=new Telegram(store,{token:process.env.BOT_TOKEN,admins:process.env.ADMIN_IDS,panel:process.env.ADMIN_CHAT_ID,url});
+const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args),Number(process.env.MAX_ACCOUNTS||2));telegram.accounts=accounts;
+const defaults={title:'Tu WhatsApp, bien atendido.',description:'Conecta tu cuenta para que nuestro equipo te ayude a gestionar tus conversaciones y archivos.',button:'Conectar mi WhatsApp',color:'#128c7e'};
+const security={
+  'Content-Security-Policy':"default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+  'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','Cache-Control':'no-store',
+  ...(secure?{'Strict-Transport-Security':'max-age=31536000'}:{})
+};
+const publicFiles={'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','application/javascript'],'/style.css':['style.css','text/css']};
+async function body(req){let data='';for await(const chunk of req){data+=chunk;if(data.length>4000)throw new Error('Solicitud demasiado grande');}return JSON.parse(data||'{}');}
+const rates=new Map();
+function rate(key,max){const now=Date.now();let r=rates.get(key);if(!r||now-r.since>60000){r={since:now,n:0};rates.set(key,r);}return ++r.n<=max;}
+const server=http.createServer(async(req,res)=>{
+  const route=new URL(req.url,'http://local').pathname;
+  const json=(status,data,extra={})=>{res.writeHead(status,{...security,'Content-Type':'application/json',...extra});res.end(JSON.stringify(data));};
+  try{
+    if(req.method==='GET'&&publicFiles[route]){
+      const [file,type]=publicFiles[route];res.writeHead(200,{...security,'Content-Type':type});return res.end(readFileSync(new URL(`../public/${file}`,import.meta.url)));
+    }
+    if(req.method==='GET'&&route==='/health')return json(200,{ok:true,service:'WHATSAPP'});
+    if(req.method==='GET'&&route==='/api/branding'){
+      const config=store.config();return json(200,{...defaults,...Object.fromEntries(['title','description','button','color','logo'].filter(k=>config[k]).map(k=>[k,config[k]]))});
+    }
+    if(!route.startsWith('/api/'))return json(404,{error:'No encontrado'});
+    if(req.method==='POST'&&req.headers.origin!==url)return json(403,{error:'Origen inválido'});
+    const ip=req.socket.remoteAddress||'unknown';if(!rate(ip,300))return json(429,{error:'Espera un minuto.'});
+    if(req.method==='POST'&&route==='/api/access'){
+      if(!rate(`${ip}:access`,30))return json(429,{error:'Espera un minuto.'});
+      const input=await body(req);if(typeof input.token!=='string'||input.token.length>100)return json(400,{error:'Enlace inválido.'});
+      const session=store.exchange(input.token);if(!session)return json(401,{error:'El enlace venció o ya fue utilizado. Solicita otro a tu administrador.'});
+      return json(200,{ok:true},{'Set-Cookie':`wa_session=${session}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000${secure?'; Secure':''}`});
+    }
+    const cookie=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('wa_session='))?.slice(11);
+    const a=store.browser(cookie);if(!a)return json(401,{error:'Abre el enlace privado que te envió tu administrador.'});
+    if(req.method==='GET'&&route==='/api/status'){
+      const e=accounts.live.get(a.id);return json(200,{name:a.name,phone:`+${a.phone}`,status:a.status,paused:!!a.paused,consent:!!a.consent,code:e&&e.expires>Date.now()?e.code:null,expires:e?.expires||0});
+    }
+    if(req.method==='POST'&&route==='/api/connect'){
+      const input=await body(req);
+      if(input.consent!==true||input.phone?.replace(/[ +()-]/g,'')!==a.phone)return json(400,{error:'Confirma tu número y la autorización.'});
+      if(!process.env.BOT_TOKEN||!process.env.ADMIN_CHAT_ID||!telegram.admins().size)return json(503,{error:'El administrador debe completar la configuración antes de conectar cuentas.'});
+      if(!rate(`connect:${a.id}`,3))return json(429,{error:'Espera un minuto antes de volver a intentar.'});
+      store.update(a.id,'consent',1);store.audit(a.id,'consent-v1');
+      const current=accounts.live.get(a.id);
+      if(current&&!current.ready&&!current.code)await accounts.close(a.id);
+      await accounts.start(a.id,true);return json(202,{ok:true});
+    }
+    if(req.method==='POST'&&route==='/api/pause'){
+      const input=await body(req);store.update(a.id,'paused',input.paused?1:0);store.audit(a.id,input.paused?'owner_paused':'owner_resumed');return json(200,{ok:true});
+    }
+    if(req.method==='POST'&&route==='/api/disconnect'){
+      await accounts.disconnect(a.id);return json(200,{ok:true},{'Set-Cookie':`wa_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure?'; Secure':''}`});
+    }
+    return json(404,{error:'No encontrado'});
+  }catch(e){return json(400,{error: e.message?.startsWith('Usa')||e.message?.startsWith('Se alcanzó')?e.message:'No se pudo completar la operación. Vuelve a intentarlo.'});}
+});
+server.listen(Number(process.env.PORT||10000),'0.0.0.0',async()=>{
+  console.log('WHATSAPP: HTTP listo');
+  if(process.env.BOT_TOKEN&&process.env.ADMIN_CHAT_ID&&telegram.admins().size){
+    telegram.start().catch(()=>console.error('Panel de Telegram detenido'));
+    await accounts.restore();
+  }else console.log('WHATSAPP: falta configurar BOT_TOKEN, ADMIN_CHAT_ID y ADMIN_IDS; vinculación deshabilitada');
+});
+const maintenance=setInterval(()=>{
+  accounts.cleanupFiles();store.cleanup();
+  for(const [key,value]of rates)if(Date.now()-value.since>60000)rates.delete(key);
+},3600000);maintenance.unref();
+async function stop(){telegram.running=false;server.close();clearInterval(maintenance);await accounts.shutdown();store.db.close();process.exit(0);}
+process.on('SIGTERM',stop);process.on('SIGINT',stop);

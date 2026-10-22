@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: WHATSAPP
+    runtime: docker
+    repo: https://github.com/Asere1990/WHATSAPP
+    branch: main
+    plan: 1c-2g
+    region: virginia
+    healthCheckPath: /health
+    disk:
+      name: whatsapp-data
+      mountPath: /data
+      sizeGB: 10
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: MAX_ACCOUNTS
+        value: "2"
+      - key: MAX_MEDIA_MB
+        value: "20"
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_IDS
+        sync: false
+      - key: ADMIN_CHAT_ID
+        sync: false
