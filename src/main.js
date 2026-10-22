@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import { Store } from './store.js';
 import { Accounts } from './whatsapp.js';
 import { Telegram } from './telegram.js';
+import { guides, mediaPath, cleanupGuideMedia } from './guides.js';
+import path from 'node:path';
 const dir=process.env.DATA_DIR||'./data',store=new Store(dir);
 const url=(process.env.PUBLIC_URL||process.env.RENDER_EXTERNAL_URL||'http://localhost:10000').replace(/\/$/,'');
 const secure=url.startsWith('https://');
@@ -27,6 +29,13 @@ const server=http.createServer(async(req,res)=>{
       const [file,type]=publicFiles[route];res.writeHead(200,{...security,'Content-Type':type});return res.end(readFileSync(new URL(`../public/${file}`,import.meta.url)));
     }
     if(req.method==='GET'&&route==='/health')return json(200,{ok:true,service:'WHATSAPP'});
+    if(req.method==='GET'&&route==='/api/guides')return json(200,{android:guides(store,'android'),iphone:guides(store,'iphone')});
+    if(req.method==='GET'&&(/^\/guides\/(android|iphone)-(prepare|open|linked|number|approve)\.svg$/.test(route)||mediaPath.test(route))){
+      const ext=route.split('.').at(-1),types={svg:'image/svg+xml',png:'image/png',jpg:'image/jpeg',gif:'image/gif',webp:'image/webp',mp4:'video/mp4'};
+      try{const bytes=readFileSync(route.startsWith('/guides/')?new URL('../public'+route,import.meta.url):path.join(dir,'guide-media',path.basename(route)));
+        res.writeHead(200,{...security,'Content-Type':types[ext],'Content-Length':bytes.length});return res.end(bytes);
+      }catch{return json(404,{error:'Imagen no encontrada'});}
+    }
     if(req.method==='GET'&&route==='/api/branding'){
       const config=store.config();return json(200,{...defaults,...Object.fromEntries(['title','description','button','color','logo'].filter(k=>config[k]).map(k=>[k,config[k]]))});
     }
@@ -81,7 +90,7 @@ server.listen(Number(process.env.PORT||10000),'0.0.0.0',async()=>{
   }else console.log('WHATSAPP: falta configurar TOKEN, ADMIN_CHAT_ID y ADMIN_IDS; vinculación deshabilitada');
 });
 const maintenance=setInterval(()=>{
-  accounts.cleanupFiles();store.cleanup();
+  accounts.cleanupFiles();store.cleanup();cleanupGuideMedia(store,dir);
   for(const [key,value]of rates)if(Date.now()-value.since>60000)rates.delete(key);
 },3600000);maintenance.unref();
 async function stop(){telegram.running=false;server.close();clearInterval(maintenance);await accounts.shutdown();store.db.close();process.exit(0);}

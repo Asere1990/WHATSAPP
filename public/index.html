@@ -9,5 +9,14 @@
 <div id="pairing" hidden><h2>Autoriza en WhatsApp</h2><p>Introduce este código <strong>dentro de WhatsApp</strong> para vincular nuestro gestor.</p><div id="code" class="code" aria-live="polite">···· ····</div><button id="copy" type="button">Copiar código</button><p id="expires" class="small"></p><ol><li>Abre la notificación de vinculación de WhatsApp, si aparece.</li><li>Si no aparece, entra a <strong>Configuración o Ajustes → Dispositivos vinculados → Vincular dispositivo → Vincular con número de teléfono</strong>.</li><li>Introduce el código y confirma el dispositivo.</li></ol><p class="small">No lo envíes por chat. El nombre exacto de las opciones puede variar según tu teléfono.</p><button class="secondary" id="retry" hidden>Volver a intentar</button></div>
 <div id="connected" hidden><div class="success">✓</div><h2>Tu cuenta está conectada</h2><p>Ya puedes volver a tus conversaciones. El equipo puede gestionar los mensajes nuevos de esta cuenta.</p><p id="activity" class="status"></p><button id="pause">Pausar atención</button></div>
 <div id="owner-actions" hidden><button id="disconnect" class="danger">Desconectar mi cuenta</button></div>
+<section id="guide" class="guide" aria-label="Guía de vinculación" hidden>
+<h3>¿Qué teléfono utilizas?</h3><div class="device-options"><button type="button" id="device-android" class="device secondary" aria-pressed="false">ANDROID</button><button type="button" id="device-iphone" class="device secondary" aria-pressed="false">IPHONE</button></div>
+<p id="guide-choose" class="small">Elige tu teléfono para ver la guía paso a paso.</p>
+<div id="guide-content" hidden><div class="guide-heading"><span id="guide-count" class="step"></span><span id="guide-device" class="guide-device"></span></div>
+<h3 id="guide-title"></h3><p id="guide-text"></p>
+<div class="guide-visual"><img id="guide-image" alt="Ilustración del paso" hidden><video id="guide-video" muted loop playsinline controls preload="metadata" hidden></video></div>
+<p id="guide-art-note" class="small">Ilustración orientativa. La apariencia puede variar según tu versión de WhatsApp.</p>
+<div class="guide-nav"><button type="button" class="secondary" id="guide-back">ATRÁS</button><button type="button" id="guide-next">SIGUIENTE →</button></div>
+<p class="small">Introduce el código únicamente dentro de WhatsApp. No lo envíes por chat ni compartas tu PIN.</p></div></section>
 <p id="error" role="alert" hidden></p></section></main>
 <footer><span>WHATSAPP · Gestión de conversaciones</span><span>Servicio independiente de WhatsApp y Meta.</span></footer></body></html>

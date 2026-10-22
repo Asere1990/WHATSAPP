@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { Control } from './control.js';
+import { GuideEditor } from './guides.js';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 export class Telegram {
-  constructor(store,config) {this.store=store;this.config=config;this.pending=new Map();this.running=false;this.offset=Number(store.config().telegram_offset||0);this.control=new Control(this);}
+  constructor(store,config) {this.store=store;this.config=config;this.pending=new Map();this.running=false;this.offset=Number(store.config().telegram_offset||0);this.control=new Control(this);this.guideEditor=new GuideEditor(this);}
   admins() {
     let file='';try{file=readFileSync('admins.txt','utf8');}catch{}
     return new Set(`${this.config.admins||''}\n${file}`.split(/[\s,]+/).filter(x=>/^\d+$/.test(x)));
@@ -44,11 +45,12 @@ export class Telegram {
     if(cb) {
       await this.api('answerCallbackQuery',{callback_query_id:cb.id});
       if(m.chat.type!=='private')return reply('Abre el privado de este bot y escribe /menu para administrar las cuentas. Aquí puedes responder con reply a los mensajes recibidos.');
+      if(cb.data==='guide'||cb.data?.startsWith('guide:')){this.pending.delete(key);return this.guideEditor.callback(chat,key,cb.data);}
       if(cb.data?.startsWith('ctl:')){this.pending.delete(key);return this.control.callback(chat,actor.id,cb.data);}
       if(cb.data==='accounts')return this.control.home(chat,actor.id);
       if(cb.data==='help')return reply(this.help());
       if(cb.data==='invite'){this.pending.set(key,{kind:'invite'});return reply('Envía el número con código de país y el nombre. Ejemplo: +12025550123 María');}
-      if(cb.data==='design')return this.send(chat,'¿Qué quieres cambiar?',{inline_keyboard:[[{text:'Logo',callback_data:'edit:logo'},{text:'Título',callback_data:'edit:title'}],[{text:'Texto',callback_data:'edit:description'},{text:'Color',callback_data:'edit:color'}],[{text:'Texto del botón',callback_data:'edit:button'},{text:'Ver página',url:this.config.url}]]});
+      if(cb.data==='design'){this.pending.delete(key);return this.send(chat,'¿Qué quieres cambiar?',{inline_keyboard:[[{text:'Logo',callback_data:'edit:logo'},{text:'Título',callback_data:'edit:title'}],[{text:'Texto',callback_data:'edit:description'},{text:'Color',callback_data:'edit:color'}],[{text:'Texto del botón',callback_data:'edit:button'},{text:'Ver página',url:this.config.url}],[{text:'📱 GUÍAS ANDROID / IPHONE',callback_data:'guide'}]]});}
       if(cb.data?.startsWith('edit:')) {this.pending.set(key,{kind:cb.data.slice(5)});return reply(cb.data==='edit:logo'?'Envía el nuevo logo como foto.':'Envía el nuevo valor. /cancelar para salir.');}
       if(cb.data?.startsWith('disconnect:')){await this.accounts.disconnect(cb.data.split(':')[1]);return reply('Cuenta desvinculada.');}
       return;
@@ -58,6 +60,7 @@ export class Telegram {
     if(m.chat.type==='private'&&!this.pending.has(key)&&await this.control.input(m,actor.id))return;
     const pending=this.pending.get(key);
     if(pending&&!raw.startsWith('/')&&!m.reply_to_message) {
+      if(pending.kind==='guide'){await this.guideEditor.input(chat,pending,m);this.pending.delete(key);return;}
       if(pending.kind==='invite'){await this.invite(chat,...raw.split(/\s+/));this.pending.delete(key);return;}
       if(pending.kind==='logo'){
         if(!m.photo)return reply('Envía una foto.');

@@ -14,6 +14,10 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   let ready=false;for(let n=0;n<100;n++){try{const r=await fetch(`${url}/health`);if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,50));}
   assert.ok(ready,logs);
   const landing=await(await fetch(url)).text();assert.match(landing,/id="begin"[^>]*>CONECTAR CUENTA/);assert.doesNotMatch(landing,/Abre el enlace privado/);
+  assert.match(landing,/id="device-android"/);assert.match(landing,/id="device-iphone"/);
+  const guide=await(await fetch(`${url}/api/guides`)).json();assert.equal(guide.android.length,5);assert.equal(guide.iphone.length,5);
+  const image=await fetch(url+guide.android[0].asset);assert.equal(image.status,200);assert.match(image.headers.get('content-type'),/image\/svg/);
+  assert.equal((await fetch(`${url}/guide-media/unknown.html`)).status,404);
   assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:url},body:JSON.stringify({phone:'+12025550128',consent:false})})).status,400);
   assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:url},body:JSON.stringify({phone:'+12025550128',consent:true})})).status,503);
   assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:'https://other.example'},body:JSON.stringify({phone:'+12025550128',consent:true})})).status,403);

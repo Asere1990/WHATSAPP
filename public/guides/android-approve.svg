@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="380" viewBox="0 0 360 380" role="img" aria-label="Ilustración orientativa del paso 5">
+<rect width="360" height="380" rx="20" fill="#eff6f2"/>
+<rect x="41" y="17" width="278" height="344" rx="31" fill="white" stroke="#b6d5c5" stroke-width="2"/>
+<rect x="136" y="28" width="88" height="7" rx="4" fill="#d4e5dc"/>
+<text x="180" y="72" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="700" letter-spacing="2" fill="#128c7e">ANDROID · PASO 5</text>
+<text x="180" y="99" text-anchor="middle" font-family="Arial,sans-serif" font-size="17" font-weight="700" fill="#075e54">EN WHATSAPP</text>
+<rect x="59" y="130" width="242" height="50" rx="10" fill="#f2f6f4"/><text x="180" y="160" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="400" fill="#6c8278">Introduce el código</text><rect x="59" y="196" width="242" height="50" rx="10" fill="#d8f5e7"/><text x="180" y="226" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#075e54">· · · ·  · · · ·</text><rect x="59" y="262" width="242" height="50" rx="10" fill="#f2f6f4"/><text x="180" y="292" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="400" fill="#6c8278">Confirma dentro de WhatsApp</text>
+<circle cx="303" cy="221" r="13" fill="#128c7e" opacity=".9"><animate attributeName="r" values="11;16;11" dur="1.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".9;.45;.9" dur="1.8s" repeatCount="indefinite"/></circle>
+<path d="M307 217 l-7 4 7 4" fill="none" stroke="white" stroke-width="2"/>
+<text x="180" y="341" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#6c8278">Ilustración orientativa · puede variar</text>
+</svg>
