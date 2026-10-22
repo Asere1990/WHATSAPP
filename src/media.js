@@ -63,5 +63,8 @@ export async function auditGallery(peer) {
   }
   const modules={};
   for(const name of ['WAWebDBMessageFindLocal'])try{modules[name]=Object.keys(window.require(name)).filter(k=>/media|count/i.test(k));}catch{}
-  return {queries,combinedUnique:combined.size,endOfHistoryTransferType:chat.endOfHistoryTransferType??null,modules};
+  const signatures={};
+  const native=window.require('WAWebDBMessageFindLocal');
+  for(const name of ['getAllMediaMessages','getMediaAvailableMsgBoundary'])if(typeof native[name]==='function')signatures[name]=String(native[name]).slice(0,5000);
+  return {queries,combinedUnique:combined.size,endOfHistoryTransferType:chat.endOfHistoryTransferType??null,modules,signatures};
 }
