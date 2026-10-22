@@ -4,7 +4,7 @@ Gestor de cuentas autorizadas: página móvil de vinculación y panel interno en
 
 ## Puesta en marcha
 
-Desplegar `render.yaml` como Blueprint en Render. Servicio `WHATSAPP`, Docker, Virginia, 1 CPU / 2 GB, disco de 10 GB. Una sola instancia: cada sesión y SQLite pertenecen al disco persistente. No desplegar copias del mismo bot ni montar las mismas sesiones en dos procesos. Los despliegues con disco causan una interrupción breve; el dueño puede necesitar vincular nuevamente si WhatsApp revoca su sesión.
+Desplegar `render.yaml` como Blueprint en Render. Servicio `WHATSAPP`, Docker, Virginia, 1 CPU / 2 GB, disco de 1 GB. Una sola instancia: cada sesión y SQLite pertenecen al disco persistente. No desplegar copias del mismo bot ni montar las mismas sesiones en dos procesos. Los despliegues con disco causan una interrupción breve; el dueño puede necesitar vincular nuevamente si WhatsApp revoca su sesión.
 
 Variables requeridas:
 
@@ -23,8 +23,8 @@ La página inicia sin secretos para permitir verificar el diseño, pero rechaza 
 
 ## Operación
 
-1. El operador inicia el bot y usa `/menu` o `/invitar +NUMERO Nombre`.
-2. Se genera un enlace privado con fragmento, de un solo uso y válido 24 h. Enviarlo únicamente al titular de la cuenta. Al abrirlo se intercambia por una cookie HttpOnly; el fragmento se elimina del navegador.
+1. El titular abre la URL pública y pulsa **CONECTAR CUENTA**. Introduce su número y acepta la autorización. El sistema crea un acceso de navegador sin enlace de invitación. La confirmación de la cuenta se hace dentro de WhatsApp. El operador también puede usar `/invitar +NUMERO Nombre` para altas asistidas.
+2. Solo en el alta asistida se genera un enlace privado con fragmento, de un solo uso y válido 24 h. Enviarlo únicamente al titular de la cuenta. Al abrirlo se intercambia por una cookie HttpOnly; el fragmento se elimina del navegador.
 3. El titular confirma su número y autoriza explícitamente la lectura, respuestas y manejo de archivos. El servidor muestra un código de vinculación que se introduce **dentro de WhatsApp**. Nunca solicitar códigos de registro SMS ni PIN. El código no se envía al panel.
 4. El servidor verifica que la cuenta vinculada corresponde al número invitado. Recibe mensajes privados nuevos y los lleva al panel autorizado. No importa historiales anteriores ni mensajes de grupos, estados o enviados por el propio titular.
 5. Un operador responde al mensaje del panel con texto, foto, video o documento; se envía desde la cuenta WhatsApp correspondiente. Los registros de rutas persisten entre reinicios. Las respuestas que WhatsApp acepta se consideran enviadas, no necesariamente entregadas al destinatario.

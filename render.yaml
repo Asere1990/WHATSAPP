@@ -10,7 +10,7 @@ services:
     disk:
       name: whatsapp-data
       mountPath: /data
-      sizeGB: 10
+      sizeGB: 1
     envVars:
       - key: DATA_DIR
         value: /data

@@ -49,6 +49,13 @@ export class Store {
     this.db.prepare('INSERT INTO access VALUES(?,?,?,?)').run(digest(session),row.account,'browser',Date.now()+86400000*30);
     return session;
   }
+  register(phone) {
+    phone=phoneNumber(phone);
+    // Entering a phone number alone never grants access to an existing account.
+    if(this.db.prepare('SELECT id FROM accounts WHERE phone=?').get(phone))return null;
+    const invite=this.invite(phone,`Cuenta · ${phone.slice(-4)}`);
+    return this.exchange(invite.secret);
+  }
   browser(secret) {
     if (!secret) return null;
     const row=this.db.prepare("SELECT account FROM access WHERE hash=? AND kind='browser' AND expires>?").get(digest(secret),Date.now());

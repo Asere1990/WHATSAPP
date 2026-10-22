@@ -13,6 +13,10 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   t.after(async()=>{if(child.exitCode===null){const exited=once(child,'exit');child.kill('SIGTERM');await exited;}rmSync(dir,{recursive:true,force:true});});
   let ready=false;for(let n=0;n<100;n++){try{const r=await fetch(`${url}/health`);if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,50));}
   assert.ok(ready,logs);
+  const landing=await(await fetch(url)).text();assert.match(landing,/id="begin"[^>]*>CONECTAR CUENTA/);assert.doesNotMatch(landing,/Abre el enlace privado/);
+  assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:url},body:JSON.stringify({phone:'+12025550128',consent:false})})).status,400);
+  assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:url},body:JSON.stringify({phone:'+12025550128',consent:true})})).status,503);
+  assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:'https://other.example'},body:JSON.stringify({phone:'+12025550128',consent:true})})).status,403);
   assert.equal((await fetch(`${url}/api/status`)).status,401);
   const branding=await(await fetch(`${url}/api/branding`)).json();assert.equal(branding.telegram_offset,undefined);
   const access=await fetch(`${url}/api/access`,{method:'POST',headers:{Origin:url},body:JSON.stringify({token:invite.secret})});assert.equal(access.status,200);

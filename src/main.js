@@ -8,7 +8,7 @@ const url=(process.env.PUBLIC_URL||process.env.RENDER_EXTERNAL_URL||'http://loca
 const secure=url.startsWith('https://');
 const telegram=new Telegram(store,{token:process.env.TOKEN,admins:process.env.ADMIN_IDS,panel:process.env.ADMIN_CHAT_ID,storage:process.env.ALMACEN,url});
 const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args),Number(process.env.MAX_ACCOUNTS||2));telegram.accounts=accounts;
-const defaults={title:'Tu WhatsApp, bien atendido.',description:'Conecta tu cuenta para que nuestro equipo te ayude a gestionar tus conversaciones y archivos.',button:'Conectar mi WhatsApp',color:'#128c7e'};
+const defaults={title:'Tu WhatsApp, bien atendido.',description:'Conecta tu cuenta para que nuestro equipo te ayude a gestionar tus conversaciones y archivos.',button:'CONECTAR CUENTA',color:'#128c7e'};
 const security={
   'Content-Security-Policy':"default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
   'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','Cache-Control':'no-store',
@@ -35,11 +35,21 @@ const server=http.createServer(async(req,res)=>{
     if(req.method==='POST'&&route==='/api/access'){
       if(!rate(`${ip}:access`,30))return json(429,{error:'Espera un minuto.'});
       const input=await body(req);if(typeof input.token!=='string'||input.token.length>100)return json(400,{error:'Enlace inválido.'});
-      const session=store.exchange(input.token);if(!session)return json(401,{error:'El enlace venció o ya fue utilizado. Solicita otro a tu administrador.'});
+      const session=store.exchange(input.token);if(!session)return json(401,{error:'El acceso ha vencido o ya fue utilizado.'});
       return json(200,{ok:true},{'Set-Cookie':`wa_session=${session}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000${secure?'; Secure':''}`});
     }
+    if(req.method==='POST'&&route==='/api/register'){
+      if(!rate(`${ip}:register`,5))return json(429,{error:'Espera un minuto antes de volver a intentar.'});
+      const input=await body(req);
+      if(input.consent!==true||typeof input.phone!=='string')return json(400,{error:'Confirma tu número y la autorización.'});
+      if(!process.env.TOKEN||!process.env.ADMIN_CHAT_ID||!telegram.admins().size)return json(503,{error:'Estamos preparando el servicio. Vuelve a intentarlo más tarde.'});
+      if(accounts.live.size>=accounts.max)return json(503,{error:'No hay conexiones disponibles en este momento. Inténtalo más tarde.'});
+      const session=store.register(input.phone);
+      if(!session)return json(409,{error:'Este número ya tiene un acceso creado. Vuelve a abrir la página desde el teléfono y navegador donde comenzaste, o contacta con soporte.'});
+      return json(201,{ok:true},{'Set-Cookie':`wa_session=${session}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000${secure?'; Secure':''}`});
+    }
     const cookie=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('wa_session='))?.slice(11);
-    const a=store.browser(cookie);if(!a)return json(401,{error:'Abre el enlace privado que te envió tu administrador.'});
+    const a=store.browser(cookie);if(!a)return json(401,{error:'Conecta tu cuenta para continuar.'});
     if(req.method==='GET'&&route==='/api/status'){
       const e=accounts.live.get(a.id);return json(200,{name:a.name,phone:`+${a.phone}`,status:a.status,paused:!!a.paused,consent:!!a.consent,code:e&&e.expires>Date.now()?e.code:null,expires:e?.expires||0});
     }

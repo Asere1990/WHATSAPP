@@ -23,3 +23,10 @@ test('inbound message deduplication and reply routing survive reopening',t=>{
 test('phone validation rejects code, markup and malformed account numbers',()=>{
   assert.equal(phoneNumber('+1 (202) 555-0123'),'12025550123');for(const p of ['123456','<script>','+012345678','abc',''])assert.throws(()=>phoneNumber(p));
 });
+test('public onboarding creates isolated browser access and cannot take over a known phone',t=>{
+  const s=setup(t),first=s.register('+12025550123');assert.ok(first);assert.equal(s.browser(first).phone,'12025550123');
+  assert.equal(s.register('+12025550123'),null);assert.equal(s.all().length,1);
+  const existing=s.invite('+12025550124','Titular');s.update(existing.account.id,'consent',1);
+  assert.equal(s.register('+12025550124'),null);assert.equal(s.account(existing.account.id).consent,1);
+  const other=s.register('+12025550125');assert.notEqual(s.browser(first).id,s.browser(other).id);
+});
