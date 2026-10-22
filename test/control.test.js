@@ -52,11 +52,14 @@ test('reply routing overrides pending compose and preserves selected account for
   assert.equal(out.length,1);assert.equal(out[0][0],peer);assert.equal(out[0][2].sendAudioAsVoice,true);
   assert.equal(bot.control.composing.has('-10010:123'),false);
 });
-test('compose sends once to chosen chat and does not catch later messages',async t=>{
+test('compose keeps text and following photo bound to selected contact until cancelled',async t=>{
   const {bot,a,peer,out,message}=setup(t);
   await bot.control.action(123,123,{kind:'compose',id:a.id,peer});
-  await bot.handle(message('Respuesta'));await bot.handle(message('Otra cosa'));
-  assert.equal(out.length,1);assert.equal(out[0][1],'Respuesta');
+  bot.download=async()=>Buffer.from('jpg');
+  await bot.handle(message('Respuesta'));
+  await bot.handle(message('',123,{photo:[{file_id:'photo'}]}));
+  assert.equal(out.length,2);assert.equal(out[0][1],'Respuesta');assert.equal(out[1][0],peer);assert.equal(out[1][1].mimetype,'image/jpeg');
+  await bot.handle(message('/cancelar'));await bot.handle(message('Otra cosa'));assert.equal(out.length,2);
 });
 test('incoming sender and receiver have distinct clickable identities and HTML-safe body',async t=>{
   const {manager,a,peer,calls}=setup(t);

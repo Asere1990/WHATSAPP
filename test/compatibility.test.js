@@ -32,3 +32,20 @@ test('compatibility installer is idempotent and rejects unexpected dependency so
   const fs=require('node:fs'),source=fs.readFileSync(require.resolve('whatsapp-web.js/src/util/Injected/Utils.js'),'utf8');
   assert.equal(patch(source),source);assert.throws(()=>patch('unreviewed source'),/unexpected/);
 });
+test('actual injected media send discards private MediaData id without corrupting outgoing Msg key',async()=>{
+  let outgoing;
+  class MsgKey{static async newId(){return 'new-key';}constructor(){this.$1='true_peer_new-key';}}
+  const me={$1:'me@c.us'};
+  const modules={
+    WAWebChatGetters:{getIsNewsletter:()=>false,getIsBroadcast:()=>false},WALinkify:{findLink:()=>null},
+    WAWebUserPrefsMeUser:{getMaybeMeLidUser:()=>me,getMaybeMePnUser:()=>me},WAWebMsgKey:MsgKey,
+    WAWebGetEphemeralFieldsMsgActionsUtils:{getEphemeralFields:()=>({})},
+    WAWebSendMsgChatAction:{addAndSendMsgToChat:(_chat,msg)=>{outgoing=msg;assert.equal('__x_id' in msg,false);assert.ok(msg.id instanceof MsgKey);return [Promise.resolve(),Promise.resolve()];}},
+    WAWebCollections:{Msg:{get:key=>{assert.equal(key,'true_peer_new-key');return outgoing;}}}
+  };
+  const window={require:name=>{if(!(name in modules))throw Error('Unexpected module '+name);return modules[name];}};
+  vm.runInNewContext(`(${LoadUtils.toString()})()`,{window,console,Blob,File,URL,atob,btoa});
+  window.WWebJS.processMediaData=async()=>({__x_id:undefined,type:'image',preview:'',toJSON:()=>({mimetype:'image/jpeg'})});
+  const result=await window.WWebJS.sendMessage({id:{isLid:()=>false}},'',{media:{data:'AQID',mimetype:'image/jpeg'}});
+  assert.equal(result.type,'image');assert.equal(result.from,me);
+});

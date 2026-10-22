@@ -63,7 +63,13 @@ export class Control {
   async chat(chat,actor,id,peer){
     this.composing.delete(this.key(chat,actor));
     await this.bot.send(chat,'Consultando mensajes y archivos disponibles…');
-    const tools=this.bot.accounts.tools,profile=await tools.identity(id,peer),gallery=await tools.gallery(id,peer),counts=tools.counts(gallery.messages);
+    const tools=this.bot.accounts.tools,profile=await tools.identity(id,peer);
+    let gallery;
+    try{gallery=await tools.gallery(id,peer);}catch(error){
+      this.bot.store.recordIncident(id,'consulta_multimedia',error);
+      return this.text(chat,`${personLink(profile)}\n\nConteo multimedia: no disponible. WhatsApp no permitió consultar el índice; no se mostrará cero ni un total inventado.`,this.chatButtons(chat,actor,id,peer));
+    }
+    const counts=tools.counts(gallery.messages);
     return this.text(chat,`${personLink(profile)}\n\nFotos disponibles: ${counts.photos}\nVideos disponibles: ${counts.videos}\n\nÍndice multimedia del dispositivo vinculado: ${gallery.complete?'consulta terminada':'consulta parcial'}. Puede diferir de la galería guardada en el teléfono. Las descargas envían hasta 10 archivos nuevos disponibles a ALMACEN.`,this.chatButtons(chat,actor,id,peer));
   }
   async messages(chat,actor,id,peer){
@@ -111,7 +117,7 @@ export class Control {
     if(a.kind==='compose'){
       tools.client(id,true);const p=await tools.identity(id,peer),owner=this.bot.store.account(id);
       this.composing.set(this.key(chat,actor),{id,peer,expires:Date.now()+300000});
-      return this.text(chat,`Responder a: ${personLink(p)}\nDesde: +${owner.phone}\n\nEnvía el texto, foto, video o audio. /cancelar para salir.`,[[this.button(chat,actor,'CANCELAR',{kind:'chat',id,peer})]]);
+      return this.text(chat,`Responder a: ${personLink(p)}\nDesde: +${owner.phone}\n\nEnvía textos, fotos, videos o audios. Este destinatario seguirá activo durante cinco minutos. /cancelar o MENÚ PRINCIPAL para salir.`,[[this.button(chat,actor,'CANCELAR',{kind:'chat',id,peer})]]);
     }
     if(a.kind==='deletePreview'){
       const msg=await tools.lastOutgoing(id,peer);if(!msg)return this.bot.send(chat,'No hay un mensaje enviado disponible para borrar.');
@@ -144,8 +150,8 @@ export class Control {
     if(m.reply_to_message||raw.startsWith('/'))return false;
     const pending=this.composing.get(key);
     if(pending){
-      this.composing.delete(key);if(pending.expires<Date.now())throw new Error('La respuesta venció. Pulsa RESPONDER de nuevo.');
-      await this.bot.deliver(m,pending.id,pending.peer);return true;
+      if(pending.expires<Date.now()){this.composing.delete(key);throw new Error('La respuesta venció. Pulsa RESPONDER de nuevo.');}
+      await this.bot.deliver(m,pending.id,pending.peer);pending.expires=Date.now()+300000;return true;
     }
     if(/^\d+$/.test(raw)){
       const view=this.views.get(key),n=Number(raw)-1;

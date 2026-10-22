@@ -107,13 +107,14 @@ export class Telegram {
       this.control.composing.delete(key);
       return this.deliver(m,route.account,route.peer);
     }
+    if(m.chat.type==='private'&&(m.photo||m.video||m.document||m.voice||m.audio))return reply('Selecciona el contacto y pulsa RESPONDER antes de enviar el archivo.');
   }
   async deliver(m,account,peer){
     const f=m.document||m.video||m.photo?.at(-1)||m.audio||m.voice;
     const media=f?{data:await this.download(f.file_id),name:f.file_name||(m.voice?'audio.ogg':m.photo?'foto.jpg':m.video?'video.mp4':'archivo'),mime:f.mime_type||(m.photo?'image/jpeg':m.voice?'audio/ogg':'application/octet-stream'),voice:!!m.voice}:null;
     if(!m.text&&!m.caption&&!media)throw new Error('Envía texto, foto, video, documento o audio.');
     await this.accounts.send(account,peer,m.text||m.caption||'',media);
-    const a=this.store.account(account);return this.send(m.chat.id,`✅ Enviado desde +${a.phone}.`);
+    const a=this.store.account(account),p=await this.accounts.tools.identity(account,peer);return this.send(m.chat.id,`✅ Enviado a ${p.name}${p.phone?' (+'+p.phone+')':''}, desde +${a.phone}.`);
   }
   edit(key,value) {
     if(!['title','description','button','color'].includes(key)||!value?.trim())throw new Error('Campo o valor inválido.');
