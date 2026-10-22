@@ -33,10 +33,17 @@ export class Store {
       CREATE TABLE IF NOT EXISTS inbox(id INTEGER PRIMARY KEY, account TEXT, message TEXT, peer TEXT, body TEXT, media TEXT, state TEXT DEFAULT 'pending', created INTEGER, UNIQUE(account,message));
       CREATE TABLE IF NOT EXISTS rules(id INTEGER PRIMARY KEY, account TEXT, keyword TEXT, reply TEXT);
       CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, account TEXT, event TEXT, created INTEGER);
-      CREATE TABLE IF NOT EXISTS incidents(id INTEGER PRIMARY KEY, account TEXT, reference TEXT, stage TEXT, code TEXT, state TEXT DEFAULT 'open', created INTEGER, UNIQUE(account,reference,stage));`);
+      CREATE TABLE IF NOT EXISTS incidents(id INTEGER PRIMARY KEY, account TEXT, reference TEXT, stage TEXT, code TEXT, state TEXT DEFAULT 'open', created INTEGER, UNIQUE(account,reference,stage));
+      CREATE TABLE IF NOT EXISTS profiles(account TEXT, peer TEXT, name TEXT, phone TEXT, PRIMARY KEY(account,peer));
+      CREATE TABLE IF NOT EXISTS media_exports(account TEXT, message TEXT, state TEXT, created INTEGER, PRIMARY KEY(account,message));`);
   }
   all() { return this.db.prepare('SELECT * FROM accounts ORDER BY created DESC').all(); }
   account(id) { return this.db.prepare('SELECT * FROM accounts WHERE id=?').get(id); }
+  profile(account,peer) {return this.db.prepare('SELECT * FROM profiles WHERE account=? AND peer=?').get(account,peer);}
+  saveProfile(account,peer,name,phone) {this.db.prepare('INSERT OR REPLACE INTO profiles VALUES(?,?,?,?)').run(account,peer,String(name||'Sin nombre').slice(0,120),String(phone||''));}
+  exportState(account,message) {return this.db.prepare('SELECT state FROM media_exports WHERE account=? AND message=?').get(account,message)?.state;}
+  claimExport(account,message) {return this.db.prepare("INSERT OR IGNORE INTO media_exports VALUES(?,?,'processing',?)").run(account,message,Date.now()).changes>0;}
+  finishExport(account,message,state) {this.db.prepare('UPDATE media_exports SET state=? WHERE account=? AND message=?').run(state,account,message);}
   update(id, key, value) {
     if (!['consent','paused','status'].includes(key)) throw new Error('Campo inválido');
     this.db.prepare(`UPDATE accounts SET ${key}=? WHERE id=?`).run(value,id);
@@ -107,3 +114,4 @@ export class Store {
     this.db.prepare('DELETE FROM routes WHERE rowid NOT IN (SELECT rowid FROM routes ORDER BY rowid DESC LIMIT 10000)').run();
   }
 }
+

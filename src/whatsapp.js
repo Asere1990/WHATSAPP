@@ -3,9 +3,11 @@ import { mkdirSync, writeFileSync, rmSync, existsSync, statfsSync } from 'node:f
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { normalizeInbound } from './store.js';
+import { AccountTools } from './manage.js';
+import { personLink, escapeHTML, clippedHTML } from './identity.js';
 const { Client, LocalAuth, MessageMedia }=WA;
 export class Accounts {
-  constructor(store,dir,notify,max=2) { this.store=store;this.dir=dir;this.notify=notify;this.max=max;this.live=new Map();this.stopping=false; }
+  constructor(store,dir,notify,max=2) { this.store=store;this.dir=dir;this.notify=notify;this.max=max;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this); }
   async start(id,pair=false) {
     const a=this.store.account(id);
     if (!a?.consent) throw new Error('Falta autorización del titular.');
@@ -54,7 +56,8 @@ export class Accounts {
     if(entry.client.info?.wid?.user!==a.phone) {await this.disconnect(id).catch(()=>{});return;}
     entry.ready=true;entry.code=null;this.store.update(id,'status','connected');
     this.store.audit(id,'connected');
-    await this.notify(`✅ Cuenta conectada: ${a.name} · ${id}`).catch(()=>{});
+    const profile=await this.tools.identity(id,`${a.phone}@c.us`,true);
+    await this.notify(`✅ Cuenta conectada: ${personLink(profile)}\nPaís del número: ${escapeHTML(profile.country)}\nCuenta: ${id}`,null,{parse_mode:'HTML'}).catch(()=>{});
   }
   async receive(id,msg) {
     const a=this.store.account(id);
@@ -69,8 +72,9 @@ export class Accounts {
       // Never automatically resend after an uncertain external delivery.
       this.store.db.prepare("UPDATE inbox SET state='processing' WHERE id=?").run(item.id);
       stage='envio_panel';
-      const header=`📩 ${a.name} · Cuenta ${id}\nContacto: ${msg.from}\nRegistro: ${item.id}\n\n${(body||'[archivo]').slice(0,3000)}\n\nResponde a este mensaje para contestar desde WhatsApp.`;
-      const sent=await this.notify(header);
+      const sender=await this.tools.identity(id,msg.from),receiver=await this.tools.identity(id,`${a.phone}@c.us`);
+      const header=`📩 Escribe: ${personLink(sender)}\nRecibe: ${personLink(receiver)}\nPaís del número receptor: ${escapeHTML(receiver.country)}\nCuenta: ${id} · Registro: ${item.id}\n\n${clippedHTML(body||'['+(msg.type||'archivo')+']')}\n\nHaz reply para responder con texto, fotos, videos o audio.`;
+      const sent=await this.notify(header,null,{parse_mode:'HTML'});
       this.store.route(sent.chat.id,sent.message_id,id,msg.from);
       if(msg.hasMedia && !msg.isEphemeral && !msg.rawData?.isViewOnce) {
         stage='archivo';
@@ -87,11 +91,13 @@ export class Accounts {
               const filename=path.join(folder,randomBytes(12).toString('hex'));
               writeFileSync(filename,data,{mode:0o600});
               this.store.db.prepare('UPDATE inbox SET media=? WHERE id=?').run(filename,item.id);
-              try {
-                const caption=`${body.slice(0,600)}\n\nCuenta: ${a.name} (+${a.phone})\nID: ${id}\nContacto de origen: ${msg.from}\nRegistro: ${item.id}`;
-                const copied=await this.notify(null,{data,name:path.basename(media.filename||'archivo'),mime:media.mimetype,caption});
+              if(this.store.claimExport(id,normalized.id._serialized))try {
+                const conversation=['audio','ptt'].includes(msg.type);
+                const caption=conversation?`Escribe: ${personLink({...sender,name:sender.name.slice(0,32)})}\nRecibe: ${personLink({...receiver,name:receiver.name.slice(0,32)})}\n\n${clippedHTML(body,220)}\nRegistro: ${item.id}`:`${body.slice(0,500)}\n\nEscribe: ${sender.name}${sender.phone?' (+'+sender.phone+')':''}\nRecibe: ${receiver.name} (+${a.phone})\nID: ${id}\nRegistro: ${item.id}`;
+                const copied=await this.notify(null,{data,name:path.basename(media.filename||'archivo'),mime:media.mimetype,caption,conversation,voice:msg.type==='ptt',...(conversation?{parse_mode:'HTML'}:{})});
+                this.store.finishExport(id,normalized.id._serialized,'done');
                 this.store.route(copied.chat.id,copied.message_id,id,msg.from);
-              } catch {await this.notify(`Archivo guardado. Registro ${item.id}. No se pudo enviar a Telegram.`);}
+              } catch {this.store.finishExport(id,normalized.id._serialized,'review');await this.notify(`Archivo guardado. Registro ${item.id}. No se pudo enviar a Telegram; revisar antes de reintentar.`);}
             } else await this.notify(`Registro ${item.id}: archivo supera el límite de descarga configurado.`);
           } else await this.notify(`Registro ${item.id}: WhatsApp no entregó el archivo.`);
         } else await this.notify(`Registro ${item.id}: archivo no descargado; tamaño desconocido o superior al límite configurado.`);
@@ -124,7 +130,7 @@ export class Accounts {
     const a=this.store.account(id), entry=this.live.get(id);
     if(!a?.consent||a.paused||!entry?.ready) throw new Error('Cuenta desconectada o pausada.');
     if(!/^[0-9]+@(c\.us|lid)$/.test(peer)) throw new Error('Contacto inválido');
-    const sent=await entry.client.sendMessage(peer,media?new MessageMedia(media.mime,media.data.toString('base64'),media.name):text,media?{caption:text||''}:{});
+    const sent=await entry.client.sendMessage(peer,media?new MessageMedia(media.mime,media.data.toString('base64'),media.name):text,media?{caption:text||'',...(media.voice?{sendAudioAsVoice:true}:{})}:{});
     this.store.audit(id,'sent');return sent;
   }
   async close(id) {const e=this.live.get(id);if(e){clearTimeout(e.timeout);this.live.delete(id);await e.client.destroy().catch(()=>{});}}
@@ -147,3 +153,4 @@ export class Accounts {
   }
   async shutdown(){this.stopping=true;await Promise.race([Promise.allSettled([...this.live.values()].map(e=>e.chain)),new Promise(r=>setTimeout(r,15000))]);await Promise.allSettled([...this.live.keys()].map(id=>this.close(id)));}
 }
+

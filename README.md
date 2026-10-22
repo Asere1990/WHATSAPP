@@ -13,7 +13,8 @@ Variables requeridas:
 | `TOKEN` | Token del bot de administración de Telegram, configurado como secreto en Render |
 | `ALMACEN` | Grupo de destino de los archivos descargados: `-1004466212290`; el bot debe poder enviar documentos |
 | `ADMIN_IDS` | Opcional: IDs adicionales separados por coma. La lista principal está en `admins.txt` |
-| `ADMIN_CHAT_ID` | Panel interno de conversaciones: `-1004466212290`, el mismo grupo de ALMACEN |
+| `CHATS` | Grupo de mensajes entrantes: `-1004461387155`; prevalece sobre `ADMIN_CHAT_ID` |
+| `ADMIN_CHAT_ID` | Compatibilidad: destino de mensajes si no se configura `CHATS` |
 | `PUBLIC_URL` | Opcional: URL pública HTTPS; se usa `RENDER_EXTERNAL_URL` si se omite |
 | `DATA_DIR` | `/var/data/whatsapp`, dentro del disco montado en `/var/data`. El inicio prepara los permisos de esa subcarpeta y ejecuta Node/Chromium con el usuario `node`, sin privilegios |
 | `MAX_ACCOUNTS` | Límite inicial conservador: 2; no es una capacidad garantizada |
@@ -26,8 +27,8 @@ La página inicia sin secretos para permitir verificar el diseño, pero rechaza 
 1. El titular abre la URL pública y pulsa **CONECTAR CUENTA**. Introduce su número y acepta la autorización. El sistema crea un acceso de navegador sin enlace de invitación. La confirmación de la cuenta se hace dentro de WhatsApp. El operador también puede usar `/invitar +NUMERO Nombre` para altas asistidas.
 2. Solo en el alta asistida se genera un enlace privado con fragmento, de un solo uso y válido 24 h. Enviarlo únicamente al titular de la cuenta. Al abrirlo se intercambia por una cookie HttpOnly; el fragmento se elimina del navegador.
 3. El titular confirma su número y autoriza explícitamente la lectura, respuestas y manejo de archivos. El servidor muestra un código de vinculación que se introduce **dentro de WhatsApp**. Nunca solicitar códigos de registro SMS ni PIN. El código no se envía al panel.
-4. El servidor verifica que la cuenta vinculada corresponde al número invitado. Recibe mensajes privados nuevos y los lleva al panel autorizado. No importa historiales anteriores ni mensajes de grupos, estados o enviados por el propio titular.
-5. Un operador responde al mensaje del panel con texto, foto, video o documento; se envía desde la cuenta WhatsApp correspondiente. Los registros de rutas persisten entre reinicios. Las respuestas que WhatsApp acepta se consideran enviadas, no necesariamente entregadas al destinatario.
+4. El servidor verifica que la cuenta vinculada corresponde al número invitado. Recibe mensajes privados nuevos y los lleva al panel autorizado. La recepción automática no importa historiales anteriores ni mensajes de grupos, estados o enviados por el propio titular. El menú permite consultar a petición el historial privado que WhatsApp entregue.
+5. Un operador responde al mensaje de CHATS con texto, foto, video, documento, audio o nota de voz; se envía desde la cuenta WhatsApp correspondiente. Los registros de rutas persisten entre reinicios. Las respuestas que WhatsApp acepta se consideran enviadas, no necesariamente entregadas al destinatario.
 6. `/regla ID frase | respuesta` configura respuestas de coincidencia exacta y sin IA; `/reglas ID`, `/borrarregla NUMERO` las administran.
 7. `/pausar ID`, `/activar ID`, `/reconectar ID`, `/desconectar ID` controlan la cuenta. Desconectar requiere confirmar. El titular también puede pausar y revocar desde su página o desde Dispositivos vinculados de WhatsApp.
 8. `🎨 EDITAR PÁGINA` permite cambiar logo, título, descripción, botón y color. La autorización no es editable. Vista previa: la URL pública; los textos se insertan como texto, nunca como HTML.
@@ -47,3 +48,19 @@ Cada cuenta procesa mensajes en orden, con límite de cola 200. Si se llena, se 
 Node 24. `npm install`, `npm run check`, `npm test`. Docker incluye Chromium; para ejecución local se debe disponer de Chrome/Chromium. `npm start` escucha en `0.0.0.0:$PORT`; `/health` verifica el servicio HTTP. Una comprobación HTTP correcta no verifica WhatsApp ni Telegram: hace falta prueba de aceptación con una cuenta del titular y el bot configurado.
 
 La prueba de aceptación debe cubrir vinculación en iPhone/Android, envío y recepción de texto/foto/video/documento, respuesta desde Telegram, aislamiento entre dos cuentas, pausa, revocación, reinicio con disco, desconexión y carga sostenida antes de admitir clientes del contrato.
+
+
+## Menú privado y grupos de destino
+
+Los administradores abren `/menu` en el privado del bot. La lista informa cuántas cuentas están conectadas según las sesiones activas; muestra nombre de WhatsApp, teléfono completo con enlace wa.me y país del plan de numeración, no ubicación física. Si WhatsApp solo revela un LID y no permite resolver su número, se muestra «número no disponible», sin fabricar un enlace.
+
+Seleccionar una cuenta por botón o número abre la ficha con foto (si está accesible), chats privados disponibles, abiertos (sin archivar), chats con candado visibles y contactos bloqueados. CHATS abre la lista paginada de contactos; seleccionar uno abre su ficha con conteos de fotos/videos sobre hasta 500 mensajes recuperados. El ranking revisa ese mismo máximo por chat; no es un total histórico garantizado. Los chats ocultos o no sincronizados pueden faltar.
+
+- RESPONDER arma una única respuesta al contacto elegido, durante cinco minutos. Permite texto, fotos, videos, documentos y audio. Una nota de voz de Telegram se envía con sendAudioAsVoice. `/cancelar` cancela.
+- VER MENSAJES muestra hasta diez mensajes recibidos entre los últimos cincuenta disponibles y crea rutas persistentes para contestarlos por reply.
+- BORRAR ÚLTIMO MENSAJE muestra el último enviado por esa cuenta en ese chat. Requiere confirmar ese ID exacto y comprobar que WhatsApp permite revocarlo para todos. No borra mensajes entrantes ni cae silenciosamente en borrado local. El resultado se informa como solicitud enviada, no garantía de borrado en todos los dispositivos.
+- DESCARGAR 10 / FOTOS 10 / VIDEOS 10 envían hasta diez archivos nuevos del historial consultado, más recientes primero. Excluyen visualización única, efímeros, medios sin tamaño seguro o mayores a MAX_MEDIA_MB. El registro persistente media_exports evita repetir archivos ya enviados. Una entrega incierta queda para revisión y no se reintenta automáticamente; aparece en `/pendientes`.
+
+La variable CHATS se administra en el servicio Render. ALMACEN sigue siendo -1004466212290. Los menús se operan en privado; las respuestas por reply se admiten en CHATS, ALMACEN y en los mensajes con ruta del privado. Los avisos entrantes identifican emisor y receptor con enlaces cuando se conocen los teléfonos. Los audios recibidos se publican en CHATS; fotos, videos y documentos se archivan en ALMACEN. El bot debe estar añadido a ambos grupos y poder enviar mensajes/archivos.
+
+Las botoneras y la composición están aisladas por administrador y chat; los botones vencen a los treinta minutos. Las rutas de reply, perfiles y marcas de descarga persisten en SQLite. Ninguna prueba automatizada sustituye la prueba real de enviar texto, foto, video y audio desde otra cuenta, recibirlos en sus destinos y responder desde el bot.
