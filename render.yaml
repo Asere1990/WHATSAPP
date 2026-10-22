@@ -21,8 +21,6 @@ services:
       - key: TOKEN
         sync: false
       - key: ALMACEN
-        value: "-1003634940510"
-      - key: ADMIN_IDS
-        sync: false
+        value: "-1004466212290"
       - key: ADMIN_CHAT_ID
-        sync: false
+        value: "-1004466212290"

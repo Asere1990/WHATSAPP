@@ -11,15 +11,15 @@ Variables requeridas:
 | Variable | Contenido |
 | --- | --- |
 | `TOKEN` | Token del bot de administración de Telegram, configurado como secreto en Render |
-| `ALMACEN` | Grupo de destino de los archivos descargados: `-1003634940510`; el bot debe poder enviar documentos |
-| `ADMIN_IDS` | IDs de los operadores autorizados separados por coma |
-| `ADMIN_CHAT_ID` | Chat privado o grupo interno donde se reciben las conversaciones |
+| `ALMACEN` | Grupo de destino de los archivos descargados: `-1004466212290`; el bot debe poder enviar documentos |
+| `ADMIN_IDS` | Opcional: IDs adicionales separados por coma. La lista principal está en `admins.txt` |
+| `ADMIN_CHAT_ID` | Panel interno de conversaciones: `-1004466212290`, el mismo grupo de ALMACEN |
 | `PUBLIC_URL` | Opcional: URL pública HTTPS; se usa `RENDER_EXTERNAL_URL` si se omite |
 | `DATA_DIR` | `/data`, siempre dentro del disco persistente |
 | `MAX_ACCOUNTS` | Límite inicial conservador: 2; no es una capacidad garantizada |
 | `MAX_MEDIA_MB` | Máximo por archivo descargado: 20 MB por defecto |
 
-La página inicia sin secretos para permitir verificar el diseño, pero rechaza vincular cuentas mientras falten el bot, el panel o administradores. Alternativamente se pueden declarar operadores en `admins.txt`, solo IDs numéricos. Nunca guardar tokens ni sesiones en GitHub.
+La página inicia sin secretos para permitir verificar el diseño, pero rechaza vincular cuentas mientras falten el bot, el panel o administradores. Los operadores se declaran en `admins.txt`, un ID numérico por línea; incluye al propietario `7539025033`. El Dockerfile incorpora el archivo al servicio. Nunca guardar tokens ni sesiones en GitHub.
 
 ## Operación
 

@@ -6,6 +6,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY src ./src
 COPY public ./public
+COPY admins.txt ./admins.txt
 RUN mkdir /data && chown node:node /data
 USER node
 EXPOSE 10000
