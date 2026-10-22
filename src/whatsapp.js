@@ -1,3 +1,4 @@
+import { auditGallery } from './media.js';
 import WA from 'whatsapp-web.js';
 import { mkdirSync, writeFileSync, rmSync, existsSync, statfsSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
@@ -78,6 +79,7 @@ export class Accounts {
     if(entry.client.pupPage)try{
       const gallery=await this.tools.gallery(id,`${a.phone}@c.us`),counts=this.tools.counts(gallery.messages);
       this.lifecycle(id,'gallery_verified',JSON.stringify({...counts,complete:gallery.complete,pages:gallery.pages}));
+      const audit=await entry.client.pupPage.evaluate(auditGallery,`${a.phone}@c.us`);this.lifecycle(id,'gallery_audit',JSON.stringify(audit));
       const photo=gallery.messages.slice().reverse().find(m=>m.type==='image'&&m.hasMedia&&!m.isEphemeral&&!m.rawData?.isViewOnce&&Number(m.rawData?.size)>0&&Number(m.rawData?.size)<2*1024*1024);
       if(photo){const media=await photo.downloadMedia();this.lifecycle(id,'media_read_verified',media?`${media.mimetype}:${Buffer.byteLength(media.data,'base64')}`:'unavailable');}
     }catch(error){this.lifecycle(id,'gallery_probe_failed',error.code||'WA_MEDIA_READ');}

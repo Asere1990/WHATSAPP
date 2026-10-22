@@ -27,3 +27,41 @@ export async function readGallery(peer) {
   messages.sort((a,b)=>(a.t||0)-(b.t||0));
   return {messages,complete,pages};
 }
+
+// Temporary read-only diagnostic: aggregate counts only; no messages, IDs or media.
+export async function auditGallery(peer) {
+  const api=window.WWebJS,chat=await api.getChat(peer,{getAsModel:false});
+  const find=window.require('WAWebDBMessageFindLocal').msgFindMedia;
+  const summarize=result=>{
+    const rows=Array.isArray(result)?result:result?.messages;
+    if(!Array.isArray(rows))throw Error('WA_GALLERY_INVALID_RESULT');
+    const types={},mimeTypes={},keys=new Set();let invalidIds=0,missingTimestamp=0;
+    for(const row of rows){
+      const type=String(row.type||'missing');types[type]=(types[type]||0)+1;
+      const mime=String(row.mimetype||'missing');mimeTypes[mime]=(mimeTypes[mime]||0)+1;
+      const key=api.keyString(row.id);if(key)keys.add(key);else invalidIds++;
+      if(!Number.isFinite(Number(row.t)))missingTimestamp++;
+    }
+    const counts={};if(!Array.isArray(result))for(const key of ['mediaCount','docCount','linkCount'])if(typeof result?.[key]==='number')counts[key]=result[key];
+    return {rows:rows.length,unique:keys.size,types,mimeTypes,invalidIds,missingTimestamp,counts,keys};
+  };
+  const candidates=[['selected',chat.id]];
+  try{
+    const prefs=window.require('WAWebUserPrefsMeUser');
+    for(const [label,id]of [['phone',prefs.getMaybeMePnUser()],['lid',prefs.getMaybeMeLidUser()]])
+      if(id&&!candidates.some(([,value])=>api.keyString(value)===api.keyString(id)))candidates.push([label,id]);
+  }catch{}
+  const queries=[],combined=new Set();
+  for(const [namespace,id]of candidates){
+    for(const direction of ['before','after']){
+      try{
+        const result=summarize(await find({chat:id,count:20000,mediaType:'allMedia',direction}));
+        for(const key of result.keys)combined.add(key);
+        const {keys,...summary}=result;queries.push({namespace,direction,...summary});
+      }catch{queries.push({namespace,direction,error:'QUERY_FAILED'});}
+    }
+  }
+  const modules={};
+  for(const name of ['WAWebDBMessageFindLocal'])try{modules[name]=Object.keys(window.require(name)).filter(k=>/media|count/i.test(k));}catch{}
+  return {queries,combinedUnique:combined.size,endOfHistoryTransferType:chat.endOfHistoryTransferType??null,modules};
+}
