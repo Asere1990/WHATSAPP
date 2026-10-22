@@ -61,6 +61,14 @@ export async function auditGallery(peer) {
       }catch{queries.push({namespace,direction,error:'QUERY_FAILED'});}
     }
   }
+  let unrestricted;
+  try{
+    const rows=await window.require('WAWebDBMessageFindLocal').getAllMediaMessages(20000,undefined,'before',0);
+    const targets=new Set(candidates.map(([,id])=>api.keyString(id)));
+    const matches=rows.filter(row=>targets.has(api.keyString(row.id?.remote)));
+    const summary=summarize(matches),{keys,...counts}=summary;
+    unrestricted={globalRows:rows.length,target:counts,capped:rows.length>=20000};
+  }catch{unrestricted={error:'FULL_MEDIA_QUERY_FAILED'};}
   const modules={};
   for(const name of ['WAWebDBMessageFindLocal'])try{modules[name]=Object.keys(window.require(name)).filter(k=>/media|count/i.test(k));}catch{}
   const signatures={};
@@ -76,7 +84,7 @@ export async function auditGallery(peer) {
       for(const key of Object.keys(entry))if(typeof entry[key]==='function')internals[name][key]=String(entry[key]).slice(0,45000);
     }
   }catch{}
-  return {queries,combinedUnique:combined.size,endOfHistoryTransferType:chat.endOfHistoryTransferType??null,modules,signatures,internals};
+  return {queries,combinedUnique:combined.size,endOfHistoryTransferType:chat.endOfHistoryTransferType??null,modules,signatures,internals,unrestricted};
 }
 
 // Read the implementation of the native media-query closure for diagnostics.
@@ -112,6 +120,7 @@ export async function nativeGalleryImplementation(page) {
     };
     const all=await bindings(handle.id),output={fullGallery:await resolve(handle.id)};
     const query=all.find(p=>p.name==='$');if(query)output.query=await resolve(query.value.objectId);
+    const other=await page.evaluateHandle(()=>window.require('WAWebDBMessageFindLocal').msgFindMedia);try{output.chatMedia=await resolve(other.id);}finally{await other.dispose();}
     return output;
   }finally{await handle.dispose();}
 }
