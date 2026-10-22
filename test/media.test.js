@@ -11,17 +11,6 @@ function environment(batches){
   }};
   const run=vm.runInNewContext(`(${readGallery.toString()})`,{window,Date,Set,Error});return {run,calls};
 }
-test('gallery queries media index in pages with native cursor, never ordinary message history',async()=>{
-  const older={id:{$1:'older',remote:'chat-native-id'},t:1,type:'video'},newer={id:{$1:'newer',remote:'chat-native-id'},t:2,type:'image'};
-  const {run,calls}=environment([[newer],{messages:[older]},[]]);const result=await run('peer');
-  assert.equal(result.complete,true);assert.equal(result.messages.length,2);assert.equal(calls[0].mediaType,undefined);assert.equal(calls[0].chat,'chat-native-id');assert.equal(calls[1].anchor,newer.id);assert.equal(calls[2].anchor,older.id);
-});
-test('repeated index page is deduplicated and explicitly partial',async()=>{
-  const row={id:{$1:'same',remote:'chat-native-id'},t:1,type:'image'};const {run}=environment([[row],[row]]);const result=await run('peer');assert.equal(result.complete,false);assert.equal(result.messages.length,1);
-});
-test('invalid gallery result fails rather than displaying zero files',async()=>{
-  const {run}=environment([{}]);await assert.rejects(run('peer'),/INVALID_RESULT/);
-});
 test('actual library downloader forwards declared MIME to WhatsApp download manager',async()=>{
   let received;
   const native={mediaData:{mediaStage:'RESOLVED'},type:'image',mimetype:'image/jpeg',size:3};
@@ -34,20 +23,22 @@ test('actual library downloader forwards declared MIME to WhatsApp download mana
   const media=await message.downloadMedia();assert.equal(received.mimetype,'image/jpeg');assert.equal(media.data,'AQID');
 });
 
-test('gallery rejects a media record from another chat before any download',async()=>{
-  const {run}=environment([[{id:{$1:'wrong',remote:'other-chat'},type:'image',t:1}]]);
-  await assert.rejects(run('peer'),/WRONG_CHAT/);
+
+test('gallery uses per-chat query, never global allMedia, and returns only the media index segment',async()=>{
+  const image={id:{$1:'image',remote:'chat-native-id'},t:1,type:'image'};
+  const video={id:{$1:'video',remote:'chat-native-id'},t:2,type:'video'};
+  const {run,calls}=environment([{mediaCount:2,messages:[image,video,{type:'chat'}]}]);
+  const result=await run('peer');assert.equal(calls.length,1);assert.equal(calls[0].mediaType,undefined);assert.equal(calls[0].chat,'chat-native-id');assert.equal(result.messages.length,2);assert.equal(result.complete,true);
 });
-test('old document or link entries do not skip newer media pages',async()=>{
-  const first={id:{$1:'first',remote:'chat-native-id'},type:'image',t:100};
-  const older={id:{$1:'older',remote:'chat-native-id'},type:'video',t:50};
-  const link={id:{$1:'link',remote:'chat-native-id'},type:'chat',t:1};
-  const {run,calls}=environment([{messages:[first,link]},[older],[]]);
-  const result=await run('peer');assert.equal(result.messages.length,2);assert.equal(calls[1].anchor,first.id);
+test('gallery rejects records from another chat before download',async()=>{
+  const {run}=environment([[{id:{$1:'wrong',remote:'other-chat'},type:'image',t:1}]]);await assert.rejects(run('peer'),/WRONG_CHAT/);
 });
-test('pages containing audio still advance to older photos using mediaCount segment',async()=>{
-  const audio={id:{$1:'audio',remote:'chat-native-id'},type:'ptt',t:100};
-  const image={id:{$1:'image',remote:'chat-native-id'},type:'image',t:50};
-  const {run,calls}=environment([{mediaCount:1,messages:[audio]},{mediaCount:1,messages:[image]},{mediaCount:0,messages:[]}]);
-  const result=await run('peer');assert.equal(result.messages.length,1);assert.equal(calls[1].anchor,audio.id);assert.equal(result.complete,true);
+test('invalid gallery result fails rather than displaying zero',async()=>{
+  const {run}=environment([{}]);await assert.rejects(run('peer'),/INVALID_RESULT/);
+});
+test('duplicate index records are counted once',async()=>{
+  const row={id:{$1:'same',remote:'chat-native-id'},type:'image',t:1};const {run}=environment([[row,row]]);const result=await run('peer');assert.equal(result.messages.length,1);
+});
+test('hitting index safety ceiling is explicitly partial',async()=>{
+  const rows=Array.from({length:20000},(_,i)=>({id:{$1:'id'+i,remote:'chat-native-id'},type:'image',t:i}));const {run}=environment([{mediaCount:20000,messages:rows}]);const result=await run('peer');assert.equal(result.complete,false);assert.equal(result.messages.length,20000);
 });
