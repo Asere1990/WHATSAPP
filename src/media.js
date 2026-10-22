@@ -66,5 +66,15 @@ export async function auditGallery(peer) {
   const signatures={};
   const native=window.require('WAWebDBMessageFindLocal');
   for(const name of ['getAllMediaMessages','getMediaAvailableMsgBoundary'])if(typeof native[name]==='function')signatures[name]=String(native[name]).slice(0,5000);
-  return {queries,combinedUnique:combined.size,endOfHistoryTransferType:chat.endOfHistoryTransferType??null,modules,signatures};
+  const internals={};
+  try{internals.maxDays=window.require('WAWebABProps').getABPropConfigValue('media_hub_history_max_days');internals.boundary=native.getMediaAvailableMsgBoundary();}catch{}
+  try{
+    const map=window.require('__debug').modulesMap;
+    for(const name of ['WAWebDBMessageFindLocal','WAWebSendNonMessageDataRequest']){
+      const entry=map?.[name];if(!entry)continue;
+      internals[name]={fields:Object.keys(entry)};
+      for(const key of Object.keys(entry))if(typeof entry[key]==='function')internals[name][key]=String(entry[key]).slice(0,45000);
+    }
+  }catch{}
+  return {queries,combinedUnique:combined.size,endOfHistoryTransferType:chat.endOfHistoryTransferType??null,modules,signatures,internals};
 }

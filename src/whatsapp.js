@@ -83,7 +83,7 @@ export class Accounts {
       const syncKey=`gallery_diagnostic_sync_${id}`;
       if(audit.endOfHistoryTransferType===0&&entry.client.syncHistory&&!this.store.config()[syncKey]){
         this.store.setConfig(syncKey,String(Date.now()));
-        const accepted=await entry.client.syncHistory(`${a.phone}@c.us`);this.lifecycle(id,'gallery_history_requested',accepted?'accepted':'unavailable');
+        const accepted=await entry.client.syncHistory(`${a.phone}@c.us`).catch(error=>{this.lifecycle(id,'gallery_sync_error',JSON.stringify({name:error?.name,message:String(error?.message||'').slice(0,300)}));return false;});this.lifecycle(id,'gallery_history_requested',accepted?'accepted':'unavailable');
         if(accepted){
           const timer=setTimeout(async()=>{
             if(this.live.get(id)!==entry||!entry.ready)return;
