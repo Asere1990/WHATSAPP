@@ -78,3 +78,25 @@ export async function auditGallery(peer) {
   }catch{}
   return {queries,combinedUnique:combined.size,endOfHistoryTransferType:chat.endOfHistoryTransferType??null,modules,signatures,internals};
 }
+
+// Read the implementation of the native media-query closure for diagnostics.
+// Only function source is returned, never closure data or conversation content.
+export async function nativeGalleryImplementation(page) {
+  const handle=await page.evaluateHandle(()=>window.require('WAWebDBMessageFindLocal').getAllMediaMessages);
+  try{
+    const client=handle.client,info=await client.send('Runtime.getProperties',{objectId:handle.id,ownProperties:true});
+    const scopes=info.internalProperties?.find(p=>p.name==='[[Scopes]]')?.value?.objectId;
+    if(!scopes)return {error:'NO_SCOPE_METADATA'};
+    const list=await client.send('Runtime.getProperties',{objectId:scopes,ownProperties:true});
+    for(const scope of list.result){
+      if(!scope.value?.objectId||!scope.value.description?.startsWith('Closure'))continue;
+      const props=await client.send('Runtime.getProperties',{objectId:scope.value.objectId,ownProperties:true});
+      const implementation=props.result.find(p=>p.name==='w'&&p.value?.type==='function');
+      if(implementation){
+        const result=await client.send('Runtime.callFunctionOn',{objectId:implementation.value.objectId,functionDeclaration:'function(){return String(this)}',returnByValue:true});
+        return {implementation:String(result.result.value).slice(0,30000)};
+      }
+    }
+    return {error:'NO_IMPLEMENTATION_BINDING'};
+  }finally{await handle.dispose();}
+}

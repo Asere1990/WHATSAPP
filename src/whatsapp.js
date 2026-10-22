@@ -1,4 +1,4 @@
-import { auditGallery } from './media.js';
+import { auditGallery, nativeGalleryImplementation } from './media.js';
 import WA from 'whatsapp-web.js';
 import { mkdirSync, writeFileSync, rmSync, existsSync, statfsSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
@@ -80,6 +80,7 @@ export class Accounts {
       const gallery=await this.tools.gallery(id,`${a.phone}@c.us`),counts=this.tools.counts(gallery.messages);
       this.lifecycle(id,'gallery_verified',JSON.stringify({...counts,complete:gallery.complete,pages:gallery.pages}));
       const audit=await entry.client.pupPage.evaluate(auditGallery,`${a.phone}@c.us`);this.lifecycle(id,'gallery_audit',JSON.stringify(audit));
+      try{this.lifecycle(id,'native_gallery_implementation',JSON.stringify(await nativeGalleryImplementation(entry.client.pupPage)));}catch{this.lifecycle(id,'native_gallery_implementation_failed');}
       const syncKey=`gallery_diagnostic_sync_${id}`;
       if(audit.endOfHistoryTransferType===0&&entry.client.syncHistory&&!this.store.config()[syncKey]){
         this.store.setConfig(syncKey,String(Date.now()));
