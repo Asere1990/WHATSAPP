@@ -75,6 +75,13 @@ export class Accounts {
     if(entry.client.getChats)try{
       const chats=await this.tools.list(id);this.lifecycle(id,'chat_list_verified',`${chats.length}:${this.tools.listProblems.get(id)||0}`);
     }catch(error){this.lifecycle(id,'chat_list_failed',error.code||'WA_CHAT_READ');this.store.recordIncident(id,'consulta_chats',error);}
+    if(entry.client.pupPage)try{
+      const gallery=await this.tools.gallery(id,`${a.phone}@c.us`),counts=this.tools.counts(gallery.messages);
+      this.lifecycle(id,'gallery_verified',JSON.stringify({...counts,complete:gallery.complete,pages:gallery.pages}));
+      const photo=gallery.messages.slice().reverse().find(m=>m.type==='image'&&m.hasMedia&&!m.isEphemeral&&!m.rawData?.isViewOnce&&Number(m.rawData?.size)>0&&Number(m.rawData?.size)<2*1024*1024);
+      if(photo){const media=await photo.downloadMedia();this.lifecycle(id,'media_read_verified',media?`${media.mimetype}:${Buffer.byteLength(media.data,'base64')}`:'unavailable');}
+    }catch(error){this.lifecycle(id,'gallery_probe_failed',error.code||'WA_MEDIA_READ');}
+
   }
   async receive(id,msg) {
     const a=this.store.account(id);

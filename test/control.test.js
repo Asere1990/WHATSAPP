@@ -16,6 +16,7 @@ function setup(t){
   const chat={id:{_serialized:peer},name:'Contacto',timestamp:1,isGroup:false,unreadCount:2,fetchMessages:async()=>messages};
   const client={info:{wid:{user:a.phone},pushname:'María & compañía'},getContactById:async()=>({pushname:'Pedro'}),getChats:async()=>[chat],getBlockedContacts:async()=>[],getProfilePicUrl:async()=>null,getChatById:async()=>chat,sendMessage:async(...args)=>{out.push(args);return {id:{_serialized:'sent'}};}};
   manager.live.set(a.id,{ready:true,client});
+  manager.tools.gallery=async()=>({messages,complete:true,pages:1});
   t.after(()=>{s.db.close();rmSync(dir,{recursive:true,force:true});});
   const message=(text,chatId=123,extra={})=>({message:{text,from:{id:123},chat:{id:chatId,type:chatId===123?'private':'supergroup'},...extra}});
   const callback=(data,actor=123,chatId=123)=>({callback_query:{id:'q',data,from:{id:actor},message:{chat:{id:chatId,type:chatId===123?'private':'supergroup'}}}});
@@ -115,4 +116,12 @@ test('partial chat reads are disclosed in both account statistics and contact li
   const {bot,a,client,calls}=setup(t);client.pupPage={evaluate:async()=>2};
   await bot.control.account(123,123,a.id);assert.match(calls.at(-1).body.text,/Lista parcial: 2/);
   await bot.control.chats(123,123,a.id);assert.match(calls.at(-1).body.text,/Lista parcial: 2/);
+});
+test('one unavailable WhatsApp file does not prevent remaining downloads and unknown size is checked after download',async t=>{
+  const {manager,a,peer,messages}=setup(t);
+  messages.splice(0,messages.length,
+    {id:{_serialized:'good'},type:'image',hasMedia:true,rawData:{},downloadMedia:async()=>({data:'YWJj',mimetype:'image/jpeg'})},
+    {id:{_serialized:'broken'},type:'image',hasMedia:true,rawData:{size:3},downloadMedia:async()=>{throw Error('t');}});
+  let sent=0;const result=await manager.tools.downloadRecent(a.id,peer,'photos',async()=>{sent++;});
+  assert.equal(sent,1);assert.equal(result.failed,1);assert.equal(result.sent,1);
 });

@@ -1,3 +1,5 @@
+import WA from 'whatsapp-web.js';
+import { readGallery } from './media.js';
 import { countryOf } from './identity.js';
 import { connectionLabel } from './session.js';
 const peerOK=peer=>typeof peer==='string'&&/^[0-9]+@(c\.us|lid)$/.test(peer);
@@ -39,6 +41,14 @@ export class AccountTools {
   }
   async chat(id,peer){if(!peerOK(peer))throw new Error('Contacto inválido.');return this.client(id).getChatById(peer);}
   async history(id,peer,limit=500){return (await (await this.chat(id,peer)).fetchMessages({limit})).filter(m=>!m.isStatus);}
+  async gallery(id,peer){
+    if(!peerOK(peer))throw new Error('Contacto inválido.');
+    const client=this.client(id);
+    try{
+      const result=await client.pupPage.evaluate(readGallery,peer);
+      return {...result,messages:result.messages.map(raw=>new WA.Message(client,raw))};
+    }catch(cause){const error=new Error('No se pudo consultar el índice multimedia de WhatsApp. No se mostrará un conteo incompleto como total.',{cause});error.code='WA_GALLERY_READ';throw error;}
+  }
   counts(messages){return {photos:messages.filter(m=>m.type==='image').length,videos:messages.filter(m=>m.type==='video').length};}
   async overview(id){
     const client=this.client(id),a=this.accounts.store.account(id);let chats=null;
@@ -66,20 +76,23 @@ export class AccountTools {
     const key=id+':'+peer;if(this.busy.has(key))throw new Error('Ya hay una descarga en este chat.');
     this.busy.add(key);
     try{
-      this.client(id,true);const s=this.accounts.store,messages=await this.history(id,peer),allowed=kind==='photos'?['image']:kind==='videos'?['video']:['image','video'];
+      this.client(id,true);const s=this.accounts.store,gallery=await this.gallery(id,peer),messages=gallery.messages,allowed=kind==='photos'?['image']:kind==='videos'?['video']:['image','video'];
       const candidates=messages.slice().reverse().filter(m=>allowed.includes(m.type)&&m.hasMedia&&!m.isEphemeral&&!m.rawData?.isViewOnce&&!s.exportState(id,m.id._serialized));
-      let sent=0,skipped=0;
+      let sent=0,skipped=0,failed=0;
       for(const msg of candidates){
         if(sent>=10)break;this.client(id,true);
         const size=Number(msg.rawData?.size||msg.rawData?.fileSize||0),cap=Number(process.env.MAX_MEDIA_MB||20)*1024*1024;
-        if(!(size>0&&size<=cap)){skipped++;continue;}
-        const media=await msg.downloadMedia();if(!media){skipped++;continue;}
+        if(size>cap){skipped++;continue;}
+        let media;try{media=await msg.downloadMedia();}catch(error){
+          failed++;this.accounts.store.recordIncident(id,'descargar_whatsapp',{code:'WA_MEDIA_DOWNLOAD'},msg.id._serialized);continue;
+        }
+        if(!media){skipped++;continue;}
         const data=Buffer.from(media.data,'base64');if(data.length>cap){skipped++;continue;}
         if(!s.claimExport(id,msg.id._serialized))continue;
         try{await onFile(msg,{data,name:media.filename||'archivo',mime:media.mimetype});s.finishExport(id,msg.id._serialized,'done');sent++;}
         catch(e){s.finishExport(id,msg.id._serialized,'review');throw e;}
       }
-      return {sent,skipped,scanned:messages.length};
+      return {sent,skipped,failed,scanned:messages.length,complete:gallery.complete};
     }finally{this.busy.delete(key);}
   }
 }

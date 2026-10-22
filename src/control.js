@@ -63,8 +63,8 @@ export class Control {
   async chat(chat,actor,id,peer){
     this.composing.delete(this.key(chat,actor));
     await this.bot.send(chat,'Consultando mensajes y archivos disponibles…');
-    const tools=this.bot.accounts.tools,profile=await tools.identity(id,peer),messages=await tools.history(id,peer),counts=tools.counts(messages);
-    return this.text(chat,`${personLink(profile)}\n\nFotos: ${counts.photos}\nVideos: ${counts.videos}\nMensajes revisados: ${messages.length}\n\nConteo del historial recuperado (hasta 500 mensajes), puede ser parcial. Las descargas envían hasta 10 archivos nuevos disponibles a ALMACEN.`,this.chatButtons(chat,actor,id,peer));
+    const tools=this.bot.accounts.tools,profile=await tools.identity(id,peer),gallery=await tools.gallery(id,peer),counts=tools.counts(gallery.messages);
+    return this.text(chat,`${personLink(profile)}\n\nFotos disponibles: ${counts.photos}\nVideos disponibles: ${counts.videos}\n\nÍndice multimedia del dispositivo vinculado: ${gallery.complete?'consulta terminada':'consulta parcial'}. Puede diferir de la galería guardada en el teléfono. Las descargas envían hasta 10 archivos nuevos disponibles a ALMACEN.`,this.chatButtons(chat,actor,id,peer));
   }
   async messages(chat,actor,id,peer){
     const tools=this.bot.accounts.tools,all=await tools.history(id,peer,50),incoming=all.filter(m=>!m.fromMe).slice(-10),a=this.bot.store.account(id);
@@ -79,19 +79,21 @@ export class Control {
   }
   run(chat,work,account,stage){
     const job=Promise.resolve().then(work).catch(async error=>{
-      if(account)try{this.bot.store.recordIncident(account,stage,error);}catch{}
-      await this.bot.send(chat,'⚠️ No se completó la operación. Comprueba la conexión y /pendientes antes de repetir un envío.').catch(()=>{});
+      const code=error?.code||'WA_OPERATION_FAILED';
+      console.error('WHATSAPP: operation_failed',JSON.stringify({account,stage,code,frames:String(error?.stack||'').split('\n').filter(l=>l.trim().startsWith('at ')).slice(0,3)}));
+      if(account)try{this.bot.store.recordIncident(account,stage,{code});}catch{}
+      await this.bot.send(chat,`⚠️ No se completó la operación (${code}). Revisa /pendientes. Si falló un envío a Telegram, no lo repetiremos automáticamente para evitar duplicados.`).catch(()=>{});
     }).finally(()=>this.jobs.delete(job));
     this.jobs.add(job);
   }
   async ranking(chat,actor,id){
-    await this.bot.send(chat,'Revisando hasta 500 mensajes por chat. Puede tardar…');
+    await this.bot.send(chat,'Consultando los índices multimedia de los chats. Puede tardar…');
     this.run(chat,async()=>{
       const tools=this.bot.accounts.tools,chats=await tools.list(id);let best=null,failed=0;
-      for(const c of chats){try{const counts=tools.counts(await tools.history(id,c.id._serialized));const total=counts.photos+counts.videos;if(!best||total>best.total)best={peer:c.id._serialized,total,...counts};}catch{failed++;}}
+      for(const c of chats){try{const counts=tools.counts((await tools.gallery(id,c.id._serialized)).messages);const total=counts.photos+counts.videos;if(!best||total>best.total)best={peer:c.id._serialized,total,...counts};}catch{failed++;}}
       if(!best)return this.bot.send(chat,'No hay chats que se puedan revisar.');
       const p=await tools.identity(id,best.peer);
-      return this.text(chat,`Mayor cantidad en el historial revisado:\n${personLink(p)}\nFotos: ${best.photos} · Videos: ${best.videos}\nHasta 500 mensajes por chat; no representa todo el historial. Chats no consultados: ${failed}.`,[[this.button(chat,actor,'ABRIR CHAT',{kind:'chat',id,peer:best.peer})]]);
+      return this.text(chat,`Mayor cantidad en los índices consultados:\n${personLink(p)}\nFotos: ${best.photos} · Videos: ${best.videos}\nÍndices del dispositivo vinculado; pueden diferir del teléfono. Chats no consultados: ${failed}.`,[[this.button(chat,actor,'ABRIR CHAT',{kind:'chat',id,peer:best.peer})]]);
     },id,'consulta_estadisticas');
   }
   async action(chat,actor,a){
@@ -125,7 +127,7 @@ export class Control {
           file.caption=`${(msg.body||'').slice(0,500)}\n\nCuenta: ${owner.name} (+${owner.phone})\nContacto: ${p.name}${p.phone?' (+'+p.phone+')':''}\nCuenta ID: ${id}`;
           const sent=await this.bot.notify(null,file);this.bot.store.route(sent.chat.id,sent.message_id,id,peer);
         });
-        await this.bot.send(chat,`Enviados a ALMACEN: ${result.sent}. Omitidos por tamaño o disponibilidad: ${result.skipped}. Se revisaron ${result.scanned} mensajes; los archivos ya registrados no se repiten.`);
+        await this.bot.send(chat,`Enviados a ALMACEN: ${result.sent}. No disponibles o demasiado grandes: ${result.skipped}. Fallos al descargar de WhatsApp: ${result.failed}. Archivos del índice consultados: ${result.scanned}${result.complete?'':' (índice parcial)'}; los archivos ya registrados no se repiten.`);
       },id,'descarga_manual');
     }
   }

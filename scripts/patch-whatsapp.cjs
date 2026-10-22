@@ -4,7 +4,7 @@
 // https://github.com/wwebjs/whatsapp-web.js/pull/201910
 const {readFileSync,writeFileSync}=require('node:fs');
 const {createHash}=require('node:crypto');
-const marker='WHATSAPP_COMPAT_IDS_V2';
+const marker='WHATSAPP_COMPAT_IDS_V3';
 function patch(source){
   if(source.includes(marker))return source;
   if(createHash('sha256').update(source).digest('hex')!=='0d0f88565f481dbfeb9493b04b24033a2cb60f5fd2fd0e84e543b461d98878fe')throw Error('Review compatibility patch: unexpected whatsapp-web.js Utils source.');
@@ -42,6 +42,7 @@ function patch(source){
   replace('        const model = chat.serialize();','        const model = chat.serialize();\n        model.id = window.WWebJS.stableId(model.id || chat.id);');
   replace('        let res = contact.serialize();','        let res = contact.serialize();\n        res.id = window.WWebJS.stableId(res.id || contact.id);');
   replace('        if (model.msgs && model.msgs.length) {','        if (model.msgs && model.msgs.length && window.WWebJS.keyString(chat.lastReceivedKey)) {');
+  replace("        // Bot's won't reply if canonicalUrl is set (linking)", "        // Media models expose a private id that must not overwrite the new Msg id.\n        delete message.__x_id;\n        // Bot's won't reply if canonicalUrl is set (linking)");
   const begin=source.indexOf('    window.WWebJS.getChats = async () => {');
   const end=source.indexOf('    window.WWebJS.getChannels = async () => {',begin);
   if(begin<0||end<0)throw Error('Chat mapping target missing.');
@@ -67,5 +68,13 @@ if(require.main===module){
   const version=require('whatsapp-web.js/package.json').version;if(version!=='1.34.7')throw Error('Review compatibility bridge before changing library version.');
   const file=require.resolve('whatsapp-web.js/src/util/Injected/Utils.js');
   const source=readFileSync(file,'utf8'),next=patch(source);if(next!==source)writeFileSync(file,next);
-  console.log('WHATSAPP: identifier compatibility bridge verified');
+  const messageFile=require.resolve('whatsapp-web.js/src/structures/Message.js');
+  const messageSource=readFileSync(messageFile,'utf8');
+  if(!messageSource.includes('WHATSAPP_MEDIA_MIME_V1')){
+    if(createHash('sha256').update(messageSource).digest('hex')!=='d7707b0261ad6b04c988a81c87b7b949a5a8fad408d9b93f321c7f57d546437e')throw Error('Unexpected Message source');
+    const target='                        type: msg.type,',next=target+'\n                        // WHATSAPP_MEDIA_MIME_V1\n                        mimetype: msg.mimetype,';
+    if(!messageSource.includes(target))throw Error('Missing media MIME target');
+    writeFileSync(messageFile,messageSource.replace(target,next));
+  }
+  console.log('WHATSAPP: identifier and media compatibility bridges verified');
 }
