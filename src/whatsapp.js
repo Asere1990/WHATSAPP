@@ -24,12 +24,7 @@ export class Accounts {
     client.on('qr',()=>{
       if(!pair){this.store.update(id,'status','auth_failure');this.close(id).catch(()=>{});}
     });
-    client.on('ready',async()=>{
-      if(client.info?.wid?.user!==a.phone) {await this.disconnect(id).catch(()=>{});return;}
-      entry.ready=true;entry.code=null;this.store.update(id,'status','connected');
-      this.store.audit(id,'connected');
-      await this.notify(`✅ Cuenta conectada: ${a.name} · ${id}`).catch(()=>{});
-    });
+    client.on('ready',()=>this.connected(id,entry).catch(()=>{}));
     client.on('auth_failure',()=>{entry.ready=false;entry.code=null;this.store.update(id,'status','auth_failure');});
     client.on('disconnected',()=>{
       entry.ready=false;entry.code=null;
@@ -52,6 +47,14 @@ export class Accounts {
       if(!entry.ready) this.close(id).then(()=>this.store.update(id,'status','expired')).catch(()=>{});
     },600000);entry.timeout.unref();
     return entry;
+  }
+  async connected(id,entry) {
+    const a=this.store.account(id);
+    if(this.live.get(id)!==entry || entry.ready || !a?.consent || this.stopping)return;
+    if(entry.client.info?.wid?.user!==a.phone) {await this.disconnect(id).catch(()=>{});return;}
+    entry.ready=true;entry.code=null;this.store.update(id,'status','connected');
+    this.store.audit(id,'connected');
+    await this.notify(`✅ Cuenta conectada: ${a.name} · ${id}`).catch(()=>{});
   }
   async receive(id,msg) {
     const a=this.store.account(id);

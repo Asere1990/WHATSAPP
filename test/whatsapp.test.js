@@ -51,3 +51,16 @@ test('SQL failure before insertion remains reviewable without replaying messages
   await assert.rejects(manager.receive(a.id,msg));
   assert.equal(s.openIncidents()[0].stage,'registro');assert.match(notices[0],/guardada|Guardada/);
 });
+
+test('repeated ready events send one connection notice per active connection',async t=>{
+  let notices=0;const {s,a,manager}=setup(t,async()=>{notices++;});
+  const entry={ready:false,code:'pending',client:{info:{wid:{user:a.phone}}}};
+  manager.live.set(a.id,entry);
+  await Promise.all([manager.connected(a.id,entry),manager.connected(a.id,entry)]);
+  assert.equal(notices,1);assert.equal(entry.ready,true);assert.equal(entry.code,null);
+  assert.equal(s.account(a.id).status,'connected');
+  entry.ready=false;
+  await manager.connected(a.id,entry);assert.equal(notices,2);
+  manager.live.delete(a.id);entry.ready=false;
+  await manager.connected(a.id,entry);assert.equal(notices,2);
+});
