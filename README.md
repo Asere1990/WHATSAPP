@@ -15,7 +15,7 @@ Variables requeridas:
 | `ADMIN_IDS` | Opcional: IDs adicionales separados por coma. La lista principal está en `admins.txt` |
 | `ADMIN_CHAT_ID` | Panel interno de conversaciones: `-1004466212290`, el mismo grupo de ALMACEN |
 | `PUBLIC_URL` | Opcional: URL pública HTTPS; se usa `RENDER_EXTERNAL_URL` si se omite |
-| `DATA_DIR` | `/var/data`, siempre dentro del disco persistente |
+| `DATA_DIR` | `/var/data/whatsapp`, dentro del disco montado en `/var/data`. El inicio prepara los permisos de esa subcarpeta y ejecuta Node/Chromium con el usuario `node`, sin privilegios |
 | `MAX_ACCOUNTS` | Límite inicial conservador: 2; no es una capacidad garantizada |
 | `MAX_MEDIA_MB` | Máximo por archivo descargado: 20 MB por defecto |
 

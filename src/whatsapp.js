@@ -12,6 +12,7 @@ export class Accounts {
     if(this.live.size>=this.max) throw new Error('Se alcanzó el límite de cuentas del servidor.');
     const client=new Client({
       authStrategy:new LocalAuth({clientId:id,dataPath:path.join(this.dir,'sessions')}),
+      webVersionCache:{type:'local',path:path.join(this.dir,'web-cache')},
       ...(pair?{pairWithPhoneNumber:{phoneNumber:a.phone,showNotification:true,intervalMs:180000}}:{}),
       deviceName:'Gestor de mensajes autorizado',
       puppeteer:{headless:true,executablePath:process.env.CHROME_PATH||undefined,args:['--no-sandbox','--disable-setuid-sandbox','--disable-dev-shm-usage']}

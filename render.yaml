@@ -13,7 +13,7 @@ services:
       sizeGB: 1
     envVars:
       - key: DATA_DIR
-        value: /var/data
+        value: /var/data/whatsapp
       - key: MAX_ACCOUNTS
         value: "2"
       - key: MAX_MEDIA_MB
