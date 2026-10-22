@@ -46,6 +46,7 @@ export class Telegram {
     if(m.chat.type!=='private'&&String(chat)!==String(this.config.panel)&&String(chat)!==String(this.config.storage))return;
     const reply=text=>this.send(chat,text);
     if(cb) {
+      this.control.composing.delete(key);
       await this.api('answerCallbackQuery',{callback_query_id:cb.id});
       if(m.chat.type!=='private')return reply('Abre el privado de este bot y escribe /menu para administrar las cuentas. Aquí puedes responder con reply a los mensajes recibidos.');
       if(cb.data==='guide'||cb.data?.startsWith('guide:')){this.pending.delete(key);return this.guideEditor.callback(chat,key,cb.data);}

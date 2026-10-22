@@ -147,7 +147,7 @@ export class Control {
   async input(m,actor){
     const key=this.key(m.chat.id,actor),raw=m.text||'';
     if(raw==='/cancelar'||raw==='/menu'||raw==='/start'){this.composing.delete(key);return false;}
-    if(m.reply_to_message||raw.startsWith('/'))return false;
+    if(m.reply_to_message||raw.startsWith('/')){this.composing.delete(key);return false;}
     const pending=this.composing.get(key);
     if(pending){
       if(pending.expires<Date.now()){this.composing.delete(key);throw new Error('La respuesta venció. Pulsa RESPONDER de nuevo.');}

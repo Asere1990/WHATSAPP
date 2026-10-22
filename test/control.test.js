@@ -128,3 +128,9 @@ test('one unavailable WhatsApp file does not prevent remaining downloads and unk
   let sent=0;const result=await manager.tools.downloadRecent(a.id,peer,'photos',async()=>{sent++;});
   assert.equal(sent,1);assert.equal(result.failed,1);assert.equal(result.sent,1);
 });
+test('opening design menu closes active WhatsApp recipient before editing',async t=>{
+  const {bot,a,peer,message,callback,out}=setup(t);
+  await bot.control.action(123,123,{kind:'compose',id:a.id,peer});
+  await bot.handle(callback('design'));await bot.handle(message('texto para la página'));
+  assert.equal(out.length,0);assert.equal(bot.control.composing.size,0);
+});
