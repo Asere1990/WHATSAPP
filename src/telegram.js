@@ -81,7 +81,11 @@ export class Telegram {
     }
     if(cmd==='/reglas')return reply(this.store.rules(args[0]||'').map(r=>`${r.id}. ${r.keyword} → ${r.reply}`).join('\n')||'Sin reglas.');
     if(cmd==='/borrarregla'){this.store.db.prepare('DELETE FROM rules WHERE id=?').run(Number(args[0]));return reply('Regla eliminada.');}
-    if(cmd==='/pendientes')return reply(this.store.db.prepare("SELECT id,account,state FROM inbox WHERE state!='done' ORDER BY id DESC LIMIT 30").all().map(r=>`${r.id} · ${r.account} · ${r.state}`).join('\n')||'Sin incidencias.');
+    if(cmd==='/pendientes'){
+      const messages=this.store.db.prepare("SELECT id,account,state FROM inbox WHERE state!='done' ORDER BY id DESC LIMIT 30").all().map(r=>`Mensaje ${r.id} · ${r.account} · ${r.state}`);
+      const incidents=this.store.openIncidents().map(r=>`Incidencia #${r.id} · ${r.account} · ${r.stage} · ${r.code}`);
+      return reply([...incidents,...messages].join('\n')||'Sin incidencias.');
+    }
     if(m.reply_to_message){
       const route=this.store.getRoute(chat,m.reply_to_message.message_id);if(!route)return;
       const f=m.document||m.video||m.photo?.at(-1)||m.audio||m.voice;

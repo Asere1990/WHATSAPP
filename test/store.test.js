@@ -30,3 +30,15 @@ test('public onboarding creates isolated browser access and cannot take over a k
   assert.equal(s.register('+12025550124'),null);assert.equal(s.account(existing.account.id).consent,1);
   const other=s.register('+12025550125');assert.notEqual(s.browser(first).id,s.browser(other).id);
 });
+
+test('string message IDs and non-text bodies do not break SQLite registration',t=>{
+  const s=setup(t),a=s.invite('12025550123','Uno').account;
+  const msg={id:'id-string',from:'12025550124@c.us',body:{system:true}};
+  const one=s.enqueue(a.id,msg);assert.equal(one.body,'');assert.equal(one.message,'id-string');
+  assert.equal(s.enqueue(a.id,msg).id,one.id);
+});
+test('system events are not inserted as conversations',t=>{
+  const s=setup(t),a=s.invite('12025550123','Uno').account;
+  assert.equal(s.enqueue(a.id,{from:'12025550124@c.us',type:'e2e_notification'}),null);
+  assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM inbox').get().n,0);
+});

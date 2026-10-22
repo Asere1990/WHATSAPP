@@ -8,6 +8,18 @@ export function phoneNumber(value) {
   if (!/^[1-9][0-9]{7,14}$/.test(p)) throw new Error('Usa el número completo con código de país.');
   return p;
 }
+export function normalizeInbound(msg) {
+  if(!msg || msg.fromMe || msg.isStatus || msg.broadcast) return null;
+  if(typeof msg.from!=='string' || !/^[0-9]+@(c\.us|lid)$/.test(msg.from)) return null;
+  const supported=new Set(['chat','image','video','audio','ptt','document','sticker']);
+  if(msg.type && !supported.has(msg.type)) return null;
+  const id=typeof msg.id==='string'?msg.id:msg.id?._serialized;
+  if(typeof id!=='string' || !id.trim()) {
+    const error=new TypeError('El mensaje no tiene un identificador válido.');
+    error.code='INVALID_MESSAGE_ID';throw error;
+  }
+  return {id:{_serialized:id},from:msg.from,body:typeof msg.body==='string'?msg.body:'',type:msg.type||'chat'};
+}
 export class Store {
   constructor(dir) {
     mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -20,7 +32,8 @@ export class Store {
       CREATE TABLE IF NOT EXISTS routes(tg_chat TEXT, tg_message INTEGER, account TEXT, peer TEXT, PRIMARY KEY(tg_chat,tg_message));
       CREATE TABLE IF NOT EXISTS inbox(id INTEGER PRIMARY KEY, account TEXT, message TEXT, peer TEXT, body TEXT, media TEXT, state TEXT DEFAULT 'pending', created INTEGER, UNIQUE(account,message));
       CREATE TABLE IF NOT EXISTS rules(id INTEGER PRIMARY KEY, account TEXT, keyword TEXT, reply TEXT);
-      CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, account TEXT, event TEXT, created INTEGER);`);
+      CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, account TEXT, event TEXT, created INTEGER);
+      CREATE TABLE IF NOT EXISTS incidents(id INTEGER PRIMARY KEY, account TEXT, reference TEXT, stage TEXT, code TEXT, state TEXT DEFAULT 'open', created INTEGER, UNIQUE(account,reference,stage));`);
   }
   all() { return this.db.prepare('SELECT * FROM accounts ORDER BY created DESC').all(); }
   account(id) { return this.db.prepare('SELECT * FROM accounts WHERE id=?').get(id); }
@@ -68,9 +81,18 @@ export class Store {
   route(chat,message,account,peer) { this.db.prepare('INSERT OR REPLACE INTO routes VALUES(?,?,?,?)').run(String(chat),message,account,peer); }
   getRoute(chat,message) { return this.db.prepare('SELECT * FROM routes WHERE tg_chat=? AND tg_message=?').get(String(chat),message); }
   enqueue(account,msg) {
+    msg=normalizeInbound(msg);
+    if(!msg)return null;
     this.db.prepare('INSERT OR IGNORE INTO inbox(account,message,peer,body,created) VALUES(?,?,?,?,?)').run(account,msg.id._serialized,msg.from,(msg.body||'').slice(0,12000),Date.now());
     return this.db.prepare('SELECT * FROM inbox WHERE account=? AND message=?').get(account,msg.id._serialized);
   }
+  recordIncident(account,stage,error,reference=null) {
+    const code=typeof error?.code==='string'?error.code.slice(0,80):String(error?.name||'Error').slice(0,80);
+    reference=typeof reference==='string'?reference:null;
+    this.db.prepare('INSERT OR IGNORE INTO incidents(account,reference,stage,code,created) VALUES(?,?,?,?,?)').run(account,reference,stage,code,Date.now());
+    return reference?this.db.prepare("SELECT * FROM incidents WHERE account=? AND reference=? AND stage=?").get(account,reference,stage):this.db.prepare("SELECT * FROM incidents WHERE id=last_insert_rowid()").get();
+  }
+  openIncidents() { return this.db.prepare("SELECT id,account,stage,code FROM incidents WHERE state='open' ORDER BY id DESC LIMIT 30").all(); }
   setRule(account,keyword,reply) {
     this.db.prepare('DELETE FROM rules WHERE account=? AND keyword=?').run(account,keyword);
     this.db.prepare('INSERT INTO rules(account,keyword,reply) VALUES(?,?,?)').run(account,keyword.toLowerCase(),reply);
@@ -81,6 +103,7 @@ export class Store {
     this.db.prepare('DELETE FROM access WHERE expires<?').run(Date.now());
     this.db.prepare('DELETE FROM inbox WHERE created<?').run(cutoff);
     this.db.prepare('DELETE FROM audit WHERE created<?').run(Date.now()-90*86400000);
+    this.db.prepare('DELETE FROM incidents WHERE created<?').run(Date.now()-90*86400000);
     this.db.prepare('DELETE FROM routes WHERE rowid NOT IN (SELECT rowid FROM routes ORDER BY rowid DESC LIMIT 10000)').run();
   }
 }

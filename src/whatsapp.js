@@ -2,6 +2,7 @@ import WA from 'whatsapp-web.js';
 import { mkdirSync, writeFileSync, rmSync, existsSync, statfsSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
+import { normalizeInbound } from './store.js';
 const { Client, LocalAuth, MessageMedia }=WA;
 export class Accounts {
   constructor(store,dir,notify,max=2) { this.store=store;this.dir=dir;this.notify=notify;this.max=max;this.live=new Map();this.stopping=false; }
@@ -40,7 +41,7 @@ export class Accounts {
       if(msg.fromMe || msg.isStatus || !/@(c\.us|lid)$/.test(msg.from) || this.store.account(id)?.paused) return;
       if(entry.pending>=200) {this.store.update(id,'paused',1);this.notify(`⚠️ Cuenta ${id} pausada por cola llena. Revisar volumen.`).catch(()=>{});return;}
       entry.pending++;
-      entry.chain=entry.chain.then(()=>this.receive(id,msg)).catch(()=>this.notify(`⚠️ Error procesando un mensaje de ${id}. Revisar /pendientes.`).catch(()=>{})).finally(()=>entry.pending--);
+      entry.chain=entry.chain.then(()=>this.receive(id,msg)).catch(()=>{}).finally(()=>entry.pending--);
     });
     client.initialize().catch(async()=>{
       entry.ready=false;this.store.update(id,'status','error');
@@ -55,15 +56,21 @@ export class Accounts {
   async receive(id,msg) {
     const a=this.store.account(id);
     if(!a?.consent||a.paused||this.stopping) return;
-    const item=this.store.enqueue(id,msg);
-    if(item.state!=='pending') return;
-    // Mark before external effects: ambiguous network outcomes are reviewed, never blindly resent.
-    this.store.db.prepare("UPDATE inbox SET state='processing' WHERE id=?").run(item.id);
+    let item=null,stage='validacion';
     try {
-      const header=`📩 ${a.name} · Cuenta ${id}\nContacto: ${msg.from}\nRegistro: ${item.id}\n\n${(msg.body||'[archivo]').slice(0,3000)}\n\nResponde a este mensaje para contestar desde WhatsApp.`;
+      const normalized=normalizeInbound(msg);if(!normalized)return;
+      const body=normalized.body;
+      stage='registro';
+      item=this.store.enqueue(id,normalized);
+      if(!item || item.state!=='pending')return;
+      // Never automatically resend after an uncertain external delivery.
+      this.store.db.prepare("UPDATE inbox SET state='processing' WHERE id=?").run(item.id);
+      stage='envio_panel';
+      const header=`📩 ${a.name} · Cuenta ${id}\nContacto: ${msg.from}\nRegistro: ${item.id}\n\n${(body||'[archivo]').slice(0,3000)}\n\nResponde a este mensaje para contestar desde WhatsApp.`;
       const sent=await this.notify(header);
       this.store.route(sent.chat.id,sent.message_id,id,msg.from);
       if(msg.hasMedia && !msg.isEphemeral && !msg.rawData?.isViewOnce) {
+        stage='archivo';
         const advertised=Number(msg.rawData?.size||msg.rawData?.fileSize||0);
         const cap=Number(process.env.MAX_MEDIA_MB||20)*1024*1024;
         const disk=statfsSync(this.dir);
@@ -78,7 +85,7 @@ export class Accounts {
               writeFileSync(filename,data,{mode:0o600});
               this.store.db.prepare('UPDATE inbox SET media=? WHERE id=?').run(filename,item.id);
               try {
-                const caption=`${(msg.body||'').slice(0,600)}\n\nCuenta: ${a.name} (+${a.phone})\nID: ${id}\nContacto de origen: ${msg.from}\nRegistro: ${item.id}`;
+                const caption=`${body.slice(0,600)}\n\nCuenta: ${a.name} (+${a.phone})\nID: ${id}\nContacto de origen: ${msg.from}\nRegistro: ${item.id}`;
                 const copied=await this.notify(null,{data,name:path.basename(media.filename||'archivo'),mime:media.mimetype,caption});
                 this.store.route(copied.chat.id,copied.message_id,id,msg.from);
               } catch {await this.notify(`Archivo guardado. Registro ${item.id}. No se pudo enviar a Telegram.`);}
@@ -86,15 +93,29 @@ export class Accounts {
           } else await this.notify(`Registro ${item.id}: WhatsApp no entregó el archivo.`);
         } else await this.notify(`Registro ${item.id}: archivo no descargado; tamaño desconocido o superior al límite configurado.`);
       }
-      const rule=this.store.rules(id).find(r=>(msg.body||'').toLowerCase().trim()===r.keyword);
+      const rule=this.store.rules(id).find(r=>body.toLowerCase().trim()===r.keyword);
       if(rule && !this.store.account(id).paused) {
+        stage='respuesta';
         await this.send(id,msg.from,rule.reply);
         await this.notify(`✅ Regla aplicada · ${id} · Registro ${item.id}`);
       }
       this.store.db.prepare("UPDATE inbox SET state='done' WHERE id=?").run(item.id);
-    } catch {
-      this.store.db.prepare("UPDATE inbox SET state='review' WHERE id=?").run(item.id);throw new Error('Revisión requerida');
+    } catch(error) {
+      if(item)try{this.store.db.prepare("UPDATE inbox SET state='review' WHERE id=?").run(item.id);}catch{}
+      await this.reportFailure(id,error,msg,stage);
+      throw error;
     }
+  }
+  async reportFailure(id,error,msg,stage) {
+    let incident=null;
+    const reference=typeof msg?.id==='string'?msg.id:msg?.id?._serialized;
+    try{incident=this.store.recordIncident(id,stage,error,reference);}catch{}
+    // Log only classifications and stack frames, never message content or credentials.
+    console.error('WHATSAPP: inbound_failed',JSON.stringify({account:id,stage,code:incident?.code||String(error?.name||'Error'),frames:String(error?.stack||'').split('\n').filter(line=>line.trim().startsWith('at ')).slice(0,4)}));
+    const text=incident
+      ?`⚠️ Incidencia #${incident.id} · Cuenta ${id} · ${stage} (${incident.code}). Guardada para revisión en /pendientes.`
+      :`⚠️ Error en la cuenta ${id}. No se pudo guardar la incidencia; revisar los registros del servicio.`;
+    await this.notify(text).catch(()=>{});
   }
   async send(id,peer,text,media) {
     const a=this.store.account(id), entry=this.live.get(id);

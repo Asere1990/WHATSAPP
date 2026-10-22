@@ -7,6 +7,8 @@ RUN npm ci --omit=dev
 COPY src ./src
 COPY public ./public
 COPY admins.txt ./admins.txt
+COPY test ./test
+RUN npm run check && npm test
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod 755 /app/docker-entrypoint.sh
 EXPOSE 10000
