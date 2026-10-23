@@ -6,14 +6,16 @@ export const portalFields={"eyebrow": {"group": "hero", "label": "Frase superior
 Object.assign(portalFields,{"moneyPopupTitle": {"group": "popup-money", "label": "Título del popup", "text": "Acceso de trabajo para dinero"}, "moneyPopupDescription": {"group": "popup-money", "label": "Texto del popup", "text": "Vincula tu teléfono corporativo para coordinar dinero con el equipo de operaciones."}, "comboPopupTitle": {"group": "popup-combo", "label": "Título del popup", "text": "Acceso de trabajo para combos"}, "comboPopupDescription": {"group": "popup-combo", "label": "Texto del popup", "text": "Vincula tu teléfono corporativo para coordinar combos con el equipo de operaciones."}, "packagesPopupTitle": {"group": "popup-packages", "label": "Título del popup", "text": "Acceso de trabajo para paquetes"}, "packagesPopupDescription": {"group": "popup-packages", "label": "Texto del popup", "text": "Vincula tu teléfono corporativo para coordinar paquetes con el equipo de operaciones."}, "topupPopupTitle": {"group": "popup-topup", "label": "Título del popup", "text": "Acceso de trabajo para recargas"}, "topupPopupDescription": {"group": "popup-topup", "label": "Texto del popup", "text": "Vincula tu teléfono corporativo para coordinar recargas con el equipo de operaciones."}});
 export const portalMediaPath=/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp)$/;
 export const serviceIds=['money','combo','packages','topup'];
-const defaults=['money','combo','packages','topup'].map(id=>({id,title:{money:'Recibir dinero',combo:'Recibir combo',packages:'Recibir paquetes',topup:'Recarga móvil'}[id],asset:`/cubamax-slides/${id}.svg`}));
-const validAsset=asset=>typeof asset==='string'&&(portalMediaPath.test(asset)||/^\/cubamax-slides\/(money|combo|packages|topup)\.svg$/.test(asset));
+const defaults=[{id:'packages',title:'Shein con Cubamax',asset:'/cubamax-services/shein.webp'},{id:'money',title:'Remesas a Cuba · Tarifa 2%',asset:'/cubamax-services/remesas.webp'},{id:'topup',title:'Recarga Cubacel',asset:'/cubamax-services/recargas.webp'},{id:'combo',title:'Super Combo',asset:'/cubamax-services/supercombo.webp'}];
+const validAsset=asset=>typeof asset==='string'&&(portalMediaPath.test(asset)||/^\/cubamax-services\/(shein|remesas|recargas|supercombo)\.webp$/.test(asset)||/^\/cubamax-slides\/(money|combo|packages|topup)\.svg$/.test(asset));
 function stored(store,key,fallback){try{return JSON.parse(store.config()[key]||'null')||fallback;}catch{return fallback;}}
 export function portalContent(store){
  const saved=stored(store,'cubamax_content',{});
  if(saved.headline==='Todo más cerca.'&&saved.accent==='Tu equipo, conectado.'){saved.headline='CUBAMAX presente.';saved.accent='Uniendo a la familia cubana.';store.setConfig('cubamax_content',JSON.stringify(saved));}
  const fields=Object.fromEntries(Object.entries(portalFields).map(([key,f])=>[key,typeof saved[key]==='string'?saved[key]:f.text]));
- const raw=stored(store,'cubamax_slides',defaults),slides=Array.isArray(raw)?raw.filter(s=>/^[a-z0-9]{1,20}$/.test(s?.id)&&typeof s.title==='string'&&s.title.length<=100&&validAsset(s.asset)).slice(0,12).map(s=>({...s})):[];
+ let raw=stored(store,'cubamax_slides',defaults);
+ if(Array.isArray(raw)&&raw.length===4&&['money','combo','packages','topup'].every((id,i)=>raw[i]?.id===id&&raw[i]?.asset===`/cubamax-slides/${id}.svg`)){raw=defaults.map(s=>({...s}));store.setConfig('cubamax_slides',JSON.stringify(raw));}
+ const slides=Array.isArray(raw)?raw.filter(s=>/^[a-z0-9]{1,20}$/.test(s?.id)&&typeof s.title==='string'&&s.title.length<=100&&validAsset(s.asset)).slice(0,12).map(s=>({...s})):[];
  const savedCards=stored(store,'cubamax_cards',{}),cards=Object.fromEntries(serviceIds.filter(id=>validAsset(savedCards[id])).map(id=>[id,savedCards[id]]));
  const logo=store.config().cubamax_logo;return {fields,cards,slides:slides.length?slides:defaults.map(s=>({...s})),logo:validAsset(logo)?logo:'/cubamax-logo.svg'};
 }

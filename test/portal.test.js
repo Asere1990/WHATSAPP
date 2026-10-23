@@ -16,9 +16,9 @@ test('Cubamax text is persistent, independent from main site branding and exclud
 test('slider upload persists validated image and caption, reorders and removes without affecting WhatsApp',async t=>{
  const {store,bot,dir}=setup(t);await bot.portalEditor.input(123,{field:'image',slide:'packages'},{photo:[{file_id:'photo',file_size:png.length}],caption:'Nuestros envíos'});
  const slides=portalContent(store).slides,s=slides.find(s=>s.id==='packages');assert.equal(s.title,'Nuestros envíos');assert.match(s.asset,/^\/portal-media\/[a-f0-9]{64}\.png$/);assert.deepEqual(readFileSync(path.join(dir,s.asset)),png);
- await bot.portalEditor.callback(123,'123:123','cm:slide:packages:left');assert.equal(portalContent(store).slides[1].id,'packages');
+ await bot.portalEditor.callback(123,'123:123','cm:slide:packages:right');assert.equal(portalContent(store).slides[1].id,'packages');
  await bot.portalEditor.callback(123,'123:123','cm:slide:packages:delete');assert.equal(portalContent(store).slides.some(s=>s.id==='packages'),false);
- await bot.portalEditor.input(123,{field:'logo'},{document:{file_id:'logo'}});assert.match(portalContent(store).logo,/portal-media/);assert.equal(store.config().logo,undefined);store.setConfig('cubamax_slides','[]');assert.equal(portalContent(store).slides.find(s=>s.id==='packages').asset,'/cubamax-slides/packages.svg');
+ await bot.portalEditor.input(123,{field:'logo'},{document:{file_id:'logo'}});assert.match(portalContent(store).logo,/portal-media/);assert.equal(store.config().logo,undefined);store.setConfig('cubamax_slides','[]');assert.equal(portalContent(store).slides.find(s=>s.id==='packages').asset,'/cubamax-services/shein.webp');
 });
 test('adding and cancelling does not leave a placeholder slide; invalid files never replace the current photo',async t=>{
  const {bot,store}=setup(t);await bot.portalEditor.callback(123,'123:123','cm:add');const pending=bot.pending.get('123:123');assert.equal(portalContent(store).slides.length,4);
@@ -53,4 +53,10 @@ test('four button photos persist independently, remove restores one default and 
  await bot.portalEditor.callback(123,'123:123','cm:card:money:delete');assert.equal(portalContent(store).cards.money,undefined);assert.equal(portalContent(store).cards.combo,cards.combo);
  assert.deepEqual(portalContent(store).slides,before.slides);assert.equal(portalContent(store).logo,before.logo);assert.deepEqual(portalContent(store).fields,before.fields);
  store.setConfig('cubamax_cards',JSON.stringify({money:'https://evil.test/x.png',combo:'javascript:bad'}));assert.deepEqual(portalContent(store).cards,{});
+});
+
+test('second slider uses requested order, migrates only original illustrations, and preserves uploaded customization',t=>{
+ const {store}=setup(t);const original=['money','combo','packages','topup'].map(id=>({id,title:id,asset:`/cubamax-slides/${id}.svg`}));store.setConfig('cubamax_slides',JSON.stringify(original));
+ const slides=portalContent(store).slides;assert.deepEqual(slides.map(s=>s.asset),['/cubamax-services/shein.webp','/cubamax-services/remesas.webp','/cubamax-services/recargas.webp','/cubamax-services/supercombo.webp']);
+ assert.deepEqual(JSON.parse(store.config().cubamax_slides),slides);slides[0].asset='/portal-media/'+'a'.repeat(64)+'.png';store.setConfig('cubamax_slides',JSON.stringify(slides));assert.equal(portalContent(store).slides[0].asset,slides[0].asset);
 });
