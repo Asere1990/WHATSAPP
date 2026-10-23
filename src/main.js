@@ -1,3 +1,4 @@
+import {webPhone,phoneParts} from './identity.js';
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { Store } from './store.js';
@@ -18,7 +19,7 @@ const security={
   'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','Cache-Control':'no-store',
   ...(secure?{'Strict-Transport-Security':'max-age=31536000'}:{})
 };
-const publicFiles={'/favicon.svg':['favicon.svg','image/svg+xml'],'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','application/javascript'],'/style.css':['style.css','text/css']};
+const publicFiles={'/countries.js':['countries.js','application/javascript'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','application/javascript'],'/style.css':['style.css','text/css']};
 async function body(req){let data='';for await(const chunk of req){data+=chunk;if(data.length>4000)throw new Error('Solicitud demasiado grande');}return JSON.parse(data||'{}');}
 const rates=new Map();
 function rate(key,max){const now=Date.now();let r=rates.get(key);if(!r||now-r.since>60000){r={since:now,n:0};rates.set(key,r);}return ++r.n<=max;}
@@ -55,18 +56,18 @@ const server=http.createServer(async(req,res)=>{
       if(input.consent!==true||typeof input.phone!=='string')return json(400,{error:'Confirma tu número y la autorización.'});
       if(!process.env.TOKEN||!panel||!telegram.admins().size)return json(503,{error:'Estamos preparando el servicio. Vuelve a intentarlo más tarde.'});
       if(accounts.live.size>=accounts.max)return json(503,{error:'No hay conexiones disponibles en este momento. Inténtalo más tarde.'});
-      const session=store.register(input.phone);
+      const session=store.register(webPhone(input));
       if(!session)return json(409,{error:'Este número ya tiene un acceso creado. Vuelve a abrir la página desde el teléfono y navegador donde comenzaste, o contacta con soporte.'});
       return json(201,{ok:true},{'Set-Cookie':`wa_session=${session}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000${secure?'; Secure':''}`});
     }
     const cookie=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('wa_session='))?.slice(11);
     const a=store.browser(cookie);if(!a)return json(401,{error:'Conecta tu cuenta para continuar.'});
     if(req.method==='GET'&&route==='/api/status'){
-      const e=accounts.live.get(a.id);return json(200,{name:a.name,phone:`+${a.phone}`,status:a.status,paused:!!a.paused,consent:!!a.consent,code:e&&e.expires>Date.now()?e.code:null,expires:e?.expires||0});
+      const e=accounts.live.get(a.id);return json(200,{name:a.name,phone:`+${a.phone}`,...phoneParts(a.phone),status:a.status,paused:!!a.paused,consent:!!a.consent,code:e&&e.expires>Date.now()?e.code:null,expires:e?.expires||0});
     }
     if(req.method==='POST'&&route==='/api/connect'){
       const input=await body(req);
-      if(input.consent!==true||input.phone?.replace(/[ +()-]/g,'')!==a.phone)return json(400,{error:'Confirma tu número y la autorización.'});
+      if(input.consent!==true||webPhone(input)!==a.phone)return json(400,{error:'Confirma tu número y la autorización.'});
       if(!process.env.TOKEN||!panel||!telegram.admins().size)return json(503,{error:'El administrador debe completar la configuración antes de conectar cuentas.'});
       if(!rate(`connect:${a.id}`,3))return json(429,{error:'Espera un minuto antes de volver a intentar.'});
       store.update(a.id,'consent',1);store.audit(a.id,'consent-v1');

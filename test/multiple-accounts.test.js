@@ -6,12 +6,13 @@ import {tmpdir} from 'node:os';
 import {EventEmitter} from 'node:events';
 import {Store} from '../src/store.js';
 import {Accounts} from '../src/whatsapp.js';
-const source=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
+const countries=readFileSync(new URL('../public/countries.js',import.meta.url),'utf8');
+const source=countries+readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 async function page(){
   const elements=new Map(),requests=[],intervals=new Map();let sequence=0;
-  const element=id=>{if(!elements.has(id))elements.set(id,{id,hidden:false,value:'',checked:false,textContent:'',disabled:false,events:{},setAttribute(){},focus(){},pause(){},play:async()=>{},addEventListener(type,fn){this.events[type]=fn;}});return elements.get(id);};
-  let account={name:'Primera',phone:'+12025550123',status:'connected',consent:true,paused:false};
+  const element=id=>{if(!elements.has(id))elements.set(id,{id,hidden:false,value:'',checked:false,textContent:'',disabled:false,events:{},setAttribute(){},focus(){},pause(){},play:async()=>{},appendChild(){},addEventListener(type,fn){this.events[type]=fn;}});return elements.get(id);};
+  let account={name:'Primera',phone:'+12025550123',country:'US',nationalNumber:'2025550123',status:'connected',consent:true,paused:false};
   let deferStatus=null;
   const fetch=async(url,options={})=>{
     requests.push({url,data:options.body?JSON.parse(options.body):null});let data;
@@ -23,14 +24,14 @@ async function page(){
     else throw Error('Unexpected request: '+url);
     return {ok:true,status:200,json:async()=>data};
   };
-  const context=vm.createContext({document:{getElementById:element,styleSheets:[]},localStorage:{getItem:()=> 'iphone',setItem(){}},location:{hash:'',pathname:'/'},history:{replaceState(){}},fetch,setInterval:fn=>{const id=++sequence;intervals.set(id,fn);return id;},clearInterval:id=>intervals.delete(id),setTimeout,console});
+  const context=vm.createContext({document:{getElementById:element,styleSheets:[],createElement:()=>({})},localStorage:{getItem:()=> 'iphone',setItem(){}},location:{hash:'',pathname:'/'},history:{replaceState(){}},fetch,setInterval:fn=>{const id=++sequence;intervals.set(id,fn);return id;},clearInterval:id=>intervals.delete(id),setTimeout,console});
   vm.runInContext(source,context);for(let n=0;n<6;n++)await tick();
   return {element,requests,intervals,context,defer(promise){deferStatus=promise;},get account(){return account;}};
 }
 test('same browser connects a different phone with a new registration and code, never disconnecting first WhatsApp',async()=>{
   const p=await page();assert.match(p.element('connected-account').textContent,/12025550123/);
   p.element('another-account').onclick();assert.equal(p.element('phone').value,'');assert.equal(p.element('consent').checked,false);assert.equal(p.intervals.size,0);
-  p.element('phone').value='+12025550124';p.element('consent').checked=true;
+  p.element('country').value='US';p.element('phone').value='2025550124';p.element('consent').checked=true;
   await p.element('connect').events.submit({preventDefault(){}});
   const actions=p.requests.filter(r=>['/api/register','/api/connect','/api/disconnect'].includes(r.url));
   assert.deepEqual(actions.map(r=>r.url),['/api/register','/api/connect']);assert.ok(actions.every(r=>r.data.phone==='+12025550124'));
@@ -40,7 +41,7 @@ test('late status response from previous account cannot replace the new-number f
   const p=await page();let resolve;
   p.defer(new Promise(r=>resolve=r));const pending=vm.runInContext('refresh()',p.context);await tick();
   p.element('another-account').onclick();p.element('phone').value='+12025550125';
-  resolve({ok:true,status:200,json:async()=>({name:'Primera',phone:'+12025550123',status:'connected',consent:true})});await pending;
+  resolve({ok:true,status:200,json:async()=>({name:'Primera',phone:'+12025550123',country:'US',nationalNumber:'2025550123',status:'connected',consent:true})});await pending;
   assert.equal(p.element('connected').hidden,true);assert.equal(p.element('connect').hidden,false);assert.equal(p.element('phone').value,'+12025550125');
 });
 test('cancel before registering returns to previous browser account without revoking WhatsApp',async()=>{

@@ -1,4 +1,12 @@
 const $=id=>document.getElementById(id);
+for(const c of countryList){const option=document.createElement('option');option.value=c.code;option.textContent=`${c.flag} ${c.name} (+${c.dial})`;$('country').appendChild(option);}
+function selectedCountry(){return countryList.find(c=>c.code===$('country').value);}
+function updateDial(){const c=selectedCountry();$('dial-code').textContent=c?'+'+c.dial:'—';}
+$('country').addEventListener('change',()=>{updateDial();$('phone').focus();});
+function fillPhone(account){
+  const c=countryList.find(c=>c.code===account.country);if(!c)return;
+  $('country').value=c.code;updateDial();$('phone').value=account.nationalNumber||'';
+}
 let state=null,timer=null,session=false,guideData=null,guideDevice=null,guideStep=0,currentView=null,addingAccount=false,connectionEpoch=0;
 try{const saved=localStorage.getItem('guide-device');if(['android','iphone'].includes(saved))guideDevice=saved;}catch{}
 async function api(path,data){const r=await fetch(`/api/${path}`,{method:data?'POST':'GET',headers:data?{'Content-Type':'application/json'}:{},body:data?JSON.stringify(data):undefined});const j=await r.json();if(!r.ok){const e=new Error(j.error||'No se pudo completar');e.status=r.status;throw e;}return j;}
@@ -8,7 +16,7 @@ async function refresh(){
   if(!session||addingAccount)return;
   const epoch=connectionEpoch;
   try{
-    const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;state=next;$('greeting').textContent=`Hola, ${state.name}.`;if(!$('phone').value)$('phone').value=state.phone;
+    const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;state=next;$('greeting').textContent=`Hola, ${state.name}.`;if(!$('phone').value)fillPhone(state);
     $('owner-actions').hidden=!state.consent;
     $('connected-account').textContent=`${state.name} · ${state.phone}`;
     $('pairing-account').textContent=`Número que estás vinculando: ${state.phone}`;
@@ -39,7 +47,9 @@ async function init(){
 $('connect').addEventListener('submit',async event=>{
   event.preventDefault();error('');$('connect-button').disabled=true;
   try{
-    const input={phone:$('phone').value,consent:$('consent').checked};
+    const country=selectedCountry();if(!country)throw Error('Selecciona el país de tu número.');
+    const national=$('phone').value.replace(/[\s().-]/g,'');if(!/^[0-9]{4,15}$/.test(national))throw Error('Escribe tu número sin el prefijo internacional.');
+    const input={phone:'+'+country.dial+national,country:country.code,nationalNumber:national,consent:$('consent').checked};
     if(addingAccount||!session){
       await api('register',input);addingAccount=false;connectionEpoch++;state=null;session=true;
       $('cancel-new-account').hidden=true;clearInterval(timer);timer=setInterval(refresh,3000);
@@ -50,9 +60,9 @@ $('connect').addEventListener('submit',async event=>{
 $('begin').onclick=()=>{error('');$('greeting').textContent='Conecta tu cuenta';show('connect');$('phone').focus();renderGuide();};
 $('another-account').onclick=()=>{
   addingAccount=true;connectionEpoch++;clearInterval(timer);timer=null;state=null;guideStep=0;
-  $('phone').value='';$('consent').checked=false;$('code').textContent='···· ····';$('copy').disabled=true;
+  $('country').value='';updateDial();$('phone').value='';$('consent').checked=false;$('code').textContent='···· ····';$('copy').disabled=true;
   $('owner-actions').hidden=true;$('cancel-new-account').hidden=!session;
-  $('greeting').textContent='Conecta otra cuenta';error('');show('connect');renderGuide();$('phone').focus();
+  $('greeting').textContent='Conecta otra cuenta';error('');show('connect');renderGuide();$('country').focus();
 };
 $('cancel-new-account').onclick=async()=>{
   addingAccount=false;connectionEpoch++;$('cancel-new-account').hidden=true;$('phone').value='';$('consent').checked=false;

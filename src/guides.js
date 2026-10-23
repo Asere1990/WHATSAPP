@@ -15,7 +15,7 @@ export function defaultGuide(device){
   ];
   const titles=['Obtén tu código','Abre WhatsApp','Vincula un dispositivo','Elige vincular con número','Introduce el código en WhatsApp'];
   const texts=[
-    'En esta página, escribe tu número completo y acepta la autorización si estás de acuerdo. Pulsa Obtener código. No recibirás un SMS: el código aparecerá aquí.',
+    'En esta página, elige el país de tu número, escribe tu número sin prefijo y acepta la autorización si estás de acuerdo. Pulsa Obtener código. No recibirás un SMS: el código aparecerá aquí.',
     device==='android'?'Abre WhatsApp en tu teléfono principal. En la pantalla de chats, pulsa el menú de los tres puntos (⋮).':'Abre WhatsApp en tu iPhone principal y entra a Configuración.',
     'Entra a Dispositivos vinculados y pulsa Vincular un dispositivo. Si aparece una notificación de vinculación, también puedes abrirla para continuar.',
     'Pulsa Vincular con número de teléfono en lugar de escanear el QR. Si WhatsApp pide desbloquear el teléfono, hazlo dentro de la aplicación.',

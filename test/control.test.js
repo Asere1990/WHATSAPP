@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { Store } from '../src/store.js';
 import { Accounts } from '../src/whatsapp.js';
 import { Telegram } from '../src/telegram.js';
-import { countryOf, clippedHTML } from '../src/identity.js';
+import { countryOf, clippedHTML,webPhone,phoneParts } from '../src/identity.js';
 function setup(t){
   const dir=mkdtempSync(`${tmpdir()}/wa-control-`),s=new Store(dir),a=s.invite('13215121897','Anterior').account,b=s.invite('5351234567','Segunda').account;
   s.update(a.id,'consent',1);s.update(b.id,'consent',1);
@@ -199,4 +199,12 @@ test('unavailable files are not reported as successful 100 percent',async t=>{
   const {manager,a,peer,messages}=setup(t),progress=[];
   messages.splice(0,messages.length,{id:{_serialized:'missing-progress'},type:'image',hasMedia:true,rawData:{size:3},downloadMedia:async()=>null});
   await manager.tools.downloadRecent(a.id,peer,'photos',async()=>assert.fail(),async p=>progress.push(p));assert.equal(progress.at(-1).phase,'finished');assert.equal(progress.at(-1).percent,0);assert.equal(progress.at(-1).skipped,1);
+});
+
+test('country selector normalizes national numbers, including trunk prefixes and shared calling codes',()=>{
+ assert.equal(webPhone({country:'CU',nationalNumber:'51234567'}),'5351234567');
+ assert.equal(webPhone({country:'US',nationalNumber:'3215121897'}),'13215121897');
+ assert.equal(webPhone({country:'GB',nationalNumber:'02079460018'}),'442079460018');
+ assert.equal(phoneParts('13215121897').country,'US');assert.equal(phoneParts('5351234567').nationalNumber,'51234567');
+ assert.throws(()=>webPhone({country:'XX',nationalNumber:'12345678'}));assert.throws(()=>webPhone({country:'CU',nationalNumber:'+5351234567'}));
 });
