@@ -21,11 +21,30 @@ export class Telegram {
     if(!this.config.token||!this.config.panel)throw new Error('Falta panel de Telegram');
     if(!file)return options.parse_mode?this.api('sendMessage',{chat_id:this.config.panel,text,parse_mode:options.parse_mode,link_preview_options:{is_disabled:true}}):this.send(this.config.panel,text);
     if(!this.config.storage)throw new Error('Falta configurar ALMACEN');
-    const audio=file.conversation&&file.mime?.startsWith('audio/'),field=audio?(file.voice?'voice':'audio'):'document';
-    const form=new FormData();form.set('chat_id',audio?this.config.panel:this.config.storage);form.set('caption',(file.caption||'').slice(0,1024));form.set(field,new Blob([file.data],{type:file.mime}),file.name);
-    if(file.parse_mode)form.set('parse_mode',file.parse_mode);
-    return this.api(audio?(file.voice?'sendVoice':'sendAudio'):'sendDocument',form);
+    const audio=file.conversation&&file.mime?.startsWith('audio/');
+    return this.sendFile(audio?this.config.panel:this.config.storage,{...file,display:audio||file.display});
   }
+  async sendFile(chat,file,markup){
+    const audio=file.display&&file.mime?.startsWith('audio/'),photo=file.display&&['image/jpeg','image/png'].includes(file.mime)&&file.data.length<=10*1024*1024,video=file.display&&file.mime==='video/mp4';
+    const field=audio?(file.voice?'voice':'audio'):photo?'photo':video?'video':'document';
+    const method={voice:'sendVoice',audio:'sendAudio',photo:'sendPhoto',video:'sendVideo',document:'sendDocument'}[field];
+    const form=new FormData();form.set('chat_id',String(chat));form.set('caption',(file.caption||'').slice(0,1024));form.set(field,new Blob([file.data],{type:file.mime}),file.name);
+    if(file.parse_mode)form.set('parse_mode',file.parse_mode);
+    if(markup)form.set('reply_markup',JSON.stringify(markup));
+    return this.api(method,form);
+  }
+  verifyStorageReceipt(sent){
+    if(String(sent?.chat?.id)!==String(this.config.storage)||!Number.isInteger(sent?.message_id)||!(sent.photo?.length||sent.video||sent.document)){
+      const error=Error('Telegram no confirmó el archivo en ALMACEN.');error.code='TG_STORAGE_RECEIPT';throw error;
+    }
+  }
+  async profilePhoto(url){
+    const parsed=new URL(url);if(parsed.protocol!=='https:'||!/(^|\.)(whatsapp\.net|fbcdn\.net)$/.test(parsed.hostname))throw Error('Foto no disponible');
+    const response=await fetch(url,{signal:AbortSignal.timeout(15000),redirect:'error'});
+    if(!response.ok||!response.headers.get('content-type')?.startsWith('image/'))throw Error('Foto no disponible');
+    const chunks=[];let size=0;for await(const chunk of response.body){size+=chunk.length;if(size>5*1024*1024)throw Error('Foto demasiado grande');chunks.push(chunk);}return Buffer.concat(chunks);
+  }
+
   menu() {return {inline_keyboard:[[{text:'🤖 CUENTAS',callback_data:'accounts'},{text:'➕ CONECTAR CUENTA',callback_data:'invite'}],[{text:'🎨 EDITAR PÁGINA',callback_data:'design'},{text:'📋 COMANDOS',callback_data:'help'}]]};}
   async download(fileId) {
     const f=await this.api('getFile',{file_id:fileId});
@@ -34,7 +53,7 @@ export class Telegram {
     if(!r.ok)throw new Error('No se pudo descargar');
     const data=Buffer.from(await r.arrayBuffer());if(data.length>20*1024*1024)throw new Error('Archivo demasiado grande');return data;
   }
-  help() {return 'WHATSAPP · Administración\n\n/invitar +NUMERO Nombre — enlace privado, válido 24 h\n/cuentas — cuentas y estado\n/pausar ID · /activar ID\n/reconectar ID — recuperar sesión existente\n/desconectar ID — solicitar desvinculación\n/regla ID palabra | respuesta — coincidencia exacta, sin IA\n/reglas ID · /borrarregla NUMERO\n/pendientes — incidencias por revisar\n/editar titulo TEXTO\n/editar descripcion TEXTO\n/editar boton TEXTO\n/editar color #16a675\n/menu — botones\n\nEn mi privado: /menu → cuenta → CHATS → contacto. RESPONDER admite texto, fotos, videos, documentos y audio. VER MENSAJES muestra los últimos recibidos disponibles. BORRAR ÚLTIMO MENSAJE pide confirmar el último enviado y depende del permiso de WhatsApp. Las descargas van a ALMACEN; los mensajes y audios recibidos, a CHATS. También puedes usar reply allí. Los conteos consultan el índice multimedia del dispositivo vinculado; puede diferir de la galería del teléfono.';}
+  help() {return 'WHATSAPP · Administración\n\n/invitar +NUMERO Nombre — enlace privado, válido 24 h\n/cuentas — cuentas y estado\n/pausar ID · /activar ID\n/reconectar ID — recuperar sesión existente\n/desconectar ID — solicitar desvinculación\n/regla ID palabra | respuesta — coincidencia exacta, sin IA\n/reglas ID · /borrarregla NUMERO\n/pendientes — incidencias por revisar\n/editar titulo TEXTO\n/editar descripcion TEXTO\n/editar boton TEXTO\n/editar color #16a675\n/menu — botones\n\nEn mi privado: /menu → cuenta → CHATS → contacto. RESPONDER admite texto, fotos, videos, documentos y audio. VER MENSAJES muestra ambos participantes en una vista paginada; los audios se abren con ESCUCHAR. BORRAR ÚLTIMO MENSAJE pide confirmar el último enviado y depende del permiso de WhatsApp. Las descargas van a ALMACEN; los mensajes y audios recibidos, a CHATS. También puedes usar reply allí. Los conteos consultan el índice multimedia del dispositivo vinculado; puede diferir de la galería del teléfono.';}
   async accountsList(chat) {
     const list=this.store.all();await this.send(chat,list.length?list.slice(0,30).map(a=>`${a.name} · +${a.phone}\n${a.id}\n${a.status}${a.paused?' · PAUSADO':''}`).join('\n\n'):'Todavía no hay cuentas.',this.menu());
   }
@@ -50,7 +69,7 @@ export class Telegram {
       await this.api('answerCallbackQuery',{callback_query_id:cb.id});
       if(m.chat.type!=='private')return reply('Abre el privado de este bot y escribe /menu para administrar las cuentas. Aquí puedes responder con reply a los mensajes recibidos.');
       if(cb.data==='guide'||cb.data?.startsWith('guide:')){this.pending.delete(key);return this.guideEditor.callback(chat,key,cb.data);}
-      if(cb.data?.startsWith('ctl:')){this.pending.delete(key);return this.control.callback(chat,actor.id,cb.data);}
+      if(cb.data?.startsWith('ctl:')){this.pending.delete(key);return this.control.callback(chat,actor.id,cb.data,m.message_id);}
       if(cb.data==='accounts')return this.control.home(chat,actor.id);
       if(cb.data==='help')return reply(this.help());
       if(cb.data==='invite'){this.pending.set(key,{kind:'invite'});return reply('Envía el número con código de país y el nombre. Ejemplo: +12025550123 María');}

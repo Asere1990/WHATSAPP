@@ -87,6 +87,7 @@ server.listen(Number(process.env.PORT||10000),'0.0.0.0',async()=>{
   console.log('WHATSAPP: HTTP listo');
   if(process.env.TOKEN&&panel&&telegram.admins().size){
     telegram.start().catch(()=>console.error('Panel de Telegram detenido'));
+    try{const destination=await telegram.api('getChat',{chat_id:telegram.config.storage});console.log('WHATSAPP: storage_verified',JSON.stringify({configured:telegram.config.storage,resolved:destination.id,type:destination.type}));}catch(error){console.error('WHATSAPP: storage_check_failed',error.code||'TG_STORAGE_CHECK');}
     await accounts.restore();
   }else console.log('WHATSAPP: falta configurar TOKEN, ADMIN_CHAT_ID y ADMIN_IDS; vinculación deshabilitada');
 });

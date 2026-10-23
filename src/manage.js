@@ -87,7 +87,7 @@ export class AccountTools {
           failed++;this.accounts.store.recordIncident(id,'descargar_whatsapp',{code:'WA_MEDIA_DOWNLOAD'},msg.id._serialized);continue;
         }
         if(!media){skipped++;continue;}
-        const data=Buffer.from(media.data,'base64');if(data.length>cap){skipped++;continue;}
+        const data=Buffer.from(media.data,'base64');if(!data.length||data.length>cap){skipped++;continue;}
         if(!s.claimExport(id,msg.id._serialized))continue;
         try{await onFile(msg,{data,name:media.filename||'archivo',mime:media.mimetype});s.finishExport(id,msg.id._serialized,'done');sent++;}
         catch(e){s.finishExport(id,msg.id._serialized,'review');throw e;}

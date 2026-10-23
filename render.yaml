@@ -22,5 +22,7 @@ services:
         sync: false
       - key: ALMACEN
         value: "-1004466212290"
+      - key: CHATS
+        value: "-1004461387155"
       - key: ADMIN_CHAT_ID
         value: "-1004466212290"

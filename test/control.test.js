@@ -141,3 +141,50 @@ test('gallery sync distinguishes accepted history request from unavailable histo
   client.syncHistory=async()=>false;
   await bot.control.action(123,123,{kind:'syncMedia',id:a.id,peer});assert.match(calls.at(-1).body.text,/no ofreció ampliar/);
 });
+test('history combines both participants in one message and paginates by editing it',async t=>{
+  const {bot,a,peer,messages,calls,callback}=setup(t);
+  messages.push({...messages[0],id:{_serialized:'out'},fromMe:true,body:'Mi respuesta',timestamp:1792700001});
+  await bot.control.messages(123,123,a.id,peer);
+  assert.equal(calls.length,1);assert.match(calls[0].body.text,/Hola &lt;amigo&gt;/);assert.match(calls[0].body.text,/Mi respuesta/);assert.match(calls[0].body.text,/María/);
+  for(let i=0;i<40;i++)messages.push({...messages[0],body:'mucho texto '.repeat(30),timestamp:1792700010+i});
+  await bot.control.messages(123,123,a.id,peer);
+  const sent=calls.at(-1),previous=sent.body.reply_markup.inline_keyboard[0][0];
+  await bot.handle({...callback(previous.callback_data),callback_query:{...callback(previous.callback_data).callback_query,message:{message_id:2,chat:{id:123,type:'private'}}}});
+  assert.equal(calls.at(-1).method,'editMessageText');assert.equal(calls.at(-1).body.message_id,2);assert.ok(calls.at(-1).body.text.length<=4096);
+});
+test('history voice is playable on demand in the same private chat with reply route',async t=>{
+  const {bot,a,peer,messages,calls,callback,s}=setup(t);
+  messages.push({id:{_serialized:'voice'},type:'ptt',hasMedia:true,fromMe:false,timestamp:1792700001,downloadMedia:async()=>({data:'YWJj',mimetype:'audio/ogg'})});
+  await bot.control.messages(123,123,a.id,peer);
+  assert.doesNotMatch(calls[0].body.text,/\[ptt\]/);
+  const play=calls[0].body.reply_markup.inline_keyboard.flat().find(b=>b.text.includes('ESCUCHAR'));
+  await bot.handle(callback(play.callback_data));
+  const voice=calls.at(-1);assert.equal(voice.method,'sendVoice');assert.equal(voice.body.get('chat_id'),'123');assert.equal(await voice.body.get('voice').text(),'abc');
+  assert.equal(s.getRoute(123,calls.length).peer,peer);
+});
+test('account card uploads actual profile bytes, caption and keyboard together',async t=>{
+  const {bot,a,client,calls}=setup(t);client.getProfilePicUrl=async()=> 'https://pps.whatsapp.net/profile.jpg';bot.profilePhoto=async()=>Buffer.from('profile');
+  await bot.control.account(123,123,a.id);const card=calls.at(-1);
+  assert.equal(card.method,'sendPhoto');assert.equal(await card.body.get('photo').text(),'profile');assert.match(card.body.get('caption'),/María/);assert.match(card.body.get('reply_markup'),/CHATS/);
+});
+test('manual photos use ALMACEN native media, validated receipts, and persistent links',async t=>{
+  const {bot,manager,a,peer,messages,calls,s}=setup(t);
+  messages.splice(0,messages.length,{id:{_serialized:'pic'},type:'image',hasMedia:true,rawData:{size:3},downloadMedia:async()=>({data:'YWJj',mimetype:'image/jpeg'})});
+  const base=bot.api;bot.api=async(method,body)=>{if(method==='getChat')return {id:-10020};const r=await base(method,body);if(method==='sendPhoto')r.photo=[{file_id:'photo'}];return r;};
+  await bot.control.action(123,123,{kind:'download',id:a.id,peer,media:'photos'});await Promise.all(bot.control.jobs);
+  const file=calls.find(c=>c.method==='sendPhoto');assert.equal(file.body.get('chat_id'),'-10020');assert.equal(await file.body.get('photo').text(),'abc');
+  assert.equal(s.exportState(a.id,'pic'),'done');assert.equal(s.receipt(a.id,'pic').tg_chat,'-10020');assert.match(calls.at(-1).body.text,/https:\/\/t.me\/c\/20\//);
+});
+test('wrong destination or missing file confirmation never counts as delivered',async t=>{
+  const {bot,a,peer,messages,s,calls}=setup(t);
+  messages.splice(0,messages.length,{id:{_serialized:'wrong'},type:'video',hasMedia:true,rawData:{size:3},downloadMedia:async()=>({data:'YWJj',mimetype:'video/mp4'})});
+  const base=bot.api;bot.api=async(method,body)=>method==='getChat'?{id:-10020}:method==='sendVideo'?{chat:{id:-999},message_id:8,video:{file_id:'x'}}:base(method,body);
+  await bot.control.action(123,123,{kind:'download',id:a.id,peer,media:'videos'});await Promise.all(bot.control.jobs);
+  assert.equal(s.exportState(a.id,'wrong'),'review');assert.equal(s.receipt(a.id,'wrong'),undefined);assert.match(calls.at(-1).body.text,/TG_STORAGE_RECEIPT/);
+});
+test('only legacy unverified completed exports can be manually enabled again',async t=>{
+  const {s,a}=setup(t);
+  for(const key of ['legacy','proven','uncertain'])s.claimExport(a.id,key);
+  s.finishExport(a.id,'legacy','done');s.finishExport(a.id,'proven','done');s.finishExport(a.id,'uncertain','review');s.exportReceipt(a.id,'proven',-10020,4);
+  assert.equal(s.resetUnverifiedExport(a.id,'legacy'),true);assert.equal(s.resetUnverifiedExport(a.id,'proven'),false);assert.equal(s.resetUnverifiedExport(a.id,'uncertain'),false);
+});

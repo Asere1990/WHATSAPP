@@ -35,6 +35,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, account TEXT, event TEXT, created INTEGER);
       CREATE TABLE IF NOT EXISTS incidents(id INTEGER PRIMARY KEY, account TEXT, reference TEXT, stage TEXT, code TEXT, state TEXT DEFAULT 'open', created INTEGER, UNIQUE(account,reference,stage));
       CREATE TABLE IF NOT EXISTS profiles(account TEXT, peer TEXT, name TEXT, phone TEXT, PRIMARY KEY(account,peer));
+      CREATE TABLE IF NOT EXISTS export_receipts(account TEXT, message TEXT, tg_chat TEXT, tg_message INTEGER, PRIMARY KEY(account,message));
       CREATE TABLE IF NOT EXISTS media_exports(account TEXT, message TEXT, state TEXT, created INTEGER, PRIMARY KEY(account,message));`);
   }
   all() { return this.db.prepare('SELECT * FROM accounts ORDER BY created DESC').all(); }
@@ -43,6 +44,9 @@ export class Store {
   saveProfile(account,peer,name,phone) {this.db.prepare('INSERT OR REPLACE INTO profiles VALUES(?,?,?,?)').run(account,peer,String(name||'Sin nombre').slice(0,120),String(phone||''));}
   exportState(account,message) {return this.db.prepare('SELECT state FROM media_exports WHERE account=? AND message=?').get(account,message)?.state;}
   claimExport(account,message) {return this.db.prepare("INSERT OR IGNORE INTO media_exports VALUES(?,?,'processing',?)").run(account,message,Date.now()).changes>0;}
+  receipt(account,message) {return this.db.prepare('SELECT * FROM export_receipts WHERE account=? AND message=?').get(account,message);}
+  resetUnverifiedExport(account,message) {return this.db.prepare("DELETE FROM media_exports WHERE account=? AND message=? AND state='done' AND NOT EXISTS(SELECT 1 FROM export_receipts r WHERE r.account=media_exports.account AND r.message=media_exports.message)").run(account,message).changes>0;}
+  exportReceipt(account,message,chat,tgMessage) {this.db.prepare('INSERT OR REPLACE INTO export_receipts VALUES(?,?,?,?)').run(account,message,String(chat),tgMessage);}
   finishExport(account,message,state) {this.db.prepare('UPDATE media_exports SET state=? WHERE account=? AND message=?').run(state,account,message);}
   update(id, key, value) {
     if (!['consent','paused','status'].includes(key)) throw new Error('Campo inválido');
