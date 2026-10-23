@@ -127,6 +127,7 @@ export class Store {
     const row=this.db.prepare("SELECT account FROM access WHERE hash=? AND kind='browser' AND expires>?").get(digest(secret),Date.now());
     return row && this.account(row.account);
   }
+  forgetBrowser(secret) {if(secret)this.db.prepare("DELETE FROM access WHERE hash=? AND kind='browser'").run(digest(secret));}
   revoke(id) { this.db.prepare('DELETE FROM access WHERE account=?').run(id); this.update(id,'consent',0); this.update(id,'status','revoked'); this.audit(id,'revoked'); }
   config() { return Object.fromEntries(this.db.prepare('SELECT key,value FROM config').all().map(x=>[x.key,x.value])); }
   setConfig(key,value) { this.db.prepare('INSERT OR REPLACE INTO config VALUES(?,?)').run(key,value); }

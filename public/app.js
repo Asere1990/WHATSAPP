@@ -26,20 +26,34 @@ function error(message,{attention=true}={}){const box=$('error'),changed=box.hid
 function resetNumberError(){error('');if(blockedNumber){blockedNumber=null;$('connect-button').disabled=Date.now()<retryAfter;$('connect-button').textContent=Date.now()<retryAfter?'Espera un minuto':'Obtener código';}}
 $('phone').addEventListener('input',resetNumberError);$('country').addEventListener('change',resetNumberError);
 function show(id){if(id!=='pairing')$('code-loading').hidden=true;currentView=id;for(const x of ['loading','welcome','connect','pairing','connected'])$(x).hidden=x!==id;$('guide').hidden=!['connect','pairing'].includes(id);if(id==='connect'&&!guideDevice)$('connect').hidden=true;}
+async function finishConnection(){
+  const epoch=++connectionEpoch;
+  session=false;addingAccount=false;browserPhone=null;state=null;blockedNumber=null;retryAfter=0;statusRetryNotice=false;
+  clearInterval(timer);timer=null;guideStep=0;clearConnectionForm();
+  $('code').textContent='···· ····';$('code').hidden=true;$('copy').disabled=true;$('pairing-account').textContent='';$('connected-account').textContent='';
+  $('owner-actions').hidden=true;$('cancel-new-account').hidden=true;$('greeting').textContent='Conecta tu cuenta';
+  $('connect-button').disabled=false;$('connect-button').textContent='Obtener código';error('');show('loading');
+  // Drop only this browser authorization. The connected WhatsApp remains running.
+  try{await api('browser-reset',{});}catch{}
+  if(epoch===connectionEpoch){show('welcome');renderGuide();}
+}
 async function refresh({initial=false}={}){
   if(!session||addingAccount)return;
   const epoch=connectionEpoch;
   try{
     const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;state=next;browserPhone=String(next.phone||'').replace(/\D/g,'');
+    if(next.status==='connected'){
+      const pairedNow=currentView==='pairing';
+      if(corporatePortal&&typeof corporateConnected==='function')corporateConnected(next.phone,pairedNow);
+      await finishConnection();return;
+    }
     if(initial){clearConnectionForm();$('code').textContent='···· ····';$('copy').disabled=true;$('pairing-account').textContent='';$('owner-actions').hidden=true;show('welcome');error('');return;}
     if(statusRetryNotice){error('');statusRetryNotice=false;}
     $('greeting').textContent='Conecta tu cuenta';
     $('owner-actions').hidden=!state.consent;
     $('connected-account').textContent=`${state.name} · ${state.phone}`;
     $('pairing-account').textContent=`Número que estás vinculando: ${state.phone}`;
-    if(state.status==='connected'){
-      const pairedNow=currentView==='pairing';show('connected');if(corporatePortal&&typeof corporateConnected==='function')corporateConnected(state.phone,pairedNow);$('activity').textContent=state.paused?'Atención pausada':'Atención activa';$('pause').textContent=state.paused?'Reanudar atención':'Pausar atención';error('');
-    }else if(state.status==='connecting' || state.code){
+    if(state.status==='connecting' || state.code){
       show('pairing');$('code-loading').hidden=!!state.code;$('code').hidden=!state.code;$('code').textContent=state.code?state.code.slice(0,4)+' '+state.code.slice(4):'···· ····';$('copy').disabled=!state.code;
       $('expires').textContent=state.code?'Copia el código e introdúcelo en WhatsApp. Se renueva automáticamente.':'Preparando el código. Esto puede tardar un momento…';$('retry').hidden=true;updateGuideNext();
     }else{
@@ -89,7 +103,7 @@ $('connect').addEventListener('submit',async event=>{
     else error(userError(e));
   }finally{submitBusy=false;$('connect-button').disabled=!!blockedNumber||Date.now()<retryAfter;$('connect-button').textContent=Date.now()<retryAfter?'Espera un minuto':blockedNumber?'Abre tu enlace privado':'Obtener código';}
 });
-$('begin').onclick=()=>{error('');$('greeting').textContent='Conecta tu cuenta';show('connect');$('phone').focus();renderGuide();};
+$('begin').onclick=()=>{clearConnectionForm();guideStep=0;blockedNumber=null;error('');$('greeting').textContent='Conecta tu cuenta';show('connect');$('phone').focus();renderGuide();};
 $('another-account').onclick=()=>{
   blockedNumber=null;addingAccount=true;connectionEpoch++;clearInterval(timer);timer=null;state=null;guideStep=0;
   $('country').value='';updateDial();$('phone').value='';$('consent').checked=false;$('code').textContent='···· ····';$('copy').disabled=true;
@@ -98,6 +112,7 @@ $('another-account').onclick=()=>{
 };
 $('cancel-new-account').onclick=async()=>{
   addingAccount=false;connectionEpoch++;$('cancel-new-account').hidden=true;$('phone').value='';$('consent').checked=false;
+  if(!session){clearConnectionForm();show('welcome');error('');return;}
   await refresh();if(session){clearInterval(timer);timer=setInterval(refresh,3000);}
 };
 $('close-copy-help').onclick=()=>{
@@ -132,4 +147,6 @@ function renderGuide(){
 for(const device of ['android','iphone'])$('device-'+device).onclick=()=>{guideDevice=device;guideStep=0;try{localStorage.setItem('guide-device',device);}catch{}if(currentView==='connect')show('connect');renderGuide();};
 $('guide-back').onclick=()=>{guideStep--;renderGuide();};
 $('guide-next').onclick=()=>{if(guideStep<guideData[guideDevice].length-1){guideStep++;renderGuide();}else{location.href='whatsapp://';}};
+globalThis.addEventListener?.('pageshow',event=>{if(event.persisted){if(session&&currentView==='pairing')refresh();else if(currentView==='welcome')clearConnectionForm();}});
+document.addEventListener?.('visibilitychange',()=>{if(document.visibilityState==='visible'&&session&&currentView==='pairing')refresh();});
 init();

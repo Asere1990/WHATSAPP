@@ -19,6 +19,7 @@ async function page({registerStatus=201,initialAccount={}}={}){
     if(url==='/api/branding')data={title:'WhatsApp',description:'Gestión',button:'Conectar'};
     else if(url==='/api/guides')data={android:[{title:'Android',text:'Paso',asset:null}],iphone:[{title:'iPhone',text:'Paso',asset:null}]};
     else if(url==='/api/status'){if(deferStatus){const pending=deferStatus;deferStatus=null;return pending;}data={...account};}
+    else if(url==='/api/browser-reset')data={ok:true};
     else if(url==='/api/register'){if(registerStatus!==201)return {ok:false,status:registerStatus,json:async()=>({error:'duplicate'})};account={name:'Segunda',phone:JSON.parse(options.body).phone,status:'pending',consent:false,paused:false};data={ok:true};}
     else if(url==='/api/connect'){if(JSON.parse(options.body).phone!==account.phone)return {ok:false,status:400,json:async()=>({error:'Confirma tu número y la autorización.'})};account={...account,status:'connecting',consent:true,code:'87654321'};data={ok:true};}
     else throw Error('Unexpected request: '+url);
@@ -38,15 +39,15 @@ test('same browser connects a different phone with a new registration and code, 
   assert.equal(p.element('pairing').hidden,false);assert.equal(p.element('code').textContent,'8765 4321');assert.match(p.element('pairing-account').textContent,/12025550124/);
 });
 test('late status response from previous account cannot replace the new-number form',async()=>{
-  const p=await page();let resolve;
+  const p=await page({initialAccount:{status:'pending'}});let resolve;
   p.defer(new Promise(r=>resolve=r));const pending=vm.runInContext('refresh()',p.context);await tick();
   p.element('another-account').onclick();p.element('phone').value='+12025550125';
   resolve({ok:true,status:200,json:async()=>({name:'Primera',phone:'+12025550123',country:'US',nationalNumber:'2025550123',status:'connected',consent:true})});await pending;
   assert.equal(p.element('connected').hidden,true);assert.equal(p.element('connect').hidden,false);assert.equal(p.element('phone').value,'+12025550125');
 });
-test('cancel before registering returns to previous browser account without revoking WhatsApp',async()=>{
+test('cancel after a completed account returns to clean welcome without revoking WhatsApp',async()=>{
   const p=await page();p.element('another-account').onclick();await p.element('cancel-new-account').onclick();
-  assert.equal(p.element('connected').hidden,false);assert.match(p.element('connected-account').textContent,/12025550123/);assert.equal(p.requests.some(r=>r.url==='/api/disconnect'),false);
+  assert.equal(p.element('welcome').hidden,false);assert.equal(p.element('phone').value,'');assert.equal(p.requests.some(r=>r.url==='/api/disconnect'),false);
 });
 test('three phone numbers have separate authorization and WhatsApp browser profiles',async t=>{
   const dir=mkdtempSync(`${tmpdir()}/wa-multi-`),store=new Store(dir),options=[];
@@ -86,7 +87,7 @@ test('Safari pattern errors and network or invalid server responses are presente
 });
 
 test('background disconnected polling does not show an error, scroll or steal input focus',async()=>{
- const p=await page();p.account.status='disconnected';
+ const p=await page({initialAccount:{status:'disconnected'}});
  p.element('phone').value='321512';
  for(let n=0;n<3;n++)await vm.runInContext('refresh()',p.context);
  assert.equal(p.element('connect').hidden,false);
@@ -113,7 +114,7 @@ test('validation alerts clear when editing and repeated alerts do not scroll or 
 });
 
 test('reloading with a saved unlinked session leaves country and phone empty',async()=>{
- const p=await page();
+ const p=await page({initialAccount:{status:'disconnected'}});
  assert.equal(p.element('country').value,'');
  assert.equal(p.element('phone').value,'');
  assert.equal(p.element('consent').checked,false);
@@ -178,7 +179,7 @@ test('temporary invalid status response preserves pairing screen, session and au
 });
 
 test('three loading dots are visible only while waiting for a pairing code',async()=>{
- const p=await page();p.account.status='connecting';p.account.code=null;
+ const p=await page({initialAccount:{status:'connecting',code:null}});
  await vm.runInContext('refresh()',p.context);
  assert.equal(p.element('code-loading').hidden,false);assert.equal(p.element('code').hidden,true);assert.equal(p.element('copy').disabled,true);
  p.account.code='12345678';await vm.runInContext('refresh()',p.context);
@@ -225,4 +226,31 @@ test('reload of a connected account shows an empty landing without polling or di
  assert.equal(p.intervals.size,0);assert.equal(p.account.status,'connected');
  assert.equal(p.requests.some(r=>r.url==='/api/disconnect'),false);
  p.element('begin').onclick();assert.equal(p.element('connect').hidden,false);
+});
+
+
+test('successful pairing clears browser state and next account registers independently',async()=>{
+ const p=await page({initialAccount:{status:'pending'}});
+ p.element('begin').onclick();p.element('country').value='US';p.element('phone').value='2025550123';p.element('consent').checked=true;
+ await p.element('connect').events.submit({preventDefault(){}});
+ p.account.status='connected';p.account.code=null;await vm.runInContext('refresh()',p.context);
+ assert.equal(p.account.status,'connected');assert.equal(p.element('welcome').hidden,false);
+ assert.equal(p.element('phone').value,'');assert.equal(p.element('country').value,'');assert.equal(p.element('consent').checked,false);
+ assert.equal(p.element('pairing-account').textContent,'');assert.equal(p.element('connected-account').textContent,'');assert.equal(p.element('copy').disabled,true);assert.equal(p.intervals.size,0);
+ assert.equal(vm.runInContext('session',p.context),false);assert.equal(vm.runInContext('browserPhone',p.context),null);
+ assert.equal(p.requests.filter(r=>r.url==='/api/browser-reset').length,1);assert.equal(p.requests.some(r=>r.url==='/api/disconnect'),false);
+ // Simulate Safari restoring old form fields before the next click.
+ p.element('phone').value='2025550123';p.element('consent').checked=true;p.element('begin').onclick();assert.equal(p.element('phone').value,'');assert.equal(p.element('consent').checked,false);
+ p.element('country').value='US';p.element('phone').value='2025550124';p.element('consent').checked=true;
+ await p.element('connect').events.submit({preventDefault(){}});
+ const last=p.requests.filter(r=>['/api/register','/api/connect'].includes(r.url)).slice(-2);
+ assert.deepEqual(last.map(r=>r.url),['/api/register','/api/connect']);assert.ok(last.every(r=>r.data.phone==='+12025550124'));assert.equal(p.element('pairing').hidden,false);
+});
+
+test('forgetting browser authorization preserves connected account and other browser access',t=>{
+ const dir=mkdtempSync(`${tmpdir()}/wa-forget-`),store=new Store(dir);t.after(()=>{store.db.close();rmSync(dir,{recursive:true,force:true});});
+ const one=store.register('12025550123'),account=store.browser(one),two=store.exchange(store.invite(account.phone,'Prueba').secret);
+ store.update(account.id,'consent',1);store.update(account.id,'status','connected');
+ store.forgetBrowser(one);assert.equal(store.browser(one),undefined);assert.equal(store.browser(two).id,account.id);
+ assert.equal(store.account(account.id).status,'connected');assert.equal(store.account(account.id).consent,1);assert.equal(store.account(account.id).confirmed,1);
 });

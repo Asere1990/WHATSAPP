@@ -34,5 +34,9 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   const status=await(await fetch(`${url}/api/status`,{headers:{Cookie:cookie}})).json();assert.equal(status.country,'US');assert.equal(status.nationalNumber,'2025550123');assert.equal(status.name,null);assert.equal(status.consent,false);
   assert.equal((await fetch(`${url}/api/pause`,{method:'POST',headers:{Origin:'https://other.example',Cookie:cookie},body:'{}'})).status,403);
   assert.equal((await fetch(`${url}/api/connect`,{method:'POST',headers:{Origin:url,Cookie:cookie},body:JSON.stringify({phone:'+12025550123',consent:true})})).status,503);
+  const resetDenied=await fetch(`${url}/api/browser-reset`,{method:'POST',headers:{Origin:'https://other.example',Cookie:cookie},body:'{}'});assert.equal(resetDenied.status,403);
+  const reset=await fetch(`${url}/api/browser-reset`,{method:'POST',headers:{Origin:url,Cookie:cookie},body:'{}'});assert.equal(reset.status,200);assert.match(reset.headers.get('set-cookie'),/Max-Age=0/);
+  assert.equal((await fetch(`${url}/api/status`,{headers:{Cookie:cookie}})).status,401);
+  const inspect=new Store(dir);assert.ok(inspect.account(invite.account.id));assert.equal(inspect.account(invite.account.id).status,'pending');inspect.db.close();
   const reused=await fetch(`${url}/api/access`,{method:'POST',headers:{Origin:url},body:JSON.stringify({token:invite.secret})});assert.equal(reused.status,401);
 });
