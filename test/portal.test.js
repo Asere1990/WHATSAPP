@@ -35,3 +35,14 @@ test('only an authorized admin in private can open or edit Cubamax',async t=>{
 test('invalid external carousel sources are never exposed by the public content endpoint',t=>{
  const {store}=setup(t);store.setConfig('cubamax_slides',JSON.stringify([{id:'external',title:'Bad',asset:'https://example.test/a.svg'}]));store.setConfig('cubamax_logo','javascript:bad()');assert.equal(portalContent(store).slides.length,4);assert.equal(portalContent(store).logo,'/cubamax-logo.svg');
 });
+test('each service popup edits independently through the admin menu and survives reload',async t=>{
+ const {bot,store,sent}=setup(t);const before=portalContent(store);
+ await bot.portalEditor.callback(123,'123:123','cm:popups');assert.equal(sent.at(-1)[2].inline_keyboard.length,5);
+ for(const service of ['money','combo','packages','topup']){
+  await bot.handle({callback_query:{id:'popup',from:{id:123},data:'cm:field:'+service+'PopupTitle',message:{chat:{id:123,type:'private'}}}});
+  await bot.handle({message:{from:{id:123},chat:{id:123,type:'private'},text:'Título '+service}});
+  await bot.portalEditor.input(123,{field:service+'PopupDescription'},{text:'Descripción '+service});
+ }
+ const content=portalContent(store);for(const service of ['money','combo','packages','topup']){assert.equal(content.fields[service+'PopupTitle'],'Título '+service);assert.equal(content.fields[service+'PopupDescription'],'Descripción '+service);assert.equal(content.fields[service+'Title'],before.fields[service+'Title']);}
+ assert.deepEqual(content.slides,before.slides);assert.equal(content.logo,before.logo);
+});
