@@ -44,12 +44,15 @@ export class Accounts {
     client.on('loading_screen',percent=>this.lifecycle(id,'syncing',String(Number(percent)||0)));
     client.on('ready',()=>this.connected(id,entry).catch(error=>this.connectionFailed(id,entry,error)));
     client.on('auth_failure',()=>{if(this.live.get(id)!==entry)return;entry.ready=false;entry.code=null;clearTimeout(entry.timeout);this.store.update(id,'status','auth_failure');this.lifecycle(id,'auth_failure');this.close(id).catch(()=>{});});
-    client.on('disconnected',()=>{
+    client.on('disconnected',reason=>{
       if(this.live.get(id)!==entry)return;
-      entry.ready=false;entry.code=null;clearTimeout(entry.timeout);this.lifecycle(id,'disconnected');
+      entry.ready=false;entry.code=null;clearTimeout(entry.timeout);
+      const loggedOut=reason==='LOGOUT';
+      if(loggedOut&&this.store.account(id)?.consent)this.store.revoke(id);
+      this.lifecycle(id,loggedOut?'logged_out':'disconnected');
       if(this.live.get(id)===entry) this.live.delete(id);
       if(this.store.account(id)?.consent) this.store.update(id,'status','disconnected');
-      client.destroy().catch(()=>{});
+      client.destroy().catch(()=>{}).finally(()=>{if(loggedOut)rmSync(path.join(this.dir,'sessions',`session-${id}`),{recursive:true,force:true});});
     });
     client.on('message', msg=>{
       if(msg.fromMe || msg.isStatus || !/@(c\.us|lid)$/.test(msg.from) || this.store.account(id)?.paused) return;

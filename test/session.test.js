@@ -55,3 +55,20 @@ test('private account card offers recovery and shows initialization status accur
 test('error classifications never include credentials or raw error content',()=>{
   assert.equal(connectionErrorCode(Error('secret text timeout')),'INIT_TIMEOUT');assert.equal(connectionErrorCode(Error('unknown private text')),'INIT_FAILED');
 });
+test('explicit unlink allows same number to register with fresh identity while preserving archived history',async t=>{
+ class Fake extends EventEmitter{async initialize(){}async logout(){this.emit('disconnected','LOGOUT');}async destroy(){}}
+ const {s,a,manager}=setup(t,()=>new Fake());const oldSession=s.register('12025550124');
+ const link=s.invite(a.phone,'Owner'),oldSecret=s.exchange(link.secret);
+ s.claimExport(a.id,'kept-file');s.finishExport(a.id,'kept-file','done');s.route('-123',5,a.id,'12025550124@c.us');
+ await manager.start(a.id);await manager.disconnect(a.id);assert.equal(s.account(a.id).status,'revoked');assert.ok(!s.browser(oldSecret));
+ const fresh=s.register(a.phone),next=s.browser(fresh);assert.ok(next);assert.notEqual(next.id,a.id);assert.equal(next.consent,0);assert.equal(next.phone,a.phone);
+ assert.equal(s.all().some(x=>x.id===a.id),false);assert.equal(s.exportState(a.id,'kept-file'),'done');assert.equal(s.getRoute('-123',5).account,a.id);
+ assert.equal(JSON.parse(s.db.prepare('SELECT metadata FROM account_archives WHERE account=?').get(a.id).metadata).phone,a.phone);
+ assert.equal(s.register(a.phone),null);assert.ok(s.browser(oldSession));
+});
+test('LOGOUT from WhatsApp revokes browser access, while a temporary disconnection cannot release number',async t=>{
+ class Fake extends EventEmitter{async initialize(){}async destroy(){}}
+ const {s,a,manager}=setup(t,()=>new Fake());const invite=s.invite(a.phone,'Owner'),secret=s.exchange(invite.secret);
+ let e=await manager.start(a.id);e.client.emit('disconnected','CONFLICT');assert.equal(s.account(a.id).consent,1);assert.equal(s.register(a.phone),null);assert.ok(s.browser(secret));
+ e=await manager.start(a.id);e.client.emit('disconnected','LOGOUT');assert.equal(s.account(a.id).consent,0);assert.equal(s.account(a.id).status,'revoked');assert.ok(!s.browser(secret));assert.ok(s.register(a.phone));
+});

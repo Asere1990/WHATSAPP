@@ -27,6 +27,7 @@ export class Store {
     this.db = new DatabaseSync(`${dir}/manager.sqlite`);
     this.db.exec(`PRAGMA journal_mode=WAL;
       CREATE TABLE IF NOT EXISTS accounts(id TEXT PRIMARY KEY, phone TEXT UNIQUE, name TEXT, consent INTEGER DEFAULT 0, paused INTEGER DEFAULT 0, status TEXT DEFAULT 'pending', created INTEGER);
+      CREATE TABLE IF NOT EXISTS account_archives(account TEXT PRIMARY KEY, metadata TEXT NOT NULL, archived INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS access(hash TEXT PRIMARY KEY, account TEXT, kind TEXT, expires INTEGER);
       CREATE TABLE IF NOT EXISTS config(key TEXT PRIMARY KEY, value TEXT);
       CREATE TABLE IF NOT EXISTS routes(tg_chat TEXT, tg_message INTEGER, account TEXT, peer TEXT, PRIMARY KEY(tg_chat,tg_message));
@@ -38,7 +39,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS export_receipts(account TEXT, message TEXT, tg_chat TEXT, tg_message INTEGER, PRIMARY KEY(account,message));
       CREATE TABLE IF NOT EXISTS media_exports(account TEXT, message TEXT, state TEXT, created INTEGER, PRIMARY KEY(account,message));`);
   }
-  all() { return this.db.prepare('SELECT * FROM accounts ORDER BY created DESC').all(); }
+  all() { return this.db.prepare("SELECT * FROM accounts WHERE status!='archived' ORDER BY created DESC").all(); }
   account(id) { return this.db.prepare('SELECT * FROM accounts WHERE id=?').get(id); }
   profile(account,peer) {return this.db.prepare('SELECT * FROM profiles WHERE account=? AND peer=?').get(account,peer);}
   saveProfile(account,peer,name,phone) {this.db.prepare('INSERT OR REPLACE INTO profiles VALUES(?,?,?,?)').run(account,peer,String(name||'Sin nombre').slice(0,120),String(phone||''));}
@@ -75,10 +76,21 @@ export class Store {
   }
   register(phone) {
     phone=phoneNumber(phone);
-    // Entering a phone number alone never grants access to an existing account.
-    if(this.db.prepare('SELECT id FROM accounts WHERE phone=?').get(phone))return null;
-    const invite=this.invite(phone,`Cuenta · ${phone.slice(-4)}`);
-    return this.exchange(invite.secret);
+    const existing=this.db.prepare('SELECT * FROM accounts WHERE phone=?').get(phone);
+    // A revoked account may start again with fresh credentials and a fresh account ID.
+    // An active account can never be claimed by merely entering its phone number.
+    if(existing&&(existing.consent||existing.status!=='revoked'))return null;
+    this.db.exec('BEGIN IMMEDIATE');
+    try{
+      if(existing){
+        this.db.prepare('INSERT OR REPLACE INTO account_archives VALUES(?,?,?)').run(existing.id,JSON.stringify(existing),Date.now());
+        this.db.prepare('DELETE FROM access WHERE account=?').run(existing.id);
+        this.db.prepare("UPDATE accounts SET phone=NULL,status='archived',consent=0 WHERE id=?").run(existing.id);
+        this.audit(existing.id,'archived_after_revocation');
+      }
+      const invite=this.invite(phone,`Cuenta · ${phone.slice(-4)}`),secret=this.exchange(invite.secret);
+      this.db.exec('COMMIT');return secret;
+    }catch(error){this.db.exec('ROLLBACK');throw error;}
   }
   browser(secret) {
     if (!secret) return null;
