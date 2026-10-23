@@ -31,7 +31,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(req.method==='GET'&&route==='/health')return json(200,{ok:true,service:'WHATSAPP'});
     if(req.method==='GET'&&route==='/api/guides')return json(200,{android:guides(store,'android'),iphone:guides(store,'iphone')});
-    if(req.method==='GET'&&(/^\/guides\/(android|iphone)-(prepare|open|linked|number|approve)\.svg$/.test(route)||mediaPath.test(route))){
+    if(req.method==='GET'&&(/^\/guides\/(android|iphone)-(prepare|open|linked|number|approve)\.svg$/.test(route)||/^\/guides\/iphone-2026\/step-[1-5]\.gif$/.test(route)||mediaPath.test(route))){
       const ext=route.split('.').at(-1),types={svg:'image/svg+xml',png:'image/png',jpg:'image/jpeg',gif:'image/gif',webp:'image/webp',mp4:'video/mp4'};
       try{const bytes=readFileSync(route.startsWith('/guides/')?new URL('../public'+route,import.meta.url):path.join(dir,'guide-media',path.basename(route)));
         res.writeHead(200,{...security,'Content-Type':types[ext],'Content-Length':bytes.length});return res.end(bytes);

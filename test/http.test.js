@@ -17,6 +17,7 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   assert.match(landing,/id="another-account"/);assert.match(landing,/id="connected-account"/);assert.match(landing,/id="pairing-account"/);
   assert.match(landing,/id="device-android"/);assert.match(landing,/id="device-iphone"/);
   const guide=await(await fetch(`${url}/api/guides`)).json();assert.equal(guide.android.length,5);assert.equal(guide.iphone.length,5);
+  const gif=await fetch(url+guide.iphone[0].asset);assert.equal(gif.status,200);assert.match(gif.headers.get('content-type'),/image\/gif/);assert.match(Buffer.from(await gif.arrayBuffer()).subarray(0,6).toString(),/^GIF8/);
   const image=await fetch(url+guide.android[0].asset);assert.equal(image.status,200);assert.match(image.headers.get('content-type'),/image\/svg/);
   assert.equal((await fetch(`${url}/guide-media/unknown.html`)).status,404);
   assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:url},body:JSON.stringify({phone:'+12025550128',consent:false})})).status,400);

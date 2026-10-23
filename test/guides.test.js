@@ -27,8 +27,8 @@ test('guide editor accepts text changes only through authorized private callback
 test('editing guide media stores bytes on persistent disk and survives store reopen',async t=>{
   const {bot,store,dir,cb,message}=setup(t),gif=Buffer.from('GIF89a'+'sample');bot.download=async()=>gif;
   await bot.handle(cb('guide:iphone:open:asset'));await bot.handle(message({animation:{file_id:'f',file_size:gif.length}}));
-  const asset=guides(store,'iphone')[1].asset;assert.match(asset,/^\/guide-media\/[a-f0-9]{64}\.gif$/);assert.deepEqual(readFileSync(dir+asset),gif);
-  const reopened=new Store(dir);assert.equal(guides(reopened,'iphone')[1].asset,asset);reopened.db.close();
+  const asset=guides(store,'iphone')[0].asset;assert.match(asset,/^\/guide-media\/[a-f0-9]{64}\.gif$/);assert.deepEqual(readFileSync(dir+asset),gif);
+  const reopened=new Store(dir);assert.equal(guides(reopened,'iphone')[0].asset,asset);reopened.db.close();
 });
 test('GIF conversions to MP4 are supported; SVG and HTML uploads are rejected',()=>{
   assert.equal(detectMedia(Buffer.from('0000ftypisom')).ext,'mp4');

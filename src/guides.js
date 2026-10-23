@@ -6,6 +6,13 @@ export const mediaPath=/^\/guide-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/;
 const ids=['prepare','open','linked','number','approve'];
 export function defaultGuide(device){
   if(!devices.includes(device))throw new Error('Dispositivo inválido.');
+  if(device==='iphone')return [
+    {id:'open',title:'Abre WhatsApp y toca Tú',text:'Primero obtén tu código en esta página. Después abre WhatsApp en tu iPhone y toca Tú, abajo a la derecha. Las capturas muestran una cuenta de ejemplo.',asset:'/guides/iphone-2026/step-1.gif'},
+    {id:'linked',title:'Entra a Dispositivos vinculados',text:'En la sección Tú (Configuración), toca Dispositivos vinculados, como indica la flecha roja.',asset:'/guides/iphone-2026/step-2.gif'},
+    {id:'device',title:'Pulsa Vincular un dispositivo',text:'Toca el botón verde Vincular un dispositivo. Si WhatsApp solicita Face ID o desbloquear el iPhone, confírmalo dentro de la aplicación.',asset:'/guides/iphone-2026/step-3.gif'},
+    {id:'number',title:'Elige vincular con número',text:'Si aparece un aviso, toca OK. Luego toca Vincular con el número de teléfono, abajo en la pantalla del escáner. No necesitas escanear un QR.',asset:'/guides/iphone-2026/step-4.gif'},
+    {id:'approve',title:'Introduce el código en WhatsApp',text:'Copia el código actual que aparece en nuestra página e introdúcelo en los ocho espacios dentro de WhatsApp. Confirma únicamente el dispositivo que autorizas. Vuelve a esta página para comprobar la conexión.',asset:'/guides/iphone-2026/step-5.gif'}
+  ];
   const titles=['Obtén tu código','Abre WhatsApp','Vincula un dispositivo','Elige vincular con número','Introduce el código en WhatsApp'];
   const texts=[
     'En esta página, escribe tu número completo y acepta la autorización si estás de acuerdo. Pulsa Obtener código. No recibirás un SMS: el código aparecerá aquí.',
@@ -28,7 +35,7 @@ function validateSteps(steps){
   for(const s of steps){
     if(!/^[a-z0-9]{1,16}$/.test(s.id)||seen.has(s.id))throw new Error('Paso inválido.');seen.add(s.id);
     if(typeof s.title!=='string'||!s.title.trim()||s.title.length>80||typeof s.text!=='string'||!s.text.trim()||s.text.length>1000)throw new Error('Título: hasta 80 caracteres. Instrucciones: hasta 1000.');
-    if(s.asset&&!mediaPath.test(s.asset)&&!/^\/guides\/(android|iphone)-(prepare|open|linked|number|approve)\.svg$/.test(s.asset))throw new Error('Imagen no válida.');
+    if(s.asset&&!mediaPath.test(s.asset)&&!/^\/guides\/iphone-2026\/step-[1-5]\.gif$/.test(s.asset)&&!/^\/guides\/(android|iphone)-(prepare|open|linked|number|approve)\.svg$/.test(s.asset))throw new Error('Imagen no válida.');
   }
 }
 export function saveGuide(store,device,steps){if(!devices.includes(device))throw new Error('Dispositivo inválido.');validateSteps(steps);store.setConfig(`guide_${device}`,JSON.stringify(steps));}
