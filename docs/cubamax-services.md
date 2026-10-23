@@ -1,6 +1,6 @@
 ## Orden actualizado tras el intercambio
 
-Primer slider: teléfono (6 segundos), grupo, Shein, remesas del 2%, recargas, supercombo, EcoFlow y equipo (5 segundos cada una).
+Primer slider: Shein con las modelos (6 segundos), teléfono, grupo, remesas del 2%, recargas, supercombo, EcoFlow y equipo (5 segundos cada una).
 Segundo slider: bicicleta eléctrica, moto de gasolina, remesas del local y avión/carga aérea. Conserva editor de Telegram, navegación y botones.
 Se reutilizan las imágenes existentes sin alterar sus diseños y se muestran completas.
 
