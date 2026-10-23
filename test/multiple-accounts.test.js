@@ -11,7 +11,7 @@ const source=countries+readFileSync(new URL('../public/app.js',import.meta.url),
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 async function page({registerStatus=201}={}){
   const elements=new Map(),requests=[],intervals=new Map();let sequence=0;
-  const element=id=>{if(!elements.has(id))elements.set(id,{id,hidden:false,value:'',checked:false,textContent:'',disabled:false,events:{},setAttribute(){},focus(){this.focusCount=(this.focusCount||0)+1;},scrollIntoView(){this.scrollCount=(this.scrollCount||0)+1;},pause(){},showModal(){this.open=true;},close(){this.open=false;},play:async()=>{},appendChild(){},addEventListener(type,fn){this.events[type]=fn;}});return elements.get(id);};
+  const element=id=>{if(!elements.has(id))elements.set(id,{id,hidden:false,value:'',checked:false,textContent:'',disabled:false,events:{},setAttribute(){},focus(){this.focusCount=(this.focusCount||0)+1;},scrollIntoView(options){this.scrollCount=(this.scrollCount||0)+1;this.scrollOptions=options;},pause(){},showModal(){this.open=true;},close(){this.open=false;},play:async()=>{},appendChild(){},addEventListener(type,fn){this.events[type]=fn;}});return elements.get(id);};
   let account={name:'Primera',phone:'+12025550123',country:'US',nationalNumber:'2025550123',status:'connected',consent:true,paused:false};
   let deferStatus=null;
   const fetch=async(url,options={})=>{
@@ -123,4 +123,15 @@ test('reloading with a saved unlinked session leaves country and phone empty',as
  assert.equal(p.element('phone').value,'');
  assert.equal(p.element('connect').hidden,false);
  assert.equal(p.requests.some(r=>r.url==='/api/disconnect'),false);
+});
+
+test('ENTENDIDO closes popup and centers the visible tutorial image without focusing input',async()=>{
+ const p=await page();p.element('guide-image').hidden=false;p.element('copy-help').open=true;
+ const inputFocus=p.element('phone').focusCount||0;
+ p.element('close-copy-help').onclick();
+ assert.equal(p.element('copy-help').open,false);
+ assert.equal(p.element('guide-image').scrollCount,1);
+ assert.equal(p.element('guide-image').scrollOptions.block,'center');
+ assert.equal(p.element('guide-image').scrollOptions.behavior,'smooth');
+ assert.equal(p.element('phone').focusCount||0,inputFocus);
 });

@@ -84,7 +84,11 @@ $('cancel-new-account').onclick=async()=>{
   addingAccount=false;connectionEpoch++;$('cancel-new-account').hidden=true;$('phone').value='';$('consent').checked=false;
   await refresh();if(session){clearInterval(timer);timer=setInterval(refresh,3000);}
 };
-$('close-copy-help').onclick=()=>$('copy-help').close();
+$('close-copy-help').onclick=()=>{
+  $('copy-help').close();
+  const target=!$('guide-image').hidden?$('guide-image'):!$('guide-video').hidden?$('guide-video'):$('guide');
+  target.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'});
+};
 $('copy-help').addEventListener('click',event=>{if(event.target===$('copy-help'))$('copy-help').close();});
 $('copy').onclick=async()=>{
   if(!state?.code||(state.expires&&state.expires<=Date.now())){error('El código venció. Espera a que aparezca el código nuevo antes de copiarlo.');await refresh();return;}
