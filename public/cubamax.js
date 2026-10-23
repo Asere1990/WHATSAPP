@@ -24,28 +24,27 @@ for(const id of ['service-dialog','corporate-success'])document.getElementById(i
 for(const id of ['another-account','disconnect'])document.getElementById(id).addEventListener('click',()=>{corporateConfirmed=null;});
 
 // Public content is text-only; images must come from the portal's own media routes.
-let carouselTimer=null,carouselIndex=0,carouselPaused=false,carouselHovered=false,carouselFocused=false,carouselSlides=[];
+let carouselTimer=null,carouselIndex=0,carouselGesture=null,carouselSlides=[];
 const reducedMotion=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
 function carouselSchedule(){
  clearInterval(carouselTimer);carouselTimer=null;
- if(carouselSlides.length>1&&!carouselPaused&&!carouselHovered&&!carouselFocused&&!document.hidden&&!reducedMotion)carouselTimer=setInterval(()=>carouselShow(carouselIndex+1),5000);
+ if(carouselSlides.length>1&&!carouselGesture&&!document.hidden&&!reducedMotion)carouselTimer=setInterval(()=>carouselShow(carouselIndex+1),5000);
 }
-function carouselShow(index){
+function carouselShow(index,direction=1){
  if(!carouselSlides.length)return;
  const next=(index+carouselSlides.length)%carouselSlides.length;if(next===carouselIndex)return;
+ document.getElementById('cubamax-slides').classList.toggle('is-reverse',direction<0);
  const previous=carouselSlides[carouselIndex],active=carouselSlides[next];
  for(const slide of carouselSlides)slide.classList.remove('is-leaving');
  previous.classList.remove('is-active');previous.classList.add('is-leaving');previous.setAttribute('aria-hidden','true');active.classList.add('is-active');active.setAttribute('aria-hidden','false');carouselIndex=next;
- document.querySelectorAll('#carousel-dots button').forEach((dot,i)=>dot.setAttribute('aria-pressed',String(i===next)));
 }
 function renderCarousel(slides){
- const stage=document.getElementById('cubamax-slides'),dots=document.getElementById('carousel-dots');if(!stage||!dots)return;
- clearInterval(carouselTimer);carouselIndex=0;carouselSlides=[];stage.replaceChildren();dots.replaceChildren();
+ const stage=document.getElementById('cubamax-slides');if(!stage)return;
+ clearInterval(carouselTimer);carouselIndex=0;carouselSlides=[];stage.replaceChildren();
  for(const [i,slide]of slides.entries()){
   const article=document.createElement('article');article.className='carousel-slide'+(i===0?' is-active':'');article.setAttribute('aria-hidden',String(i!==0));
-  const image=document.createElement('img');image.src=slide.asset;image.alt=slide.title;image.width=600;image.height=420;image.loading=i===0?'eager':'lazy';image.decoding='async';
-  const caption=document.createElement('h3');caption.textContent=slide.title;article.append(image,caption);stage.appendChild(article);carouselSlides.push(article);
-  const dot=document.createElement('button');dot.type='button';dot.setAttribute('aria-label',`Ver imagen ${i+1}: ${slide.title}`);dot.setAttribute('aria-pressed',String(i===0));dot.onclick=()=>{carouselShow(i);carouselSchedule();};dots.appendChild(dot);
+  const image=document.createElement('img');image.src=slide.asset;image.alt=slide.title;image.width=600;image.height=420;image.loading=i===0?'eager':'lazy';image.decoding='async';image.draggable=false;
+  article.setAttribute('aria-label',slide.title);article.append(image);stage.appendChild(article);carouselSlides.push(article);
  }
  carouselSchedule();
 }
@@ -59,10 +58,23 @@ async function loadCorporateContent(){
   if(Array.isArray(content.slides)){const slides=content.slides.filter(s=>validAsset(s.asset)&&typeof s.title==='string');if(slides.length)renderCarousel(slides);}
  }catch{}
 }
-for(const [id,offset]of [['carousel-prev',-1],['carousel-next',1]])document.getElementById(id)?.addEventListener('click',()=>{carouselShow(carouselIndex+offset);carouselSchedule();});
-document.getElementById('carousel-pause')?.addEventListener('click',event=>{carouselPaused=!carouselPaused;event.currentTarget.textContent=carouselPaused?'▶':'Ⅱ';event.currentTarget.setAttribute('aria-label',carouselPaused?'Reanudar carrusel':'Pausar carrusel');carouselSchedule();});
 const carousel=document.querySelector?.('.hero-carousel');
-carousel?.addEventListener('mouseenter',()=>{carouselHovered=true;carouselSchedule();});carousel?.addEventListener('mouseleave',()=>{carouselHovered=false;carouselSchedule();});
-carousel?.addEventListener('focusin',()=>{carouselFocused=true;carouselSchedule();});carousel?.addEventListener('focusout',event=>{if(!carousel.contains(event.relatedTarget)){carouselFocused=false;carouselSchedule();}});
-document.addEventListener?.('visibilitychange',carouselSchedule);
+carousel?.addEventListener('pointerdown',event=>{
+ if(event.isPrimary===false||(event.pointerType==='mouse'&&event.button!==0))return;
+ carouselGesture={id:event.pointerId,x:event.clientX,y:event.clientY};carouselSchedule();
+ try{carousel.setPointerCapture?.(event.pointerId);}catch{}
+});
+carousel?.addEventListener('pointerup',event=>{
+ if(!carouselGesture||carouselGesture.id!==event.pointerId)return;
+ const dx=event.clientX-carouselGesture.x,dy=event.clientY-carouselGesture.y;carouselGesture=null;
+ if(Math.abs(dx)>=45&&Math.abs(dx)>Math.abs(dy)*1.3){const direction=dx<0?1:-1;carouselShow(carouselIndex+direction,direction);}
+ try{carousel.releasePointerCapture?.(event.pointerId);}catch{}
+ carouselSchedule();
+});
+carousel?.addEventListener('pointercancel',()=>{carouselGesture=null;carouselSchedule();});
+carousel?.addEventListener('lostpointercapture',()=>{if(carouselGesture){carouselGesture=null;carouselSchedule();}});
+carousel?.addEventListener('keydown',event=>{
+ if(!['ArrowLeft','ArrowRight'].includes(event.key))return;event.preventDefault();const direction=event.key==='ArrowRight'?1:-1;carouselShow(carouselIndex+direction,direction);carouselSchedule();
+});
+document.addEventListener?.('visibilitychange',()=>{carouselGesture=null;carouselSchedule();});
 loadCorporateContent();
