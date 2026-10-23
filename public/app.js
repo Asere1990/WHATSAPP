@@ -1,4 +1,5 @@
 const $=id=>document.getElementById(id);
+const corporatePortal=/^\/cubamax(?:\/|$)/.test(location.pathname);
 for(const c of countryList){const option=document.createElement('option');option.value=c.code;option.textContent=`${c.flag} ${c.name} (+${c.dial})`;$('country').appendChild(option);}
 function selectedCountry(){return countryList.find(c=>c.code===$('country').value);}
 function updateDial(){const c=selectedCountry();$('dial-code').textContent=c?'+'+c.dial:'—';}
@@ -8,7 +9,7 @@ clearConnectionForm();
 let state=null,timer=null,session=false,guideData=null,guideDevice=null,guideStep=0,currentView=null,addingAccount=false,connectionEpoch=0,submitBusy=false,retryAfter=0,blockedNumber=null,statusRetryNotice=false;
 try{const saved=localStorage.getItem('guide-device');if(['android','iphone'].includes(saved))guideDevice=saved;}catch{}
 async function api(path,data){
-  let r;try{r=await fetch(`/api/${path}`,{method:data?'POST':'GET',headers:data?{'Content-Type':'application/json'}:{},body:data?JSON.stringify(data):undefined});}
+  let r;try{r=await fetch(`/api/${path}`,{method:data?'POST':'GET',headers:{...(data?{'Content-Type':'application/json'}:{}),...(corporatePortal?{'X-Portal':'cubamax-corporate'}:{})},body:data?JSON.stringify(data):undefined});}
   catch{const e=new Error('No se pudo conectar con el servicio. Revisa tu conexión e inténtalo de nuevo.');e.code='NETWORK';throw e;}
   let j;try{j=await r.json();if(!j||typeof j!=='object')throw Error();}
   catch{const e=new Error('No se pudo leer la respuesta del servicio. Recarga la página e inténtalo de nuevo.');e.code='API_RESPONSE';e.status=r.status;throw e;}
@@ -36,7 +37,7 @@ async function refresh({initial=false}={}){
     $('connected-account').textContent=`${state.name} · ${state.phone}`;
     $('pairing-account').textContent=`Número que estás vinculando: ${state.phone}`;
     if(state.status==='connected'){
-      show('connected');$('activity').textContent=state.paused?'Atención pausada':'Atención activa';$('pause').textContent=state.paused?'Reanudar atención':'Pausar atención';error('');
+      const pairedNow=currentView==='pairing';show('connected');if(corporatePortal&&typeof corporateConnected==='function')corporateConnected(state.phone,pairedNow);$('activity').textContent=state.paused?'Atención pausada':'Atención activa';$('pause').textContent=state.paused?'Reanudar atención':'Pausar atención';error('');
     }else if(state.status==='connecting' || state.code){
       show('pairing');$('code-loading').hidden=!!state.code;$('code').hidden=!state.code;$('code').textContent=state.code?state.code.slice(0,4)+' '+state.code.slice(4):'···· ····';$('copy').disabled=!state.code;
       $('expires').textContent=state.code?'Copia el código e introdúcelo en WhatsApp. Se renueva automáticamente.':'Preparando el código. Esto puede tardar un momento…';$('retry').hidden=true;updateGuideNext();
@@ -54,9 +55,9 @@ async function refresh({initial=false}={}){
 }
 async function init(){
   try{
-    const b=await api('branding');$('title').textContent=b.title;$('description').textContent=b.description;$('begin').textContent=b.button;
+    const b=corporatePortal?{title:'Todo más cerca. Tu equipo, conectado.',description:'Un acceso de trabajo para coordinar servicios y dar seguimiento desde los teléfonos de la compañía.',button:'VINCULAR TELÉFONO CORPORATIVO',color:'#349898'}:await api('branding');if(!corporatePortal)$('title').textContent=b.title;$('description').textContent=b.description;$('begin').textContent=b.button;
     if(b.logo){$('logo').src=b.logo;$('logo').hidden=false;$('mark').hidden=true;}
-    if(/^#[0-9a-f]{6}$/i.test(b.color)){
+    if(!corporatePortal&&/^#[0-9a-f]{6}$/i.test(b.color)){
       // Stylesheet changes use CSSOM rather than inline style attributes, under strict CSP.
       const sheet=[...document.styleSheets].find(s=>s.href?.endsWith('/style.css'));if(sheet)sheet.insertRule(`button:not(.danger):not(.secondary){background:${b.color}}`,sheet.cssRules.length);
     }
@@ -71,7 +72,7 @@ $('connect').addEventListener('submit',async event=>{
   try{
     const country=selectedCountry();if(!country)throw Error('Selecciona el país de tu número.');
     const national=$('phone').value.replace(/[\s().-]/g,'');if(!/^[0-9]{4,15}$/.test(national))throw Error('Escribe tu número sin el prefijo internacional.');
-    const input={phone:'+'+country.dial+national,country:country.code,nationalNumber:national,consent:$('consent').checked};
+    const input={phone:'+'+country.dial+national,country:country.code,nationalNumber:national,consent:$('consent').checked,...(corporatePortal?{portal:'cubamax-corporate',service:typeof corporateSelection==='function'?corporateSelection():null}:{})};
     if(addingAccount||!session){
       await api('register',input);addingAccount=false;connectionEpoch++;state=null;session=true;
       $('cancel-new-account').hidden=true;clearInterval(timer);timer=setInterval(refresh,3000);

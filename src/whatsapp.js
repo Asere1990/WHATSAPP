@@ -138,7 +138,8 @@ export class Accounts {
     entry.ready=true;entry.code=null;clearTimeout(entry.timeout);clearTimeout(entry.codeTimeout);clearTimeout(entry.probeTimeout);this.store.update(id,'status','connected');this.lifecycle(id,'ready');
     this.store.audit(id,'connected');
     const profile=await this.tools.identity(id,`${a.phone}@c.us`,true);
-    await this.notify(`✅ Cuenta conectada: ${personLink(profile)}\nPaís del número: ${escapeHTML(profile.country)}\nCuenta: ${id}`,null,{parse_mode:'HTML'}).catch(()=>{});
+    const corporate=this.store.db.prepare('SELECT value FROM config WHERE key=?').get(`portal:${id}`)?.value==='cubamax-corporate';
+    await this.notify(`✅ Cuenta conectada: ${personLink(profile)}\nPaís del número: ${escapeHTML(profile.country)}\nCuenta: ${id}${corporate?'\nOrigen: Cubamax · Teléfono corporativo':''}`,null,{parse_mode:'HTML'}).catch(()=>{});
     if(entry.client.pupPage)await this.tools.profilePhoto(id);
     // Read-only production probe: log counts, never names, phones or messages.
     if(entry.client.getChats)try{

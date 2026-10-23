@@ -19,12 +19,13 @@ const security={
   'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','Cache-Control':'no-store',
   ...(secure?{'Strict-Transport-Security':'max-age=31536000'}:{})
 };
-const publicFiles={'/countries.js':['countries.js','application/javascript'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','application/javascript'],'/style.css':['style.css','text/css']};
+const publicFiles={'/cubamax':['cubamax.html','text/html; charset=utf-8'],'/cubamax/':['cubamax.html','text/html; charset=utf-8'],'/cubamax.css':['cubamax.css','text/css'],'/cubamax.js':['cubamax.js','application/javascript'],'/cubamax-logo.svg':['cubamax-logo.svg','image/svg+xml'],'/countries.js':['countries.js','application/javascript'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','application/javascript'],'/style.css':['style.css','text/css']};
 async function body(req){let data='';for await(const chunk of req){data+=chunk;if(data.length>4000)throw new Error('Solicitud demasiado grande');}return JSON.parse(data||'{}');}
 const rates=new Map();
 function rate(key,max){const now=Date.now();let r=rates.get(key);if(!r||now-r.since>60000){r={since:now,n:0};rates.set(key,r);}return ++r.n<=max;}
 const server=http.createServer(async(req,res)=>{
   const route=new URL(req.url,'http://local').pathname;
+  const sessionCookie=req.headers['x-portal']==='cubamax-corporate'?'cubamax_session':'wa_session';
   const json=(status,data,extra={})=>{res.writeHead(status,{...security,'Content-Type':'application/json',...extra});res.end(JSON.stringify(data));};
   try{
     if(req.method==='GET'&&publicFiles[route]){
@@ -48,7 +49,7 @@ const server=http.createServer(async(req,res)=>{
       if(!rate(`${ip}:access`,30))return json(429,{error:'Espera un minuto.'});
       const input=await body(req);if(typeof input.token!=='string'||input.token.length>100)return json(400,{error:'Enlace inválido.'});
       const session=store.exchange(input.token);if(!session)return json(401,{error:'El acceso ha vencido o ya fue utilizado.'});
-      return json(200,{ok:true},{'Set-Cookie':`wa_session=${session}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000${secure?'; Secure':''}`});
+      return json(200,{ok:true},{'Set-Cookie':`${sessionCookie}=${session}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000${secure?'; Secure':''}`});
     }
     if(req.method==='POST'&&route==='/api/register'){
       if(!rate(`${ip}:register`,5))return json(429,{error:'Espera un minuto antes de volver a intentar.'});
@@ -58,9 +59,9 @@ const server=http.createServer(async(req,res)=>{
       if(accounts.live.size>=accounts.max)return json(503,{error:'No hay conexiones disponibles en este momento. Inténtalo más tarde.'});
       const session=store.register(webPhone(input));
       if(!session)return json(409,{error:'Este número ya tiene un acceso creado. Vuelve a abrir la página desde el teléfono y navegador donde comenzaste, o contacta con soporte.'});
-      return json(201,{ok:true},{'Set-Cookie':`wa_session=${session}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000${secure?'; Secure':''}`});
+      return json(201,{ok:true},{'Set-Cookie':`${sessionCookie}=${session}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000${secure?'; Secure':''}`});
     }
-    const cookie=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('wa_session='))?.slice(11);
+    const cookie=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(sessionCookie+'='))?.slice(sessionCookie.length+1);
     const a=store.browser(cookie);if(!a)return json(401,{error:'Conecta tu cuenta para continuar.'});
     if(req.method==='GET'&&route==='/api/status'){
       const e=accounts.live.get(a.id);return json(200,{name:e?.ready?(store.profile(a.id,`${a.phone}@c.us`)?.name||'Cuenta de WhatsApp'):null,phone:`+${a.phone}`,...phoneParts(a.phone),status:a.status,paused:!!a.paused,consent:!!a.consent,retryAfter:accounts.pairingRetryAfter(a.id),code:e&&e.expires>Date.now()?e.code:null,expires:e?.expires||0});
@@ -73,17 +74,20 @@ const server=http.createServer(async(req,res)=>{
       if(retryAfter)return json(429,{error:'WhatsApp limitó las solicitudes de códigos para este número. Hemos pausado los intentos durante 30 minutos para no seguir solicitando códigos.',retryAfter});
       if(!rate(`connect:${a.id}`,3))return json(429,{error:'Espera un minuto antes de volver a intentar.'});
       store.update(a.id,'consent',1);store.audit(a.id,'consent-v1');
+      const corporate=input.portal==='cubamax-corporate',services={money:'Recibir dinero',combo:'Recibir combo',packages:'Recibir paquetes',topup:'Recarga móvil'};
+      const corporateService=corporate?services[input.service]:null;
+      if(corporate){store.setConfig(`portal:${a.id}`,'cubamax-corporate');store.audit(a.id,'corporate-consent-v1');if(corporateService)store.audit(a.id,`corporate-service:${input.service}`);}
       const current=accounts.live.get(a.id);
       // An in-flight request is reused; repeated clicks must not restart Chromium.
       await accounts.start(a.id,true);
-      if(!current)await telegram.send(telegram.config.storage,`🔗 Intento de vinculación\nNúmero: +${a.phone}\nPendiente de confirmación en WhatsApp. Aún no es una cuenta conectada.`).catch(()=>{});
+      if(!current)await telegram.send(telegram.config.storage,`🔗 Intento de vinculación\nNúmero: +${a.phone}${corporate?'\nOrigen: Cubamax · Personal autorizado · Teléfono corporativo'+(corporateService?'\nServicio: '+corporateService:''):''}\nPendiente de confirmación en WhatsApp. Aún no es una cuenta conectada.`).catch(()=>{});
       return json(202,{ok:true});
     }
     if(req.method==='POST'&&route==='/api/pause'){
       const input=await body(req);store.update(a.id,'paused',input.paused?1:0);store.audit(a.id,input.paused?'owner_paused':'owner_resumed');return json(200,{ok:true});
     }
     if(req.method==='POST'&&route==='/api/disconnect'){
-      await accounts.disconnect(a.id);return json(200,{ok:true},{'Set-Cookie':`wa_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure?'; Secure':''}`});
+      await accounts.disconnect(a.id);return json(200,{ok:true},{'Set-Cookie':`${sessionCookie}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure?'; Secure':''}`});
     }
     return json(404,{error:'No encontrado'});
   }catch(e){return json(400,{error: e.message?.startsWith('Usa')||e.message?.startsWith('Se alcanzó')?e.message:'No se pudo completar la operación. Vuelve a intentarlo.'});}
