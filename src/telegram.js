@@ -160,8 +160,21 @@ export class Telegram {
     const {account,secret}=this.store.invite(phone,name.join(' '));
     return this.send(chat,`Enlace privado para ${account.name}. Válido 24 horas y de un solo uso. Envíalo únicamente al titular:\n${this.config.url}/#${secret}`);
   }
+  async registerCommands(){
+    if(!this.config.token)return;
+    for(const language_code of ['', 'es']){
+      const scope={type:'all_private_chats'},params={scope,language_code};
+      const current=await this.api('getMyCommands',params);
+      const commands=[{command:'menu',description:'Abrir el menú principal'},...(Array.isArray(current)?current:[]).filter(c=>c.command!=='menu')].slice(0,100);
+      await this.api('setMyCommands',{...params,commands});
+      const saved=await this.api('getMyCommands',params);
+      if(!saved?.some(c=>c.command==='menu'))throw Error('No se pudo verificar el comando menu.');
+    }
+    console.log('WHATSAPP: telegram_menu_command_registered');
+  }
   async start() {
     this.running=true;
+    try{await this.registerCommands();}catch{console.error('WHATSAPP: telegram_command_registration_failed');}
     while(this.running){
       try{
         const updates=await this.api('getUpdates',{offset:this.offset,timeout:25,allowed_updates:['message','callback_query']});

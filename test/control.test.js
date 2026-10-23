@@ -254,3 +254,8 @@ test('disconnect button confirms and revokes only the selected account once',asy
  await f.bot.handle(f.callback(token));assert.deepEqual(disconnected,[f.a.id]);assert.equal(f.s.account(f.b.id).consent,1);
  await assert.rejects(f.bot.handle(f.callback(token)),/venció/);assert.equal(disconnected.length,1);
 });
+test('slash menu registration preserves other commands and verifies Telegram saved it',async t=>{
+ const {bot}=setup(t),saved=new Map();bot.config.token='test';
+ bot.api=async(method,body)=>{const lang=body.language_code;if(method==='getMyCommands')return saved.get(lang)||[{command:'cuentas',description:'Cuentas'}];if(method==='setMyCommands'){assert.equal(body.scope.type,'all_private_chats');saved.set(lang,body.commands);return true;}throw Error('Unexpected '+method);};
+ await bot.registerCommands();for(const lang of ['','es'])assert.deepEqual(saved.get(lang).map(c=>c.command),['menu','cuentas']);
+});
