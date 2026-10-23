@@ -41,7 +41,8 @@ function carouselShow(index,direction=1){
  if(!carouselSlides.length)return;
  const next=(index+carouselSlides.length)%carouselSlides.length;if(next===carouselIndex)return;
  document.getElementById('cubamax-slides').classList.toggle('is-reverse',direction<0);
- const previous=carouselSlides[carouselIndex],active=carouselSlides[next];
+ const previous=carouselSlides[carouselIndex],active=carouselSlides[next],nextImage=active.children?.[0];
+ if(nextImage&&(nextImage.complete===false||nextImage.naturalWidth===0))return;
  for(const slide of carouselSlides)slide.classList.remove('is-leaving');
  previous.classList.remove('is-active');previous.classList.add('is-leaving');previous.setAttribute('aria-hidden','true');active.classList.add('is-active');active.setAttribute('aria-hidden','false');carouselIndex=next;
 }
@@ -50,7 +51,7 @@ function renderCarousel(slides){
  clearInterval(carouselTimer);carouselIndex=0;carouselSlides=[];stage.replaceChildren();
  for(const [i,slide]of slides.entries()){
   const article=document.createElement('article');article.className='carousel-slide'+(i===0?' is-active':'');article.setAttribute('aria-hidden',String(i!==0));
-  const image=document.createElement('img');image.src=slide.asset;image.alt=slide.title;image.width=600;image.height=420;image.loading=i===0?'eager':'lazy';image.decoding='async';image.draggable=false;
+  const image=document.createElement('img');image.src=slide.asset;image.alt=slide.title;image.width=600;image.height=420;image.loading='eager';image.decoding='async';image.draggable=false;
   article.setAttribute('aria-label',slide.title);article.append(image);stage.appendChild(article);carouselSlides.push(article);
  }
  carouselSchedule();
