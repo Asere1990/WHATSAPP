@@ -72,15 +72,18 @@ export class AccountTools {
     if(!allowed)throw new Error('WhatsApp no permite borrar este mensaje para todos.');
     await msg.delete(true);this.accounts.store.audit(id,'delete_outgoing');
   }
-  async downloadRecent(id,peer,kind,onFile){
+  async downloadRecent(id,peer,kind,onFile,onProgress=async()=>{}){
     const key=id+':'+peer;if(this.busy.has(key))throw new Error('Ya hay una descarga en este chat.');
     this.busy.add(key);
     try{
       this.client(id,true);const s=this.accounts.store,gallery=await this.gallery(id,peer),messages=gallery.messages,allowed=kind==='photos'?['image']:kind==='videos'?['video']:['image','video'];
       const candidates=messages.slice().reverse().filter(m=>allowed.includes(m.type)&&m.hasMedia&&!m.isEphemeral&&!m.rawData?.isViewOnce&&!s.exportState(id,m.id._serialized));
-      let sent=0,skipped=0,failed=0;
+      let sent=0,skipped=0,failed=0;const target=Math.min(10,candidates.length);
+      const progress=async phase=>{try{await onProgress({sent,target,skipped,failed,phase,percent:target?Math.floor(sent*100/target):0});}catch{}};
+      await progress('downloading');
       for(const msg of candidates){
         if(sent>=10)break;this.client(id,true);
+        await progress('downloading');
         const size=Number(msg.rawData?.size||msg.rawData?.fileSize||0),cap=Number(process.env.MAX_MEDIA_MB||20)*1024*1024;
         if(size>cap){skipped++;continue;}
         let media;try{media=await msg.downloadMedia();}catch(error){
@@ -89,10 +92,11 @@ export class AccountTools {
         if(!media){skipped++;continue;}
         const data=Buffer.from(media.data,'base64');if(!data.length||data.length>cap){skipped++;continue;}
         if(!s.claimExport(id,msg.id._serialized))continue;
-        try{await onFile(msg,{data,name:media.filename||'archivo',mime:media.mimetype});s.finishExport(id,msg.id._serialized,'done');sent++;}
+        try{await progress('uploading');await onFile(msg,{data,name:media.filename||'archivo',mime:media.mimetype});s.finishExport(id,msg.id._serialized,'done');sent++;await progress('sent');}
         catch(e){s.finishExport(id,msg.id._serialized,'review');throw e;}
       }
-      return {sent,skipped,failed,scanned:messages.length,complete:gallery.complete};
+      await progress('finished');
+      return {sent,target,skipped,failed,scanned:messages.length,complete:gallery.complete};
     }finally{this.busy.delete(key);}
   }
 }

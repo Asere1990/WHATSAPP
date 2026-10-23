@@ -173,7 +173,14 @@ export class Control {
     if(a.kind==='download'){
       const destination=await this.bot.api('getChat',{chat_id:this.bot.config.storage});
       if(String(destination?.id)!==String(this.bot.config.storage))throw Error('No se pudo verificar ALMACEN.');
-      await this.bot.send(chat,'Descargando hasta 10 archivos nuevos a ALMACEN…');
+      const progressMessage=await this.bot.send(chat,'⬇️ Descarga del lote: 0%\nConsultando los archivos nuevos…');
+      let lastProgress=0,lastPercent=-1;
+      const updateProgress=async p=>{
+        if(p.phase!=='finished'&&(p.percent===lastPercent||Date.now()-lastProgress<1100))return;
+        lastProgress=Date.now();lastPercent=p.percent;
+        const phase=p.phase==='finished'?'Procesamiento terminado':p.phase==='uploading'?'Enviando a ALMACEN':'Descargando y enviando';
+        await this.bot.api('editMessageText',{chat_id:chat,message_id:progressMessage.message_id,text:`⬇️ Descarga del lote: ${p.percent}%\nArchivos confirmados en ALMACEN: ${p.sent}/${p.target}\n${phase}${p.skipped||p.failed?' · No disponibles o fallidos: '+(p.skipped+p.failed):''}`}).catch(()=>{});
+      };
       this.run(chat,async()=>{
         const p=await tools.identity(id,peer),account=this.bot.store.account(id),owner=await tools.identity(id,`${account.phone}@c.us`);
         const receipts=[];
@@ -184,10 +191,11 @@ export class Control {
           this.bot.verifyStorageReceipt(sent);
           this.bot.store.exportReceipt(id,msg.id._serialized,sent.chat.id,sent.message_id);
           receipts.push(sent);this.bot.store.route(sent.chat.id,sent.message_id,id,peer);
-        });
+        },updateProgress);
         const links=receipts.map((r,i)=>`<a href="https://t.me/c/${String(r.chat.id).replace(/^-100/,'')}/${r.message_id}">Archivo ${i+1}</a>`).join(' · ');
         console.log('WHATSAPP: download_receipts',JSON.stringify({account:id,destination:this.bot.config.storage,sent:result.sent,messages:receipts.map(r=>r.message_id)}));
-        await this.text(chat,`Confirmados por Telegram en ALMACEN: ${result.sent}.\nDestino: ${escapeHTML(this.bot.config.storage)}\nNo disponibles o demasiado grandes: ${result.skipped}. Fallos de WhatsApp: ${result.failed}.\nÍndice del chat: ${result.scanned}${result.complete?'':' (parcial)'}. Este lote envía hasta 10 nuevos; el siguiente continúa con otros archivos.\n\n${links}`);
+        const summary=`Lote finalizado · ${result.target?Math.floor(result.sent*100/result.target):0}% enviados\nConfirmados por Telegram en ALMACEN: ${result.sent}.\nDestino: ${escapeHTML(this.bot.config.storage)}\nNo disponibles o demasiado grandes: ${result.skipped}. Fallos de WhatsApp: ${result.failed}.\nÍndice del chat: ${result.scanned}${result.complete?'':' (parcial)'}. Este lote envía hasta 10 nuevos; el siguiente continúa con otros archivos.\n\n${links}`;
+        try{await this.bot.api('editMessageText',{chat_id:chat,message_id:progressMessage.message_id,text:summary,parse_mode:'HTML',link_preview_options:{is_disabled:true}});}catch{await this.text(chat,summary);}
       },id,'descarga_manual');
     }
   }

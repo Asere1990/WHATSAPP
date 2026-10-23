@@ -188,3 +188,15 @@ test('only legacy unverified completed exports can be manually enabled again',as
   s.finishExport(a.id,'legacy','done');s.finishExport(a.id,'proven','done');s.finishExport(a.id,'uncertain','review');s.exportReceipt(a.id,'proven',-10020,4);
   assert.equal(s.resetUnverifiedExport(a.id,'legacy'),true);assert.equal(s.resetUnverifiedExport(a.id,'proven'),false);assert.equal(s.resetUnverifiedExport(a.id,'uncertain'),false);
 });
+test('download progress reflects only confirmed files, has correct small-batch denominator and survives edit failures',async t=>{
+  const {manager,a,peer,messages}=setup(t),progress=[];
+  messages.splice(0,messages.length,...[1,2,3].map(n=>({id:{_serialized:'progress-'+n},type:'image',hasMedia:true,rawData:{size:3},downloadMedia:async()=>({data:'YWJj',mimetype:'image/jpeg'})})));
+  let confirmations=0;
+  const result=await manager.tools.downloadRecent(a.id,peer,'photos',async()=>{confirmations++;},async p=>{assert.equal(p.sent,confirmations);progress.push(p);if(p.sent===1)throw Error('Telegram edit unavailable');});
+  assert.equal(result.sent,3);assert.deepEqual(progress.filter(p=>p.phase==='sent').map(p=>p.percent),[33,66,100]);assert.equal(progress[0].percent,0);assert.equal(progress.at(-1).target,3);
+});
+test('unavailable files are not reported as successful 100 percent',async t=>{
+  const {manager,a,peer,messages}=setup(t),progress=[];
+  messages.splice(0,messages.length,{id:{_serialized:'missing-progress'},type:'image',hasMedia:true,rawData:{size:3},downloadMedia:async()=>null});
+  await manager.tools.downloadRecent(a.id,peer,'photos',async()=>assert.fail(),async p=>progress.push(p));assert.equal(progress.at(-1).phase,'finished');assert.equal(progress.at(-1).percent,0);assert.equal(progress.at(-1).skipped,1);
+});
