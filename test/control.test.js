@@ -259,3 +259,8 @@ test('slash menu registration preserves other commands and verifies Telegram sav
  bot.api=async(method,body)=>{const lang=body.language_code;if(method==='getMyCommands')return saved.get(lang)||[{command:'cuentas',description:'Cuentas'}];if(method==='setMyCommands'){assert.equal(body.scope.type,'all_private_chats');saved.set(lang,body.commands);return true;}throw Error('Unexpected '+method);};
  await bot.registerCommands();for(const lang of ['','es'])assert.deepEqual(saved.get(lang).map(c=>c.command),['menu','cuentas']);
 });
+test('account identity uses own WhatsApp contact push name instead of generic registration label',async t=>{
+ const f=setup(t);f.client.info.pushname=undefined;f.client.getContactById=async()=>({pushname:'Nombre exacto de WhatsApp'});
+ const profile=await f.manager.tools.identity(f.a.id,f.a.phone+'@c.us',true);assert.equal(profile.name,'Nombre exacto de WhatsApp');
+ await f.bot.control.home(123,123);const buttons=f.calls.at(-1).body.reply_markup.inline_keyboard.flat();assert.ok(buttons.some(b=>b.text.includes('Nombre exacto de WhatsApp')&&b.text.includes('+'+f.a.phone)));
+});

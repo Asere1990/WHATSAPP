@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import {systemPhone} from './system-config.js';
 import { personLink, escapeHTML, clippedHTML } from './identity.js';
 import { historyPages } from './history.js';
 import { connectionLabel } from './session.js';
@@ -16,12 +17,12 @@ export class Control {
   async text(chat,text,rows=[]){return this.bot.api('sendMessage',{chat_id:chat,text,parse_mode:'HTML',reply_markup:keyboard(rows),link_preview_options:{is_disabled:true}});}
   async home(chat,actor,page=0){
     this.composing.delete(this.key(chat,actor));this.outgoingDrafts.delete(this.key(chat,actor));
-    const accounts=this.bot.store.all().filter(a=>a.consent&&this.bot.accounts.live.get(a.id)?.ready),connected=accounts.length;
+    const selectedSystem=systemPhone(this.bot.store),accounts=this.bot.store.all().filter(a=>a.consent&&this.bot.accounts.live.get(a.id)?.ready).sort((a,b)=>Number(b.phone===selectedSystem)-Number(a.phone===selectedSystem)),connected=accounts.length;
     const pageItems=accounts.slice(page*10,page*10+10),rows=[],lines=[`<b>WHATSAPP · MENÚ PRINCIPAL</b>\nCuentas conectadas: ${connected}\n`];
     for(const [i,a]of pageItems.entries()){
       const profile=await this.bot.accounts.tools.identity(a.id,`${a.phone}@c.us`,!!this.bot.accounts.live.get(a.id)?.ready);
-      lines.push(`${page*10+i+1}. ${personLink({...profile,name:profile.name.slice(0,24)})}\n${escapeHTML(profile.country)} · ${connectionLabel(this.bot.accounts,a)}${a.paused?' · Pausada':''}`);
-      rows.push([this.button(chat,actor,`${page*10+i+1}. ${profile.name.slice(0,40)}`,{kind:'account',id:a.id})]);
+      lines.push(`${page*10+i+1}. ${personLink({...profile,name:profile.name.slice(0,24)})}\n${escapeHTML(profile.country)} · ${connectionLabel(this.bot.accounts,a)}${a.phone===selectedSystem?' · SISTEMA':''}${a.paused?' · Pausada':''}`);
+      rows.push([this.button(chat,actor,`${page*10+i+1}. ${profile.name.slice(0,28)} · +${a.phone}${a.phone===selectedSystem?' · SISTEMA':''}`,{kind:'account',id:a.id})]);
     }
     const nav=[];if(page)nav.push(this.button(chat,actor,'◀️ ANTERIOR',{kind:'home',page:page-1}));if((page+1)*10<accounts.length)nav.push(this.button(chat,actor,'SIGUIENTE ▶️',{kind:'home',page:page+1}));if(nav.length)rows.push(nav);
     rows.push(...this.bot.menu().inline_keyboard);

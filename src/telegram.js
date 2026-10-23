@@ -72,7 +72,7 @@ export class Telegram {
       this.control.composing.delete(key);if(!cb.data?.startsWith('ctl:'))this.control.outgoingDrafts.delete(key);
       await this.api('answerCallbackQuery',{callback_query_id:cb.id});
       if(m.chat.type!=='private')return reply('Abre el privado de este bot y escribe /menu para administrar las cuentas. Aquí puedes responder con reply a los mensajes recibidos.');
-      if(cb.data==='system-message'){this.pending.delete(key);return this.systemMessages.start(chat,key);}
+      if(cb.data==='system-message'){this.pending.delete(key);return this.systemMessages.list(chat,key);}
       if(cb.data?.startsWith('sys:')){this.pending.delete(key);return this.systemMessages.callback(chat,key,cb.data);}
       if(cb.data==='guide'||cb.data?.startsWith('guide:')){this.pending.delete(key);return this.guideEditor.callback(chat,key,cb.data);}
       if(cb.data?.startsWith('ctl:')){this.pending.delete(key);return this.control.callback(chat,actor.id,cb.data,m.message_id);}

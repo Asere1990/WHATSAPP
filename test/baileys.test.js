@@ -125,8 +125,13 @@ test('gallery-only mirrors new system-account replies without replaying history 
  const {store,a}=setup(t),fake=socketFactory(),client=new BaileysClient({galleryOnly:true,store,id:a.id,phone:a.phone,pair:true,socketFactory:fake.make}),received=[];
  t.after(()=>client.destroy());client.on('message',m=>received.push(m));await client.initialize();const sock=fake.sockets[0];
  await sock.batch({'messages.upsert':{type:'notify',messages:[raw('gallery-only')]}});assert.equal(received.length,0);
- store.setConfig('system_account',a.id);
+ store.setConfig('system_phone',a.phone);
  await sock.batch({'messages.upsert':{type:'append',messages:[raw('old')]}});assert.equal(received.length,0);
  await sock.batch({'messages.upsert':{type:'notify',messages:[raw('new'),raw('mine',{key:{remoteJid:'12025550124@s.whatsapp.net',id:'mine',fromMe:true}})]}});assert.equal(received.length,1);assert.equal(received[0].body,'hola');
- store.setConfig('system_account','other');await sock.batch({'messages.upsert':{type:'notify',messages:[raw('after-change')]}});assert.equal(received.length,1);
+ store.setConfig('system_phone','12025550199');await sock.batch({'messages.upsert':{type:'notify',messages:[raw('after-change')]}});assert.equal(received.length,1);
+});
+test('own WhatsApp display name is recovered from auth when socket user has no name',async t=>{
+ const {store,a}=setup(t),fake=socketFactory(),auth=new BaileysStore(store,a.id).auth();auth.state.creds.me={id:a.phone+'@s.whatsapp.net',name:'Mi empresa en WhatsApp'};auth.saveCreds();
+ const client=new BaileysClient({store,id:a.id,phone:a.phone,pair:true,socketFactory:fake.make});t.after(()=>client.destroy());await client.initialize();fake.sockets[0].user.name=undefined;
+ const contact=await client.getContactById(a.phone+'@c.us');assert.equal(contact.pushname,'Mi empresa en WhatsApp');assert.equal(client.info.pushname,'Mi empresa en WhatsApp');
 });

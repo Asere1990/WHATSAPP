@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import makeWASocket,{ Browsers, DisconnectReason, normalizeMessageContent, jidNormalizedUser, downloadMediaMessage } from '@whiskeysockets/baileys';
 import pino from 'pino';
+import {isSystemAccount} from './system-config.js';
 import { BaileysStore } from './baileys-store.js';
 const logger=pino({level:'silent'});
 export const toJid=peer=>jidNormalizedUser(String(peer).replace(/@c\.us$/,'@s.whatsapp.net'));
@@ -59,7 +60,7 @@ export class BaileysClient extends EventEmitter {
         for(const m of upsert?.messages||[]){
           this.saveMessage(m);
           // History/append events never replay old conversations into Telegram.
-          if((!this.galleryOnly||this.sourceStore.config().system_account===this.account)&&upsert.type==='notify'&&!m.key.fromMe&&m.message&&privateJid(toJid(m.key.remoteJid))&&describe(m).type!=='system')this.emit('message',this.wrap(m));
+          if((!this.galleryOnly||isSystemAccount(this.sourceStore,{phone:this.phone}))&&upsert.type==='notify'&&!m.key.fromMe&&m.message&&privateJid(toJid(m.key.remoteJid))&&describe(m).type!=='system')this.emit('message',this.wrap(m));
         }
       }).catch(error=>this.emit('transport_error',error));
       await this.events;
@@ -115,7 +116,13 @@ export class BaileysClient extends EventEmitter {
   }
   async getChats(){return this.store.list('chat').map(c=>({id:{_serialized:toPeer(c.id)},isGroup:c.id.endsWith('@g.us'),timestamp:Number(c.conversationTimestamp)||0,archived:!!c.archived,isLocked:!!c.locked,unreadCount:c.unreadCount||0}));}
   async getChatById(peer){const jid=toJid(peer);return {fetchMessages:async({limit=500,fromMe}={})=>this.store.messages(jid,Math.min(5000,Math.max(500,limit))).map(m=>this.wrap(m)).filter(m=>m.type!=='system'&&(fromMe===undefined||m.fromMe===fromMe)).slice(-limit)};}
-  async getContactById(peer){const c=this.store.get('contact',toJid(peer));return c?{name:c.name,pushname:c.notify,shortName:c.verifiedName}:{};}
+  async getContactById(peer){
+    const self=toJid(peer)===toJid(this.phone+'@c.us'),creds=self?this.store.authValue('creds','self'):null;
+    const c=this.store.get('contact',toJid(peer))||(creds?.me?.lid?this.store.get('contact',toJid(creds.me.lid)):null)||{};
+    const pushname=self?(this.socket?.user?.name||creds?.me?.name||c.notify):c.notify;
+    if(self&&pushname)this.info.pushname=pushname;
+    return {name:c.name,pushname,shortName:c.verifiedName};
+  }
   async getContactLidAndPhone(peers){return peers.map(peer=>({lid:peer,pn:toPeer(this.store.get('mapping',toJid(peer))||peer)}));}
   async getMessageById(id){const raw=this.store.get('message',id);return raw?this.wrap(raw):null;}
   async gallery(peer,offset=0){if(!this.galleryOnly)return {messages:this.store.messages(toJid(peer),5000).map(m=>this.wrap(m)).filter(m=>m.hasMedia),complete:false,pages:1};const jid=toJid(peer),messages=this.store.galleryPage(jid,offset).map(m=>this.wrap(m)).reverse();return {messages,counts:this.store.galleryCounts(jid),nextOffset:messages.length===100?offset+100:null,complete:false,pages:1};}
