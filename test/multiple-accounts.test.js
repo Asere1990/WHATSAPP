@@ -9,9 +9,9 @@ import {Accounts} from '../src/whatsapp.js';
 const countries=readFileSync(new URL('../public/countries.js',import.meta.url),'utf8');
 const source=countries+readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
-async function page(){
+async function page({registerStatus=201}={}){
   const elements=new Map(),requests=[],intervals=new Map();let sequence=0;
-  const element=id=>{if(!elements.has(id))elements.set(id,{id,hidden:false,value:'',checked:false,textContent:'',disabled:false,events:{},setAttribute(){},focus(){},pause(){},play:async()=>{},appendChild(){},addEventListener(type,fn){this.events[type]=fn;}});return elements.get(id);};
+  const element=id=>{if(!elements.has(id))elements.set(id,{id,hidden:false,value:'',checked:false,textContent:'',disabled:false,events:{},setAttribute(){},focus(){},pause(){},showModal(){this.open=true;},close(){this.open=false;},play:async()=>{},appendChild(){},addEventListener(type,fn){this.events[type]=fn;}});return elements.get(id);};
   let account={name:'Primera',phone:'+12025550123',country:'US',nationalNumber:'2025550123',status:'connected',consent:true,paused:false};
   let deferStatus=null;
   const fetch=async(url,options={})=>{
@@ -19,12 +19,12 @@ async function page(){
     if(url==='/api/branding')data={title:'WhatsApp',description:'Gestión',button:'Conectar'};
     else if(url==='/api/guides')data={android:[{title:'Android',text:'Paso',asset:null}],iphone:[{title:'iPhone',text:'Paso',asset:null}]};
     else if(url==='/api/status'){if(deferStatus){const pending=deferStatus;deferStatus=null;return pending;}data={...account};}
-    else if(url==='/api/register'){account={name:'Segunda',phone:JSON.parse(options.body).phone,status:'pending',consent:false,paused:false};data={ok:true};}
+    else if(url==='/api/register'){if(registerStatus!==201)return {ok:false,status:registerStatus,json:async()=>({error:'duplicate'})};account={name:'Segunda',phone:JSON.parse(options.body).phone,status:'pending',consent:false,paused:false};data={ok:true};}
     else if(url==='/api/connect'){account={...account,status:'connecting',consent:true,code:'87654321'};data={ok:true};}
     else throw Error('Unexpected request: '+url);
     return {ok:true,status:200,json:async()=>data};
   };
-  const context=vm.createContext({document:{getElementById:element,styleSheets:[],createElement:()=>({})},localStorage:{getItem:()=> 'iphone',setItem(){}},location:{hash:'',pathname:'/'},history:{replaceState(){}},fetch,setInterval:fn=>{const id=++sequence;intervals.set(id,fn);return id;},clearInterval:id=>intervals.delete(id),setTimeout,console});
+  const context=vm.createContext({document:{getElementById:element,styleSheets:[],createElement:()=>({})},localStorage:{getItem:()=> 'iphone',setItem(){}},location:{hash:'',pathname:'/'},history:{replaceState(){}},fetch,setInterval:fn=>{const id=++sequence;intervals.set(id,fn);return id;},clearInterval:id=>intervals.delete(id),setTimeout,console,navigator:{clipboard:{writeText:async value=>{element('clipboard').value=value;}}}});
   vm.runInContext(source,context);for(let n=0;n<6;n++)await tick();
   return {element,requests,intervals,context,defer(promise){deferStatus=promise;},get account(){return account;}};
 }
@@ -61,4 +61,16 @@ test('three phone numbers have separate authorization and WhatsApp browser profi
   assert.equal(new Set(options.map(o=>o.authStrategy.clientId)).size,3);
   for(const [i,token]of tokens.entries())assert.equal(store.browser(token).phone,phones[i]);
   assert.equal(store.register(phones[0]),null); // A phone number never grants another browser access.
+});
+
+test('duplicate number error is visible and blocks repeated submissions until number changes',async()=>{
+ const p=await page({registerStatus:409});p.element('another-account').onclick();p.element('country').value='US';p.element('phone').value='2025550124';p.element('consent').checked=true;
+ await p.element('connect').events.submit({preventDefault(){}});assert.match(p.element('error').textContent,/enlace privado/);assert.equal(p.element('error').hidden,false);assert.equal(p.element('connect-button').disabled,true);
+ await p.element('connect').events.submit({preventDefault(){}});assert.equal(p.requests.filter(r=>r.url==='/api/register').length,1);
+ p.element('phone').events.input();assert.equal(p.element('connect-button').disabled,false);
+});
+test('copying current code opens activation popup; expired code is never copied',async()=>{
+ const p=await page();vm.runInContext("state={code:'12345678',expires:Date.now()+60000}",p.context);await p.element('copy').onclick();
+ assert.equal(p.element('clipboard').value,'12345678');assert.equal(p.element('copy-help').open,true);p.element('close-copy-help').onclick();assert.equal(p.element('copy-help').open,false);
+ p.element('clipboard').value='';vm.runInContext("state={code:'87654321',expires:Date.now()-1}",p.context);await p.element('copy').onclick();assert.equal(p.element('clipboard').value,'');
 });

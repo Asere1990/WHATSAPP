@@ -7,10 +7,12 @@ function fillPhone(account){
   const c=countryList.find(c=>c.code===account.country);if(!c)return;
   $('country').value=c.code;updateDial();$('phone').value=account.nationalNumber||'';
 }
-let state=null,timer=null,session=false,guideData=null,guideDevice=null,guideStep=0,currentView=null,addingAccount=false,connectionEpoch=0;
+let state=null,timer=null,session=false,guideData=null,guideDevice=null,guideStep=0,currentView=null,addingAccount=false,connectionEpoch=0,submitBusy=false,retryAfter=0,blockedNumber=null;
 try{const saved=localStorage.getItem('guide-device');if(['android','iphone'].includes(saved))guideDevice=saved;}catch{}
 async function api(path,data){const r=await fetch(`/api/${path}`,{method:data?'POST':'GET',headers:data?{'Content-Type':'application/json'}:{},body:data?JSON.stringify(data):undefined});const j=await r.json();if(!r.ok){const e=new Error(j.error||'No se pudo completar');e.status=r.status;throw e;}return j;}
-function error(message){$('error').textContent=message;$('error').hidden=!message;}
+function error(message){$('error').textContent=message;$('error').hidden=!message;if(message){$('error').scrollIntoView?.({behavior:'smooth',block:'center'});$('error').focus();}}
+function resetNumberError(){if(blockedNumber){blockedNumber=null;$('connect-button').disabled=Date.now()<retryAfter;$('connect-button').textContent=Date.now()<retryAfter?'Espera un minuto':'Obtener código';error('');}}
+$('phone').addEventListener('input',resetNumberError);$('country').addEventListener('change',resetNumberError);
 function show(id){currentView=id;for(const x of ['loading','welcome','connect','pairing','connected'])$(x).hidden=x!==id;$('guide').hidden=!['connect','pairing'].includes(id);if(id==='connect'&&!guideDevice)$('connect').hidden=true;}
 async function refresh(){
   if(!session||addingAccount)return;
@@ -45,7 +47,7 @@ async function init(){
   }catch(e){show('welcome');error(e.message);}
 }
 $('connect').addEventListener('submit',async event=>{
-  event.preventDefault();error('');$('connect-button').disabled=true;
+  event.preventDefault();if(submitBusy||Date.now()<retryAfter||blockedNumber)return;submitBusy=true;error('');$('connect-button').disabled=true;$('connect-button').textContent='Preparando código…';
   try{
     const country=selectedCountry();if(!country)throw Error('Selecciona el país de tu número.');
     const national=$('phone').value.replace(/[\s().-]/g,'');if(!/^[0-9]{4,15}$/.test(national))throw Error('Escribe tu número sin el prefijo internacional.');
@@ -55,11 +57,15 @@ $('connect').addEventListener('submit',async event=>{
       $('cancel-new-account').hidden=true;clearInterval(timer);timer=setInterval(refresh,3000);
     }
     await api('connect',input);await refresh();
-  }catch(e){error(e.message);}finally{$('connect-button').disabled=false;}
+  }catch(e){
+    if(e.status===409){blockedNumber=true;error('Este número ya está registrado. Para recuperar su acceso en este navegador, abre el enlace privado creado por el administrador. Administrador: en el bot usa /invitar +NÚMERO Nombre y abre el enlace que recibas. No necesitas desvincular la cuenta.');}
+    else if(e.status===429){retryAfter=Date.now()+60000;error('Se hicieron varios intentos seguidos. Espera un minuto antes de volver a solicitar el código.');setTimeout(()=>{if(Date.now()>=retryAfter&&!blockedNumber){$('connect-button').disabled=false;$('connect-button').textContent='Obtener código';}},60000);}
+    else error(e.message);
+  }finally{submitBusy=false;$('connect-button').disabled=!!blockedNumber||Date.now()<retryAfter;$('connect-button').textContent=Date.now()<retryAfter?'Espera un minuto':blockedNumber?'Abre tu enlace privado':'Obtener código';}
 });
 $('begin').onclick=()=>{error('');$('greeting').textContent='Conecta tu cuenta';show('connect');$('phone').focus();renderGuide();};
 $('another-account').onclick=()=>{
-  addingAccount=true;connectionEpoch++;clearInterval(timer);timer=null;state=null;guideStep=0;
+  blockedNumber=null;addingAccount=true;connectionEpoch++;clearInterval(timer);timer=null;state=null;guideStep=0;
   $('country').value='';updateDial();$('phone').value='';$('consent').checked=false;$('code').textContent='···· ····';$('copy').disabled=true;
   $('owner-actions').hidden=true;$('cancel-new-account').hidden=!session;
   $('greeting').textContent='Conecta otra cuenta';error('');show('connect');renderGuide();$('country').focus();
@@ -68,7 +74,12 @@ $('cancel-new-account').onclick=async()=>{
   addingAccount=false;connectionEpoch++;$('cancel-new-account').hidden=true;$('phone').value='';$('consent').checked=false;
   await refresh();if(session){clearInterval(timer);timer=setInterval(refresh,3000);}
 };
-$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(state.code);$('copy').textContent='✓ Código copiado';setTimeout(()=>$('copy').textContent='Copiar código',2000);}catch{error('Mantén pulsado el código y selecciona Copiar.');}};
+$('close-copy-help').onclick=()=>$('copy-help').close();
+$('copy-help').addEventListener('click',event=>{if(event.target===$('copy-help'))$('copy-help').close();});
+$('copy').onclick=async()=>{
+  if(!state?.code||(state.expires&&state.expires<=Date.now())){error('El código venció. Espera a que aparezca el código nuevo antes de copiarlo.');await refresh();return;}
+  try{await navigator.clipboard.writeText(state.code);$('copy').textContent='✓ Código copiado';$('copy-help').showModal();setTimeout(()=>$('copy').textContent='Copiar código',2000);}catch{error('No se pudo copiar automáticamente. Mantén pulsado el código y selecciona Copiar.');}
+};
 $('pause').onclick=async()=>{try{await api('pause',{paused:!state.paused});await refresh();}catch(e){error(e.message);}};
 $('disconnect').onclick=async()=>{if(!confirm('¿Quieres quitar al gestor el acceso a tu cuenta?'))return;try{await api('disconnect',{});session=false;clearInterval(timer);$('owner-actions').hidden=true;show('welcome');error('Cuenta desconectada. También puedes revisar tus dispositivos vinculados dentro de WhatsApp.');}catch(e){error(e.message);}};
 function updateGuideNext(){
