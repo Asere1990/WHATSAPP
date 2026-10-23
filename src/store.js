@@ -98,12 +98,12 @@ export class Store {
     this.db.prepare('INSERT INTO access VALUES(?,?,?,?)').run(digest(session),row.account,'browser',Date.now()+86400000*30);
     return session;
   }
-  register(phone,{restartPending=false}={}) {
+  register(phone,{restartPending=false,restartUnlinked=false}={}) {
     phone=phoneNumber(phone);
     const existing=this.db.prepare('SELECT * FROM accounts WHERE phone=?').get(phone);
     // A revoked account may start again with fresh credentials and a fresh account ID.
     // A previously linked account can never be claimed by merely entering its phone number.
-    const unfinished=existing&&!existing.confirmed&&['pending','connecting','error','expired','needs_pairing','auth_failure','disconnected'].includes(existing.status);
+    const unfinished=existing&&(restartUnlinked||!existing.confirmed&&['pending','connecting','error','expired','needs_pairing','auth_failure','disconnected'].includes(existing.status));
     if(existing&&!(existing.status==='revoked'&&!existing.consent)&&!(restartPending&&unfinished))return null;
     this.db.exec('BEGIN IMMEDIATE');
     try{

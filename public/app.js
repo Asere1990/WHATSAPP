@@ -35,7 +35,7 @@ async function finishConnection(){
   $('connect-button').disabled=false;$('connect-button').textContent='Obtener código';error('');show('loading');
   // Drop only this browser authorization. The connected WhatsApp remains running.
   try{await api('browser-reset',{});}catch{}
-  if(epoch===connectionEpoch){show('welcome');renderGuide();}
+  if(epoch===connectionEpoch){clearConnectionForm();show('welcome');renderGuide();location.replace(location.pathname);}
 }
 async function refresh({initial=false}={}){
   if(!session||addingAccount)return;
@@ -91,7 +91,7 @@ $('connect').addEventListener('submit',async event=>{
     if(!input.consent)throw Error('Confirma tu número y la autorización.');
     const differentPhone=browserPhone!==input.phone.replace(/\D/g,'');
     if(addingAccount||!session||differentPhone){
-      await api('register',input);browserPhone=input.phone.replace(/\D/g,'');addingAccount=false;connectionEpoch++;state=null;session=true;
+      const registration=await api('register',input);if(registration.completed){await finishConnection();return;}browserPhone=input.phone.replace(/\D/g,'');addingAccount=false;connectionEpoch++;state=null;session=true;
       $('cancel-new-account').hidden=true;clearInterval(timer);timer=setInterval(refresh,3000);
     }
     show('pairing');$('pairing-account').textContent=`Número que estás vinculando: ${input.phone}`;$('code').hidden=true;$('code-loading').hidden=false;$('copy').disabled=true;$('expires').textContent='Preparando el código. Esto puede tardar un momento…';

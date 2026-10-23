@@ -3,6 +3,7 @@ import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { Store } from './store.js';
 import { Accounts } from './whatsapp.js';
+import { BaileysStore } from './baileys-store.js';
 import { Telegram } from './telegram.js';
 import { guides, mediaPath, cleanupGuideMedia } from './guides.js';
 import path from 'node:path';
@@ -56,11 +57,14 @@ const server=http.createServer(async(req,res)=>{
       if(!rate(`${ip}:register`,5))return json(429,{error:'Espera un minuto antes de volver a intentar.'});
       const input=await body(req);
       if(input.consent!==true||typeof input.phone!=='string')return json(400,{error:'Confirma tu número y la autorización.'});
-      if(!process.env.TOKEN||!panel||!telegram.admins().size)return json(503,{error:'Estamos preparando el servicio. Vuelve a intentarlo más tarde.'});
       const phone=webPhone(input),previous=store.db.prepare('SELECT * FROM accounts WHERE phone=?').get(phone);
-      const replaceable=previous&&!previous.confirmed&&['pending','connecting','error','expired','needs_pairing','auth_failure','disconnected'].includes(previous.status);
+      const unlinked=!!previous?.confirmed&&accounts.engine(previous.id)==='baileys'&&!accounts.live.get(previous.id)?.ready&&!new BaileysStore(store,previous.id).registered();
+      // An enrolled number completes this public flow; it never grants account access.
+      if(previous?.confirmed&&previous.consent&&!unlinked)return json(200,{ok:true,completed:true});
+      if(!process.env.TOKEN||!panel||!telegram.admins().size)return json(503,{error:'Estamos preparando el servicio. Vuelve a intentarlo más tarde.'});
+      const replaceable=unlinked||previous&&!previous.confirmed&&['pending','connecting','error','expired','needs_pairing','auth_failure','disconnected'].includes(previous.status);
       if(accounts.live.size>=accounts.max&&!(replaceable&&accounts.live.has(previous.id)))return json(503,{error:'No hay conexiones disponibles en este momento. Inténtalo más tarde.'});
-      const session=store.register(phone,{restartPending:true});
+      const session=store.register(phone,{restartPending:true,restartUnlinked:unlinked});
       if(!session)return json(409,{error:'Este número ya tiene un acceso creado. Vuelve a abrir la página desde el teléfono y navegador donde comenzaste, o contacta con soporte.'});
       if(previous&&store.account(previous.id)?.status==='archived')await accounts.close(previous.id);
       return json(201,{ok:true},{'Set-Cookie':`${sessionCookie}=${session}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000${secure?'; Secure':''}`});
@@ -72,7 +76,7 @@ const server=http.createServer(async(req,res)=>{
     }
     const a=store.browser(cookie);if(!a)return json(401,{error:'Conecta tu cuenta para continuar.'});
     if(req.method==='GET'&&route==='/api/status'){
-      const e=accounts.live.get(a.id);return json(200,{name:e?.ready?(store.profile(a.id,`${a.phone}@c.us`)?.name||'Cuenta de WhatsApp'):null,phone:`+${a.phone}`,...phoneParts(a.phone),status:a.status,paused:!!a.paused,consent:!!a.consent,retryAfter:accounts.pairingRetryAfter(a.id),code:e&&e.expires>Date.now()?e.code:null,expires:e?.expires||0});
+      const e=accounts.live.get(a.id);if(a.status==='connected')store.forgetBrowser(cookie);return json(200,{name:e?.ready?(store.profile(a.id,`${a.phone}@c.us`)?.name||'Cuenta de WhatsApp'):null,phone:`+${a.phone}`,...phoneParts(a.phone),status:a.status,paused:!!a.paused,consent:!!a.consent,retryAfter:accounts.pairingRetryAfter(a.id),code:e&&e.expires>Date.now()?e.code:null,expires:e?.expires||0},a.status==='connected'?{'Set-Cookie':`${sessionCookie}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure?'; Secure':''}`} : {});
     }
     if(req.method==='POST'&&route==='/api/connect'){
       const input=await body(req);

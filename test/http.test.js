@@ -5,6 +5,7 @@ import { mkdtempSync,rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { once } from 'node:events';
 import { Store } from '../src/store.js';
+import { BaileysStore } from '../src/baileys-store.js';
 test('HTTP access requires a valid invitation, enforces origin and never exposes config secrets',async t=>{
   const dir=mkdtempSync(`${tmpdir()}/wa-http-`),s=new Store(dir),invite=s.invite('12025550123','Titular');s.setConfig('telegram_offset','private');s.db.close();
   const port=20000+(process.pid%20000),url=`http://localhost:${port}`;
@@ -38,5 +39,12 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   const reset=await fetch(`${url}/api/browser-reset`,{method:'POST',headers:{Origin:url,Cookie:cookie},body:'{}'});assert.equal(reset.status,200);assert.match(reset.headers.get('set-cookie'),/Max-Age=0/);
   assert.equal((await fetch(`${url}/api/status`,{headers:{Cookie:cookie}})).status,401);
   const inspect=new Store(dir);assert.ok(inspect.account(invite.account.id));assert.equal(inspect.account(invite.account.id).status,'pending');inspect.db.close();
+  const connectedStore=new Store(dir),saved=new BaileysStore(connectedStore,invite.account.id).auth();saved.state.creds.registered=true;saved.saveCreds();connectedStore.update(invite.account.id,'consent',1);connectedStore.update(invite.account.id,'status','connected');
+  const freshBrowser=connectedStore.exchange(connectedStore.invite('12025550123','Titular').secret);connectedStore.db.close();
+  const completedStatus=await fetch(`${url}/api/status`,{headers:{Cookie:`wa_session=${freshBrowser}`}});assert.equal((await completedStatus.json()).status,'connected');assert.match(completedStatus.headers.get('set-cookie'),/Max-Age=0/);
+  assert.equal((await fetch(`${url}/api/status`,{headers:{Cookie:`wa_session=${freshBrowser}`}})).status,401);
+  const enrolled=await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:url},body:JSON.stringify({phone:'+12025550123',country:'US',nationalNumber:'2025550123',consent:true})});assert.equal(enrolled.status,200);assert.equal((await enrolled.json()).completed,true);assert.equal(enrolled.headers.get('set-cookie'),null);
+  assert.equal((await fetch(`${url}/api/status`)).status,401);
+  const preserved=new Store(dir);assert.equal(preserved.account(invite.account.id).status,'connected');assert.equal(preserved.db.prepare('SELECT count(*) n FROM accounts').get().n,1);preserved.db.close();
   const reused=await fetch(`${url}/api/access`,{method:'POST',headers:{Origin:url},body:JSON.stringify({token:invite.secret})});assert.equal(reused.status,401);
 });

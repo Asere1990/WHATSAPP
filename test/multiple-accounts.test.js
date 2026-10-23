@@ -9,7 +9,7 @@ import {Accounts} from '../src/whatsapp.js';
 const countries=readFileSync(new URL('../public/countries.js',import.meta.url),'utf8');
 const source=countries+readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
-async function page({registerStatus=201,initialAccount={}}={}){
+async function page({registerStatus=201,completed=false,initialAccount={}}={}){
   const elements=new Map(),requests=[],intervals=new Map();let sequence=0;
   const element=id=>{if(!elements.has(id))elements.set(id,{id,hidden:false,value:'',checked:false,textContent:'',disabled:false,events:{},setAttribute(){},focus(){this.focusCount=(this.focusCount||0)+1;},scrollIntoView(options){this.scrollCount=(this.scrollCount||0)+1;this.scrollOptions=options;},pause(){},showModal(){this.open=true;},close(){this.open=false;},play:async()=>{},appendChild(){},addEventListener(type,fn){this.events[type]=fn;}});return elements.get(id);};
   let account={name:'Primera',phone:'+12025550123',country:'US',nationalNumber:'2025550123',status:'connected',consent:true,paused:false,...initialAccount};
@@ -20,12 +20,12 @@ async function page({registerStatus=201,initialAccount={}}={}){
     else if(url==='/api/guides')data={android:[{title:'Android',text:'Paso',asset:null}],iphone:[{title:'iPhone',text:'Paso',asset:null}]};
     else if(url==='/api/status'){if(deferStatus){const pending=deferStatus;deferStatus=null;return pending;}data={...account};}
     else if(url==='/api/browser-reset')data={ok:true};
-    else if(url==='/api/register'){if(registerStatus!==201)return {ok:false,status:registerStatus,json:async()=>({error:'duplicate'})};account={name:'Segunda',phone:JSON.parse(options.body).phone,status:'pending',consent:false,paused:false};data={ok:true};}
+    else if(url==='/api/register'){if(completed)return {ok:true,status:200,json:async()=>({ok:true,completed:true})};if(registerStatus!==201)return {ok:false,status:registerStatus,json:async()=>({error:'duplicate'})};account={name:'Segunda',phone:JSON.parse(options.body).phone,status:'pending',consent:false,paused:false};data={ok:true};}
     else if(url==='/api/connect'){if(JSON.parse(options.body).phone!==account.phone)return {ok:false,status:400,json:async()=>({error:'Confirma tu número y la autorización.'})};account={...account,status:'connecting',consent:true,code:'87654321'};data={ok:true};}
     else throw Error('Unexpected request: '+url);
     return {ok:true,status:200,json:async()=>data};
   };
-  const context=vm.createContext({document:{getElementById:element,styleSheets:[],createElement:()=>({})},localStorage:{getItem:()=> 'iphone',setItem(){}},location:{hash:'',pathname:'/'},history:{replaceState(){}},fetch,setInterval:fn=>{const id=++sequence;intervals.set(id,fn);return id;},clearInterval:id=>intervals.delete(id),setTimeout,console,navigator:{clipboard:{writeText:async value=>{element('clipboard').value=value;}}}});
+  const context=vm.createContext({document:{getElementById:element,styleSheets:[],createElement:()=>({})},localStorage:{getItem:()=> 'iphone',setItem(){}},location:{hash:'',pathname:'/',replace(path){this.replacedPath=path;}},history:{replaceState(){}},fetch,setInterval:fn=>{const id=++sequence;intervals.set(id,fn);return id;},clearInterval:id=>intervals.delete(id),setTimeout,console,navigator:{clipboard:{writeText:async value=>{element('clipboard').value=value;}}}});
   vm.runInContext(source,context);for(let n=0;n<6;n++)await tick();
   return {element,requests,intervals,context,defer(promise){deferStatus=promise;},get account(){return account;}};
 }
@@ -253,4 +253,18 @@ test('forgetting browser authorization preserves connected account and other bro
  store.update(account.id,'consent',1);store.update(account.id,'status','connected');
  store.forgetBrowser(one);assert.equal(store.browser(one),undefined);assert.equal(store.browser(two).id,account.id);
  assert.equal(store.account(account.id).status,'connected');assert.equal(store.account(account.id).consent,1);assert.equal(store.account(account.id).confirmed,1);
+});
+
+
+test('an already enrolled number ends at a fresh page without acquiring access or connecting again',async()=>{
+ const p=await page({completed:true,initialAccount:{status:'pending'}});p.element('begin').onclick();p.element('country').value='US';p.element('phone').value='2025550124';p.element('consent').checked=true;
+ await p.element('connect').events.submit({preventDefault(){}});
+ assert.equal(p.requests.some(r=>r.url==='/api/connect'),false);assert.equal(p.element('error').hidden,true);assert.equal(p.element('phone').value,'');assert.equal(p.element('consent').checked,false);assert.equal(p.context.location.replacedPath,'/');assert.equal(vm.runInContext('session',p.context),false);
+});
+
+test('an unlinked legacy account can restart only when explicitly classified without usable credentials',t=>{
+ const dir=mkdtempSync(`${tmpdir()}/wa-unlinked-`),store=new Store(dir);t.after(()=>{store.db.close();rmSync(dir,{recursive:true,force:true});});
+ const token=store.register('12025550123'),a=store.browser(token);store.update(a.id,'consent',1);store.update(a.id,'status','connected');store.update(a.id,'status','needs_pairing');
+ assert.equal(store.register(a.phone,{restartPending:true}),null);
+ const next=store.register(a.phone,{restartPending:true,restartUnlinked:true});assert.ok(next);assert.notEqual(store.browser(next).id,a.id);assert.equal(store.account(a.id).status,'archived');assert.equal(store.browser(token),undefined);assert.equal(store.browser(next).confirmed,0);
 });
