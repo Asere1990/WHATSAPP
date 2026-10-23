@@ -18,10 +18,16 @@ export class Accounts {
     await this.close(id);
     await this.notify(`⚠️ No se pudo iniciar la conexión de la cuenta ${id} (${code}). La autorización y la sesión guardada se conservan. Revisa /pendientes o pulsa RECUPERAR CONEXIÓN.`).catch(()=>{});
   }
+  pairingRetryAfter(id){
+    const row=this.store.db.prepare("SELECT MAX(created) AS created FROM incidents WHERE account=? AND code='WA_PAIRING_RATE_LIMIT'").get(id);
+    const until=Number(row?.created||0)+1800000;
+    return until>Date.now()?until:0;
+  }
   async start(id,pair=false) {
     const a=this.store.account(id);
     if (!a?.consent) throw new Error('Falta autorización del titular.');
     if(this.live.has(id)) return this.live.get(id);
+    if(pair&&this.pairingRetryAfter(id)){const error=new Error('WhatsApp limitó las solicitudes de códigos. El sistema ha pausado los intentos de este número durante 30 minutos.');error.code='WA_PAIRING_RATE_LIMIT';throw error;}
     if(this.live.size>=this.max) throw new Error('Se alcanzó el límite de cuentas del servidor.');
     const folder=path.join(this.dir,'sessions',`session-${id}`);
     // A retry before any successful link must not reuse an unfinished browser state.
@@ -230,12 +236,7 @@ export class Accounts {
     for(const a of this.store.all()) {
       if(!a.consent)continue;
       if(existsSync(path.join(this.dir,'sessions',`session-${a.id}`))) {
-        const recentRequest=this.store.db.prepare("SELECT 1 FROM audit WHERE account=? AND event='consent-v1' AND created>? LIMIT 1").get(a.id,Date.now()-1800000);
-        const failedCode=this.store.db.prepare("SELECT 1 FROM incidents WHERE account=? AND code='WA_PAIRING_CODE' LIMIT 1").get(a.id);
-        const diagnosed=this.store.db.prepare("SELECT 1 FROM audit WHERE account=? AND event='pairing_failure_subtype_probe' LIMIT 1").get(a.id);
-        const diagnosticRetry=a.status==='error'&&recentRequest&&failedCode&&!diagnosed;
-        const resumePairing=(a.status==='connecting'||diagnosticRetry)&&!this.store.db.prepare("SELECT 1 FROM audit WHERE account=? AND event='connected' LIMIT 1").get(a.id);
-        if(diagnosticRetry&&resumePairing)this.store.audit(a.id,'pairing_failure_subtype_probe');
+        const resumePairing=a.status==='connecting'&&!this.pairingRetryAfter(a.id)&&!this.store.db.prepare("SELECT 1 FROM audit WHERE account=? AND event='connected' LIMIT 1").get(a.id);
         await this.start(a.id,resumePairing).catch(error=>{this.store.update(a.id,'status','error');this.lifecycle(a.id,'restore_failed',connectionErrorCode(error));});
       }else{
         this.store.update(a.id,'status','needs_pairing');this.lifecycle(a.id,'session_directory_missing');

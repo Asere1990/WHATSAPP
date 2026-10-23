@@ -106,3 +106,13 @@ test('a code request that never settles is stopped within its deadline, with oth
  assert.equal(s.openIncidents().find(x=>x.account===a.id).code,'WA_PAIRING_TIMEOUT');
  assert.equal(manager.live.get(other.id).ready,true);
 });
+
+test('confirmed WhatsApp 429 pauses new pairing requests without affecting live accounts',async t=>{
+ let launched=0;class Fake extends EventEmitter{async initialize(){}async destroy(){}}
+ const {s,a,manager}=setup(t,()=>{launched++;return new Fake();});
+ s.recordIncident(a.id,'conexion',{code:'WA_PAIRING_RATE_LIMIT'});
+ assert.ok(manager.pairingRetryAfter(a.id)>Date.now());
+ await assert.rejects(manager.start(a.id,true),/WhatsApp limitó/);assert.equal(launched,0);
+ s.db.prepare("UPDATE incidents SET created=? WHERE account=?").run(Date.now()-1800001,a.id);
+ assert.equal(manager.pairingRetryAfter(a.id),0);await manager.start(a.id,true);assert.equal(launched,1);
+});

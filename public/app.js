@@ -12,13 +12,13 @@ async function api(path,data){
   catch{const e=new Error('No se pudo conectar con el servicio. Revisa tu conexión e inténtalo de nuevo.');e.code='NETWORK';throw e;}
   let j;try{j=await r.json();if(!j||typeof j!=='object')throw Error();}
   catch{const e=new Error('No se pudo leer la respuesta del servicio. Recarga la página e inténtalo de nuevo.');e.code='API_RESPONSE';e.status=r.status;throw e;}
-  if(!r.ok){const e=new Error(typeof j.error==='string'?j.error:'No se pudo completar la operación. Inténtalo de nuevo.');e.status=r.status;throw e;}return j;
+  if(!r.ok){const e=new Error(typeof j.error==='string'?j.error:'No se pudo completar la operación. Inténtalo de nuevo.');e.status=r.status;e.retryAfter=Number(j.retryAfter)||0;throw e;}return j;
 }
 function userError(e){
   if(['SyntaxError','InvalidStateError','SecurityError'].includes(e?.name)||/string did not match|expected pattern|unexpected token/i.test(e?.message||''))return 'No se pudo preparar la conexión. Recarga la página e inténtalo de nuevo.';
   if(e?.name==='TypeError'||e?.name==='NetworkError')return 'No se pudo conectar con el servicio. Revisa tu conexión e inténtalo de nuevo.';
   const message=e?.message||'';
-  return /^(Selecciona|Escribe|Usa|Confirma|No |La |El |Este |Estamos|Espera|Se |Abre|Conecta|Falta)/.test(message)?message:'No se pudo completar la operación. Recarga la página e inténtalo de nuevo.';
+  return /^(Selecciona|Escribe|Usa|Confirma|No |La |El |Este |Estamos|Espera|Se |Abre|Conecta|Falta|WhatsApp)/.test(message)?message:'No se pudo completar la operación. Recarga la página e inténtalo de nuevo.';
 }
 function error(message,{attention=true}={}){const box=$('error'),changed=box.hidden||box.textContent!==message;box.textContent=message;box.hidden=!message;if(message&&changed&&attention){box.scrollIntoView?.({behavior:'smooth',block:'center'});box.focus({preventScroll:true});}}
 function resetNumberError(){error('');if(blockedNumber){blockedNumber=null;$('connect-button').disabled=Date.now()<retryAfter;$('connect-button').textContent=Date.now()<retryAfter?'Espera un minuto':'Obtener código';}}
@@ -41,7 +41,7 @@ async function refresh({initial=false}={}){
       show('pairing');$('code-loading').hidden=!!state.code;$('code').hidden=!state.code;$('code').textContent=state.code?state.code.slice(0,4)+' '+state.code.slice(4):'···· ····';$('copy').disabled=!state.code;
       $('expires').textContent=state.code?'Copia el código e introdúcelo en WhatsApp. Se renueva automáticamente.':'Preparando el código. Esto puede tardar un momento…';$('retry').hidden=true;updateGuideNext();
     }else{
-      show('connect');if(['error','auth_failure','expired','needs_pairing'].includes(state.status))error('No se pudo completar la solicitud del código. Pulsa Obtener código para volver a intentarlo.',{attention:false});
+      show('connect');if(['error','auth_failure','expired','needs_pairing'].includes(state.status)){const limited=Number(state.retryAfter)>Date.now();error(limited?'WhatsApp limitó las solicitudes de códigos para este número. Los intentos están pausados durante 30 minutos para no seguir solicitando códigos.':'No se pudo completar la solicitud del código. Pulsa Obtener código para volver a intentarlo.',{attention:false});$('connect-button').disabled=limited||!!blockedNumber;$('connect-button').textContent=limited?'Solicitudes pausadas':'Obtener código';}
     }
   }catch(e){
     if(epoch!==connectionEpoch||addingAccount)return;
@@ -81,7 +81,7 @@ $('connect').addEventListener('submit',async event=>{
   }catch(e){
     show('connect');
     if(e.status===409){blockedNumber=true;error('Este número ya está registrado. Para recuperar su acceso en este navegador, abre el enlace privado creado por el administrador. Administrador: en el bot usa /invitar +NÚMERO Nombre y abre el enlace que recibas. No necesitas desvincular la cuenta.');}
-    else if(e.status===429){retryAfter=Date.now()+60000;error('Se hicieron varios intentos seguidos. Espera un minuto antes de volver a solicitar el código.');setTimeout(()=>{if(Date.now()>=retryAfter&&!blockedNumber){$('connect-button').disabled=false;$('connect-button').textContent='Obtener código';}},60000);}
+    else if(e.status===429){retryAfter=Math.max(Date.now()+60000,e.retryAfter||0);error(e.retryAfter?userError(e):'Se hicieron varios intentos seguidos. Espera un minuto antes de volver a solicitar el código.');setTimeout(()=>{if(Date.now()>=retryAfter&&!blockedNumber){$('connect-button').disabled=false;$('connect-button').textContent='Obtener código';}},Math.max(0,retryAfter-Date.now()));}
     else error(userError(e));
   }finally{submitBusy=false;$('connect-button').disabled=!!blockedNumber||Date.now()<retryAfter;$('connect-button').textContent=Date.now()<retryAfter?'Espera un minuto':blockedNumber?'Abre tu enlace privado':'Obtener código';}
 });
