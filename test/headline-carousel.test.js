@@ -13,7 +13,7 @@ function setup(loaded=true){
 }
 test('contact photo is first for six seconds, followed by group for five, without duplicating contact',()=>{
  const s=setup();assert.equal(s.stage.children.length,8);assert.equal(s.stage.children[0],s.intro);assert.equal(s.timer.delay,6000);assert.match(s.primaryImage.src,/contacto/);assert.match(s.stage.children[1].children[0].src,/grupo/);
- const images=s.stage.children.slice(1).map(a=>a.children[0]);for(const img of images){assert.match(img.src,/^\/cubamax-promos\/[a-z]+\.webp$/);img.events.load();}
+ const images=s.stage.children.slice(1).map(a=>a.children[0]);assert.deepEqual(images.map(i=>i.src),['/cubamax-promos/grupo.webp','/cubamax-services/shein.webp','/cubamax-services/remesas.webp','/cubamax-services/recargas.webp','/cubamax-services/supercombo.webp','/cubamax-promos/ecoflow.webp','/cubamax-promos/equipo.webp']);for(const img of images){assert.match(img.src,/^\/cubamax-(promos|services)\/[a-z]+\.webp$/);img.events.load();}
  s.timer.fn();assert.equal(s.timer.delay,5000);assert.equal(s.intro.attrs['aria-hidden'],'true');assert.ok(s.stage.children[1].classes.has('is-active'));
  for(let i=0;i<7;i++)s.timer.fn();assert.ok(s.intro.classes.has('is-active'));assert.equal(s.timer.delay,6000);
 });

@@ -1,3 +1,9 @@
+## Orden actualizado tras el intercambio
+
+Primer slider: teléfono (6 segundos), grupo, Shein, remesas del 2%, recargas, supercombo, EcoFlow y equipo (5 segundos cada una).
+Segundo slider: bicicleta eléctrica, moto de gasolina, remesas del local y avión/carga aérea. Conserva editor de Telegram, navegación y botones.
+Se reutilizan las imágenes existentes sin alterar sus diseños y se muestran completas.
+
 # Segundo slider de Cubamax
 
 Orden: Shein, remesas, recargas, supercombo. Todas las imágenes son WebP de **1200 × 840 (10:7)**. Archivos finales: `public/cubamax-services/{shein,remesas,recargas,supercombo}.webp`.

@@ -6,7 +6,7 @@
  const primaryImage=intro.querySelector('img');
  const slides=[intro],ready=[!!(primaryImage?.complete&&primaryImage.naturalWidth)];let current=0,timer=null,gesture=null,primaryFailed=false;
  const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
- const photos=[['grupo','Cubamax con su familia: (786) 887-6115'],['remesas','Remesas a Cuba desde Estados Unidos'],['ecoflow','EcoFlow portátil Delta 3, $719'],['bicicleta','Bicicleta eléctrica Izuki The One'],['carga','Carga aérea a la Isla de la Juventud desde $4.99 la libra'],['moto','Envío de moto de gasolina: promoción TV Homepoint de 32 pulgadas'],['equipo','El equipo de Cubamax']];
+ const photos=[['grupo','Cubamax con su familia: (786) 887-6115'],['shein','Shein con Cubamax'],['remesas2','Remesas a Cuba · Tarifa 2%'],['recargas','Recarga Cubacel'],['supercombo','Super Combo'],['ecoflow','EcoFlow portátil Delta 3, $719'],['equipo','El equipo de Cubamax']];
  function schedule(){
   clearTimeout(timer);timer=null;
   if(ready[current]&&!document.hidden&&!gesture&&!reduced?.matches)timer=setTimeout(()=>show(1),current===0?6000:5000);
@@ -27,7 +27,7 @@
   article.className='headline-slide';article.setAttribute('aria-hidden','true');
   image.alt=title;image.width=1200;image.height=800;image.decoding='async';image.draggable=false;
   image.addEventListener('load',()=>{ready[index]=true;if(primaryFailed&&!ready[current])show(1);});image.addEventListener('error',()=>{ready[index]=false;});
-  image.src='/cubamax-promos/'+id+'.webp';article.append(image);stage.appendChild(article);slides.push(article);ready.push(false);
+  image.src=['shein','remesas2','recargas','supercombo'].includes(id)?'/cubamax-services/'+(id==='remesas2'?'remesas':id)+'.webp':'/cubamax-promos/'+id+'.webp';article.append(image);stage.appendChild(article);slides.push(article);ready.push(false);
  }
  primaryImage?.addEventListener('load',()=>{ready[0]=true;if(current===0)schedule();});
  primaryImage?.addEventListener('error',()=>{primaryFailed=true;ready[0]=false;show(1);});

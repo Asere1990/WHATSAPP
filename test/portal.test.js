@@ -18,7 +18,7 @@ test('slider upload persists validated image and caption, reorders and removes w
  const slides=portalContent(store).slides,s=slides.find(s=>s.id==='packages');assert.equal(s.title,'Nuestros envíos');assert.match(s.asset,/^\/portal-media\/[a-f0-9]{64}\.png$/);assert.deepEqual(readFileSync(path.join(dir,s.asset)),png);
  await bot.portalEditor.callback(123,'123:123','cm:slide:packages:right');assert.equal(portalContent(store).slides[1].id,'packages');
  await bot.portalEditor.callback(123,'123:123','cm:slide:packages:delete');assert.equal(portalContent(store).slides.some(s=>s.id==='packages'),false);
- await bot.portalEditor.input(123,{field:'logo'},{document:{file_id:'logo'}});assert.match(portalContent(store).logo,/portal-media/);assert.equal(store.config().logo,undefined);store.setConfig('cubamax_slides','[]');assert.equal(portalContent(store).slides.find(s=>s.id==='packages').asset,'/cubamax-services/shein.webp');
+ await bot.portalEditor.input(123,{field:'logo'},{document:{file_id:'logo'}});assert.match(portalContent(store).logo,/portal-media/);assert.equal(store.config().logo,undefined);store.setConfig('cubamax_slides','[]');assert.equal(portalContent(store).slides.find(s=>s.id==='packages').asset,'/cubamax-promos/bicicleta.webp');
 });
 test('adding and cancelling does not leave a placeholder slide; invalid files never replace the current photo',async t=>{
  const {bot,store}=setup(t);await bot.portalEditor.callback(123,'123:123','cm:add');const pending=bot.pending.get('123:123');assert.equal(portalContent(store).slides.length,4);
@@ -57,6 +57,11 @@ test('four button photos persist independently, remove restores one default and 
 
 test('second slider uses requested order, migrates only original illustrations, and preserves uploaded customization',t=>{
  const {store}=setup(t);const original=['money','combo','packages','topup'].map(id=>({id,title:id,asset:`/cubamax-slides/${id}.svg`}));store.setConfig('cubamax_slides',JSON.stringify(original));
- const slides=portalContent(store).slides;assert.deepEqual(slides.map(s=>s.asset),['/cubamax-services/shein.webp','/cubamax-services/remesas.webp','/cubamax-services/recargas.webp','/cubamax-services/supercombo.webp']);
+ const slides=portalContent(store).slides;assert.deepEqual(slides.map(s=>s.asset),['/cubamax-promos/bicicleta.webp','/cubamax-promos/moto.webp','/cubamax-promos/remesas.webp','/cubamax-promos/carga.webp']);
  assert.deepEqual(JSON.parse(store.config().cubamax_slides),slides);slides[0].asset='/portal-media/'+'a'.repeat(64)+'.png';store.setConfig('cubamax_slides',JSON.stringify(slides));assert.equal(portalContent(store).slides[0].asset,slides[0].asset);
+});
+
+test('swapping the four service slides migrates the previous configured set once',t=>{
+ const {store}=setup(t);store.setConfig('cubamax_slides',JSON.stringify(['shein','remesas','recargas','supercombo'].map((id,i)=>({id:['packages','money','topup','combo'][i],title:id,asset:`/cubamax-services/${id}.webp`}))));
+ assert.deepEqual(portalContent(store).slides.map(s=>s.asset),['/cubamax-promos/bicicleta.webp','/cubamax-promos/moto.webp','/cubamax-promos/remesas.webp','/cubamax-promos/carga.webp']);
 });

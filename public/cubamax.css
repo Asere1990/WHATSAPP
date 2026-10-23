@@ -142,3 +142,6 @@
 @media(prefers-reduced-motion:reduce){.corporate-portal .headline-slide{animation:none!important}.corporate-portal .headline-slide.is-leaving{visibility:hidden}}
 
 .corporate-portal .headline-accessible{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden;clip-path:inset(50%);white-space:nowrap!important;border:0}
+
+/* Preserve the complete artwork when the exchanged slides use different proportions. */
+.corporate-portal .carousel-slide img{object-fit:contain}

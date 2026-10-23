@@ -63,7 +63,7 @@ async function loadCorporateContent(){
   for(const service of ['money','combo','packages','topup']){const title=content.fields?.[service+'Title'];if(typeof title==='string')corporateServices[service]=title;}
   for(const service of ['money','combo','packages','topup']){for(const [property,suffix]of [['title','PopupTitle'],['description','PopupDescription']]){const value=content.fields?.[service+suffix];if(typeof value==='string')corporatePopups[service][property]=value;}}
   renderServicePopup();
-  const validAsset=asset=>typeof asset==='string'&&(/^\/cubamax-services\/(shein|remesas|recargas|supercombo)\.webp$/.test(asset)||/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp)$/.test(asset)||/^\/cubamax-slides\/(money|combo|packages|topup)\.svg$/.test(asset));
+  const validAsset=asset=>typeof asset==='string'&&(/^\/cubamax-promos\/(bicicleta|moto|remesas|carga)\.webp$/.test(asset)||/^\/cubamax-services\/(shein|remesas|recargas|supercombo)\.webp$/.test(asset)||/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp)$/.test(asset)||/^\/cubamax-slides\/(money|combo|packages|topup)\.svg$/.test(asset));
   for(const service of ['money','combo','packages','topup']){
    const card=document.querySelector?.('[data-service="'+service+'"]'),asset=content.cards?.[service];
    if(card&&validAsset(asset)){const image=document.createElement('img');image.className='service-card-photo';image.src=asset;image.alt='';image.loading='lazy';image.draggable=false;card.prepend(image);card.classList.add('has-image');}
