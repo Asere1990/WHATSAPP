@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs';
 import { Control } from './control.js';
 import { GuideEditor } from './guides.js';
 import {PortalEditor} from './portal.js';
+import {SystemMessages} from './system-messages.js';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 export class Telegram {
-  constructor(store,config) {this.store=store;this.config=config;this.pending=new Map();this.running=false;this.offset=Number(store.config().telegram_offset||0);this.control=new Control(this);this.guideEditor=new GuideEditor(this);this.portalEditor=new PortalEditor(this);}
+  constructor(store,config) {this.store=store;this.config=config;this.pending=new Map();this.running=false;this.offset=Number(store.config().telegram_offset||0);this.control=new Control(this);this.guideEditor=new GuideEditor(this);this.portalEditor=new PortalEditor(this);this.systemMessages=new SystemMessages(this);}
   admins() {
     let file='';try{file=readFileSync('admins.txt','utf8');}catch{}
     return new Set(`${this.config.admins||''}\n${file}`.split(/[\s,]+/).filter(x=>/^\d+$/.test(x)));
@@ -21,6 +22,7 @@ export class Telegram {
   async notify(text,file,options={}) {
     if(!this.config.token||!this.config.panel)throw new Error('Falta panel de Telegram');
     if(!file)return options.parse_mode?this.api('sendMessage',{chat_id:this.config.panel,text,parse_mode:options.parse_mode,link_preview_options:{is_disabled:true}}):this.send(this.config.panel,text);
+    if(file.systemReply)return this.sendFile(this.config.panel,{...file,display:true});
     if(!this.config.storage)throw new Error('Falta configurar ALMACEN');
     const audio=file.conversation&&file.mime?.startsWith('audio/');
     return this.sendFile(audio?this.config.panel:this.config.storage,{...file,display:audio||file.display});
@@ -46,7 +48,7 @@ export class Telegram {
     const chunks=[];let size=0;for await(const chunk of response.body){size+=chunk.length;if(size>5*1024*1024)throw Error('Foto demasiado grande');chunks.push(chunk);}return Buffer.concat(chunks);
   }
 
-  menu() {return {inline_keyboard:[[{text:'🤖 CUENTAS',callback_data:'accounts'},{text:'➕ CONECTAR CUENTA',callback_data:'invite'}],[{text:'🎨 EDITAR PÁGINA',callback_data:'design'},{text:'📋 COMANDOS',callback_data:'help'}]]};}
+  menu() {return {inline_keyboard:[[{text:'MENSAJE DE SISTEMA PARA',callback_data:'system-message'}],[{text:'🤖 CUENTAS',callback_data:'accounts'},{text:'➕ CONECTAR CUENTA',callback_data:'invite'}],[{text:'🎨 EDITAR PÁGINA',callback_data:'design'},{text:'📋 COMANDOS',callback_data:'help'}]]};}
   async download(fileId) {
     const f=await this.api('getFile',{file_id:fileId});
     if(f.file_size>20*1024*1024||!f.file_path||f.file_path.includes('..'))throw new Error('Archivo demasiado grande o no disponible. Máximo 20 MB.');
@@ -66,9 +68,12 @@ export class Telegram {
     if(m.chat.type!=='private'&&String(chat)!==String(this.config.panel)&&String(chat)!==String(this.config.storage))return;
     const reply=text=>this.send(chat,text);
     if(cb) {
+      if(!cb.data?.startsWith('sys:send:'))this.systemMessages.cancel(key);
       this.control.composing.delete(key);if(!cb.data?.startsWith('ctl:'))this.control.outgoingDrafts.delete(key);
       await this.api('answerCallbackQuery',{callback_query_id:cb.id});
       if(m.chat.type!=='private')return reply('Abre el privado de este bot y escribe /menu para administrar las cuentas. Aquí puedes responder con reply a los mensajes recibidos.');
+      if(cb.data==='system-message'){this.pending.delete(key);return this.systemMessages.start(chat,key);}
+      if(cb.data?.startsWith('sys:')){this.pending.delete(key);return this.systemMessages.callback(chat,key,cb.data);}
       if(cb.data==='guide'||cb.data?.startsWith('guide:')){this.pending.delete(key);return this.guideEditor.callback(chat,key,cb.data);}
       if(cb.data?.startsWith('ctl:')){this.pending.delete(key);return this.control.callback(chat,actor.id,cb.data,m.message_id);}
       if(cb.data==='accounts')return this.control.home(chat,actor.id);
@@ -81,10 +86,11 @@ export class Telegram {
       return;
     }
     const raw=m.text||'',[command,...args]=raw.split(/\s+/),cmd=command.split('@')[0];
-    if(cmd==='/cancelar'){this.pending.delete(key);this.control.composing.delete(key);this.control.outgoingDrafts.delete(key);return reply('Cancelado.');}
+    if(cmd==='/cancelar'){this.systemMessages.cancel(key);this.pending.delete(key);this.control.composing.delete(key);this.control.outgoingDrafts.delete(key);return reply('Cancelado.');}
     if(m.chat.type==='private'&&!this.pending.has(key)&&await this.control.input(m,actor.id))return;
     const pending=this.pending.get(key);
     if(pending&&!raw.startsWith('/')&&!m.reply_to_message) {
+      if(pending.kind==='systemMessage')return this.systemMessages.input(chat,key,pending,m);
       if(pending.kind==='cubamax'){await this.portalEditor.input(chat,pending,m);this.pending.delete(key);return;}
       if(pending.kind==='guide'){await this.guideEditor.input(chat,pending,m);this.pending.delete(key);return;}
       if(pending.kind==='invite'){await this.invite(chat,...raw.split(/\s+/));this.pending.delete(key);return;}
@@ -96,6 +102,7 @@ export class Telegram {
       this.pending.delete(key);return reply(`✅ Cambio guardado. Vista previa: ${this.config.url}`);
     }
     if(cmd==='/start'||cmd==='/menu'||cmd==='/cuentas'){
+      this.systemMessages.cancel(key);
       this.pending.delete(key);
       if(m.chat.type!=='private')return reply('Abre el privado de este bot y escribe /menu para administrar las cuentas. Aquí puedes responder con reply a los mensajes recibidos.');
       return this.control.home(chat,actor.id);
@@ -173,7 +180,7 @@ export class Telegram {
     console.log('WHATSAPP: telegram_menu_command_registered');
   }
   async start() {
-    this.running=true;
+    this.running=true;this.systemMessages.resolve();
     try{await this.registerCommands();}catch{console.error('WHATSAPP: telegram_command_registration_failed');}
     while(this.running){
       try{

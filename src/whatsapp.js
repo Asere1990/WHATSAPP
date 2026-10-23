@@ -231,7 +231,7 @@ export class Accounts {
               if(this.store.claimExport(id,normalized.id._serialized))try {
                 const conversation=['audio','ptt'].includes(msg.type);
                 const caption=conversation?`Escribe: ${personLink({...sender,name:sender.name.slice(0,32)})}\nRecibe: ${personLink({...receiver,name:receiver.name.slice(0,32)})}\n\n${clippedHTML(body,220)}\nRegistro: ${item.id}`:`${body.slice(0,500)}\n\nEscribe: ${sender.name}${sender.phone?' (+'+sender.phone+')':''}\nRecibe: ${receiver.name} (+${a.phone})\nID: ${id}\nRegistro: ${item.id}`;
-                const copied=await this.notify(null,{data,name:path.basename(media.filename||'archivo'),mime:media.mimetype,caption,conversation,voice:msg.type==='ptt',...(conversation?{parse_mode:'HTML'}:{})});
+                const copied=await this.notify(null,{data,name:path.basename(media.filename||'archivo'),mime:media.mimetype,caption,conversation,systemReply:this.store.config().system_account===id,voice:msg.type==='ptt',...(conversation?{parse_mode:'HTML'}:{})});
                 this.store.finishExport(id,normalized.id._serialized,'done');
                 this.store.route(copied.chat.id,copied.message_id,id,msg.from);
               } catch {this.store.finishExport(id,normalized.id._serialized,'review');await this.notify(`Archivo guardado. Registro ${item.id}. No se pudo enviar a Telegram; revisar antes de reintentar.`);}

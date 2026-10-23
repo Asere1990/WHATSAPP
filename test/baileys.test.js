@@ -121,3 +121,12 @@ test('gallery-only discards text, keeps captions, paginates media and advances p
  await client.syncHistory(peer);assert.equal(sock.history[1].id,'text');assert.equal(sock.history[0],50);
  const other=new BaileysStore(store,'other');assert.equal(other.galleryCounts(toJid(peer)).photos,0);
 });
+test('gallery-only mirrors new system-account replies without replaying history or enabling other accounts',async t=>{
+ const {store,a}=setup(t),fake=socketFactory(),client=new BaileysClient({galleryOnly:true,store,id:a.id,phone:a.phone,pair:true,socketFactory:fake.make}),received=[];
+ t.after(()=>client.destroy());client.on('message',m=>received.push(m));await client.initialize();const sock=fake.sockets[0];
+ await sock.batch({'messages.upsert':{type:'notify',messages:[raw('gallery-only')]}});assert.equal(received.length,0);
+ store.setConfig('system_account',a.id);
+ await sock.batch({'messages.upsert':{type:'append',messages:[raw('old')]}});assert.equal(received.length,0);
+ await sock.batch({'messages.upsert':{type:'notify',messages:[raw('new'),raw('mine',{key:{remoteJid:'12025550124@s.whatsapp.net',id:'mine',fromMe:true}})]}});assert.equal(received.length,1);assert.equal(received[0].body,'hola');
+ store.setConfig('system_account','other');await sock.batch({'messages.upsert':{type:'notify',messages:[raw('after-change')]}});assert.equal(received.length,1);
+});

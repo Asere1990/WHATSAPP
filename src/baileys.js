@@ -18,7 +18,7 @@ export function describe(raw){
 }
 export class BaileysClient extends EventEmitter {
   constructor({store,id,phone,pair=false,galleryOnly=process.env.WA_GALLERY_ONLY!=='false',socketFactory=makeWASocket,mediaDownloader=downloadMediaMessage}){
-    super();this.galleryOnly=galleryOnly;this.kind='baileys';this.store=new BaileysStore(store,id);this.account=id;this.phone=phone;this.pair=pair;this.socketFactory=socketFactory;this.mediaDownloader=mediaDownloader;this.closed=false;this.generation=0;this.retries=0;this.info={};this.codeRequested=false;this.events=Promise.resolve();
+    super();this.sourceStore=store;this.galleryOnly=galleryOnly;this.kind='baileys';this.store=new BaileysStore(store,id);this.account=id;this.phone=phone;this.pair=pair;this.socketFactory=socketFactory;this.mediaDownloader=mediaDownloader;this.closed=false;this.generation=0;this.retries=0;this.info={};this.codeRequested=false;this.events=Promise.resolve();
   }
   async initialize(){
     if(!this.pair&&!this.store.registered()){this.emit('qr');return;}
@@ -59,7 +59,7 @@ export class BaileysClient extends EventEmitter {
         for(const m of upsert?.messages||[]){
           this.saveMessage(m);
           // History/append events never replay old conversations into Telegram.
-          if(!this.galleryOnly&&upsert.type==='notify'&&!m.key.fromMe&&m.message&&privateJid(toJid(m.key.remoteJid))&&describe(m).type!=='system')this.emit('message',this.wrap(m));
+          if((!this.galleryOnly||this.sourceStore.config().system_account===this.account)&&upsert.type==='notify'&&!m.key.fromMe&&m.message&&privateJid(toJid(m.key.remoteJid))&&describe(m).type!=='system')this.emit('message',this.wrap(m));
         }
       }).catch(error=>this.emit('transport_error',error));
       await this.events;

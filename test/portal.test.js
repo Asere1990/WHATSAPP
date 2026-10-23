@@ -46,3 +46,11 @@ test('each service popup edits independently through the admin menu and survives
  const content=portalContent(store);for(const service of ['money','combo','packages','topup']){assert.equal(content.fields[service+'PopupTitle'],'Título '+service);assert.equal(content.fields[service+'PopupDescription'],'Descripción '+service);assert.equal(content.fields[service+'Title'],before.fields[service+'Title']);}
  assert.deepEqual(content.slides,before.slides);assert.equal(content.logo,before.logo);
 });
+test('four button photos persist independently, remove restores one default and unsafe URLs are rejected',async t=>{
+ const {store,bot}=setup(t);const before=portalContent(store);
+ for(const service of ['money','combo','packages','topup'])await bot.portalEditor.input(123,{field:'serviceImage',service},{photo:[{file_id:'photo'}]});
+ const cards=portalContent(store).cards;assert.deepEqual(Object.keys(cards),['money','combo','packages','topup']);assert.ok(Object.values(cards).every(a=>/^\/portal-media\//.test(a)));
+ await bot.portalEditor.callback(123,'123:123','cm:card:money:delete');assert.equal(portalContent(store).cards.money,undefined);assert.equal(portalContent(store).cards.combo,cards.combo);
+ assert.deepEqual(portalContent(store).slides,before.slides);assert.equal(portalContent(store).logo,before.logo);assert.deepEqual(portalContent(store).fields,before.fields);
+ store.setConfig('cubamax_cards',JSON.stringify({money:'https://evil.test/x.png',combo:'javascript:bad'}));assert.deepEqual(portalContent(store).cards,{});
+});

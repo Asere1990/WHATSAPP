@@ -26,3 +26,12 @@ test('saved popup content renders as literal text and updates an already open se
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(get('service-dialog-title').textContent,'<b>Dinero</b>');assert.equal(get('service-dialog-description').textContent,'Solo dinero');cards[1].click();assert.equal(get('service-dialog-title').textContent,'Combos separados');assert.notEqual(get('service-dialog-description').textContent,'Solo dinero');
 });
+test('service card photo covers only its selected button and preserves service popup handling',async()=>{
+ const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{textContent:'',addEventListener(){},showModal(){this.open=true;},close(){}});return elements.get(id);};
+ const cards=['money','combo','packages','topup'].map(service=>({dataset:{service},children:[],classList:{values:[],add(v){this.values.push(v);}},prepend(image){this.children.unshift(image);},addEventListener(type,fn){this.click=fn;}}));
+ const asset='/portal-media/'+'a'.repeat(64)+'.jpg';
+ const context=vm.createContext({document:{getElementById:get,querySelectorAll:selector=>selector==='[data-service]'?cards:[],querySelector:selector=>cards.find(c=>selector==='[data-service="'+c.dataset.service+'"]'),createElement:()=>({})},fetch:async()=>({ok:true,json:async()=>({fields:{},cards:{money:asset,combo:'https://evil.test/image.jpg'}})})});
+ vm.runInContext(readFileSync(new URL('../public/cubamax.js',import.meta.url),'utf8'),context);await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(cards[0].children[0].src,asset);assert.deepEqual(cards[0].classList.values,['has-image']);assert.equal(cards[1].children.length,0);assert.equal(cards[2].children.length,0);
+ cards[0].click();assert.equal(get('service-dialog').open,true);assert.equal(get('selected-service-name').textContent,'Recibir dinero');
+});

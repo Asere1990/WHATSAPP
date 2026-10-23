@@ -36,6 +36,7 @@ export class Control {
     const info=await this.bot.accounts.tools.overview(id),rows=[
       [this.button(chat,actor,'💬 CHATS',{kind:'chats',id,page:0})],
       [this.button(chat,actor,'✉️ ENVIAR WHATSAPP',{kind:'newNumber',id})],
+      [{text:'USAR COMO NÚMERO DEL SISTEMA',callback_data:'sys:select:'+id}],
       [this.button(chat,actor,'🔌 DESCONECTAR CUENTA',{kind:'disconnectPreview',id})],
       [this.button(chat,actor,'📊 CHAT CON MÁS FOTOS Y VIDEOS',{kind:'ranking',id})],
       [this.button(chat,actor,'🔄 ACTUALIZAR',{kind:'account',id}),this.button(chat,actor,'MENÚ PRINCIPAL',{kind:'home'})]
