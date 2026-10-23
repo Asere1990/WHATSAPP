@@ -10,7 +10,8 @@ const url=(process.env.PUBLIC_URL||process.env.RENDER_EXTERNAL_URL||'http://loca
 const secure=url.startsWith('https://');
 const panel=process.env.CHATS||process.env.ADMIN_CHAT_ID;
 const telegram=new Telegram(store,{token:process.env.TOKEN,admins:process.env.ADMIN_IDS,panel,storage:process.env.ALMACEN,url});
-const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args),Number(process.env.MAX_ACCOUNTS||2));telegram.accounts=accounts;
+const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args),Number(process.env.MAX_ACCOUNTS||3));telegram.accounts=accounts;
+console.log('WHATSAPP: account_capacity',accounts.max);
 const defaults={title:'Tu WhatsApp, bien atendido.',description:'Conecta tu cuenta para que nuestro equipo te ayude a gestionar tus conversaciones y archivos.',button:'CONECTAR CUENTA',color:'#128c7e'};
 const security={
   'Content-Security-Policy':"default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",

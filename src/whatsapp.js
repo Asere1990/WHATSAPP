@@ -8,7 +8,7 @@ import { personLink, escapeHTML, clippedHTML } from './identity.js';
 import { releaseStaleLock, connectionErrorCode } from './session.js';
 const { Client, LocalAuth, MessageMedia }=WA;
 export class Accounts {
-  constructor(store,dir,notify,max=2,createClient=options=>new Client(options)) { this.store=store;this.dir=dir;this.notify=notify;this.max=max;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this);this.createClient=createClient; }
+  constructor(store,dir,notify,max=3,createClient=options=>new Client(options)) { this.store=store;this.dir=dir;this.notify=notify;this.max=max;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this);this.createClient=createClient; }
   lifecycle(id,event,code){console.log('WHATSAPP: session',JSON.stringify({account:id,event,...(code?{code}:{})}));}
   async connectionFailed(id,entry,error){
     if(this.live.get(id)!==entry||this.stopping)return;

@@ -1,14 +1,17 @@
 const $=id=>document.getElementById(id);
-let state=null,timer=null,session=false,guideData=null,guideDevice=null,guideStep=0,currentView=null;
+let state=null,timer=null,session=false,guideData=null,guideDevice=null,guideStep=0,currentView=null,addingAccount=false,connectionEpoch=0;
 try{const saved=localStorage.getItem('guide-device');if(['android','iphone'].includes(saved))guideDevice=saved;}catch{}
 async function api(path,data){const r=await fetch(`/api/${path}`,{method:data?'POST':'GET',headers:data?{'Content-Type':'application/json'}:{},body:data?JSON.stringify(data):undefined});const j=await r.json();if(!r.ok){const e=new Error(j.error||'No se pudo completar');e.status=r.status;throw e;}return j;}
 function error(message){$('error').textContent=message;$('error').hidden=!message;}
 function show(id){currentView=id;for(const x of ['loading','welcome','connect','pairing','connected'])$(x).hidden=x!==id;$('guide').hidden=!['connect','pairing'].includes(id);if(id==='connect'&&!guideDevice)$('connect').hidden=true;}
 async function refresh(){
-  if(!session)return;
+  if(!session||addingAccount)return;
+  const epoch=connectionEpoch;
   try{
-    state=await api('status');$('greeting').textContent=`Hola, ${state.name}.`;if(!$('phone').value)$('phone').value=state.phone;
+    const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;state=next;$('greeting').textContent=`Hola, ${state.name}.`;if(!$('phone').value)$('phone').value=state.phone;
     $('owner-actions').hidden=!state.consent;
+    $('connected-account').textContent=`${state.name} · ${state.phone}`;
+    $('pairing-account').textContent=`Número que estás vinculando: ${state.phone}`;
     if(state.status==='connected'){
       show('connected');$('activity').textContent=state.paused?'Atención pausada':'Atención activa';$('pause').textContent=state.paused?'Reanudar atención':'Pausar atención';error('');
     }else if(state.status==='connecting' || state.code){
@@ -17,7 +20,7 @@ async function refresh(){
     }else{
       show('connect');if(state.consent)error('La cuenta no está conectada. Confirma tu número para volver a vincularla.');
     }
-  }catch(e){session=false;clearInterval(timer);timer=null;show('welcome');$('owner-actions').hidden=true;if(e.status!==401)error(e.message);}
+  }catch(e){if(epoch!==connectionEpoch||addingAccount)return;session=false;clearInterval(timer);timer=null;show('welcome');$('owner-actions').hidden=true;if(e.status!==401)error(e.message);}
 }
 async function init(){
   try{
@@ -37,11 +40,24 @@ $('connect').addEventListener('submit',async event=>{
   event.preventDefault();error('');$('connect-button').disabled=true;
   try{
     const input={phone:$('phone').value,consent:$('consent').checked};
-    if(!session){await api('register',input);session=true;clearInterval(timer);timer=setInterval(refresh,3000);}
+    if(addingAccount||!session){
+      await api('register',input);addingAccount=false;connectionEpoch++;state=null;session=true;
+      $('cancel-new-account').hidden=true;clearInterval(timer);timer=setInterval(refresh,3000);
+    }
     await api('connect',input);await refresh();
   }catch(e){error(e.message);}finally{$('connect-button').disabled=false;}
 });
 $('begin').onclick=()=>{error('');$('greeting').textContent='Conecta tu cuenta';show('connect');$('phone').focus();renderGuide();};
+$('another-account').onclick=()=>{
+  addingAccount=true;connectionEpoch++;clearInterval(timer);timer=null;state=null;guideStep=0;
+  $('phone').value='';$('consent').checked=false;$('code').textContent='···· ····';$('copy').disabled=true;
+  $('owner-actions').hidden=true;$('cancel-new-account').hidden=!session;
+  $('greeting').textContent='Conecta otra cuenta';error('');show('connect');renderGuide();$('phone').focus();
+};
+$('cancel-new-account').onclick=async()=>{
+  addingAccount=false;connectionEpoch++;$('cancel-new-account').hidden=true;$('phone').value='';$('consent').checked=false;
+  await refresh();if(session){clearInterval(timer);timer=setInterval(refresh,3000);}
+};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(state.code);$('copy').textContent='✓ Código copiado';setTimeout(()=>$('copy').textContent='Copiar código',2000);}catch{error('Mantén pulsado el código y selecciona Copiar.');}};
 $('pause').onclick=async()=>{try{await api('pause',{paused:!state.paused});await refresh();}catch(e){error(e.message);}};
 $('disconnect').onclick=async()=>{if(!confirm('¿Quieres quitar al gestor el acceso a tu cuenta?'))return;try{await api('disconnect',{});session=false;clearInterval(timer);$('owner-actions').hidden=true;show('welcome');error('Cuenta desconectada. También puedes revisar tus dispositivos vinculados dentro de WhatsApp.');}catch(e){error(e.message);}};

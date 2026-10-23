@@ -15,7 +15,7 @@ services:
       - key: DATA_DIR
         value: /var/data/whatsapp
       - key: MAX_ACCOUNTS
-        value: "2"
+        value: "3"
       - key: MAX_MEDIA_MB
         value: "20"
       - key: TOKEN
