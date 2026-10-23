@@ -57,7 +57,7 @@ const server=http.createServer(async(req,res)=>{
       if(input.consent!==true||typeof input.phone!=='string')return json(400,{error:'Confirma tu número y la autorización.'});
       if(!process.env.TOKEN||!panel||!telegram.admins().size)return json(503,{error:'Estamos preparando el servicio. Vuelve a intentarlo más tarde.'});
       const phone=webPhone(input),previous=store.db.prepare('SELECT * FROM accounts WHERE phone=?').get(phone);
-      const replaceable=previous&&!previous.linked&&['pending','connecting','error','expired','needs_pairing','auth_failure','disconnected'].includes(previous.status);
+      const replaceable=previous&&!previous.confirmed&&['pending','connecting','error','expired','needs_pairing','auth_failure','disconnected'].includes(previous.status);
       if(accounts.live.size>=accounts.max&&!(replaceable&&accounts.live.has(previous.id)))return json(503,{error:'No hay conexiones disponibles en este momento. Inténtalo más tarde.'});
       const session=store.register(phone,{restartPending:true});
       if(!session)return json(409,{error:'Este número ya tiene un acceso creado. Vuelve a abrir la página desde el teléfono y navegador donde comenzaste, o contacta con soporte.'});

@@ -69,7 +69,7 @@ test('once linked, a later failure and expired audit never allow public registra
 test('legacy connected accounts acquire a durable linked marker without changing their browser access',t=>{
  const d=mkdtempSync(`${tmpdir()}/wa-migration-`),s=new Store(d);
  const secret=s.register('12025550123'),a=s.browser(secret);s.update(a.id,'consent',1);s.update(a.id,'status','error');s.audit(a.id,'connected');
- s.db.exec('ALTER TABLE accounts DROP COLUMN linked');s.db.close();
+ s.db.exec('ALTER TABLE accounts DROP COLUMN linked; ALTER TABLE accounts DROP COLUMN confirmed');s.db.close();
  const migrated=new Store(d);t.after(()=>{migrated.db.close();rmSync(d,{recursive:true,force:true});});
  assert.equal(migrated.browser(secret).linked,1);assert.equal(migrated.browser(secret).status,'error');
  assert.equal(migrated.register(a.phone,{restartPending:true}),null);
@@ -84,4 +84,16 @@ test('every never-linked failure state can restart after a browser reload or ser
   const next=s.register(a.phone,{restartPending:true});assert.ok(next,status);
   assert.equal(s.browser(secret),undefined);assert.equal(s.browser(next).phone,a.phone);
  }
+});
+
+
+test('migration repairs authentication-only legacy attempts while preserving accounts that reached ready',t=>{
+ const d=mkdtempSync(`${tmpdir()}/wa-confirmation-`),s=new Store(d);
+ const pending=s.register('12025550123'),a=s.browser(pending);s.update(a.id,'consent',1);s.update(a.id,'linked',1);s.update(a.id,'status','error');s.saveProfile(a.id,a.phone+'@c.us','Cuenta de WhatsApp',a.phone);
+ const active=s.register('12025550124'),b=s.browser(active);s.update(b.id,'consent',1);s.update(b.id,'status','connected');s.audit(b.id,'connected');s.update(b.id,'status','error');
+ s.db.exec('ALTER TABLE accounts DROP COLUMN confirmed');s.db.close();
+ const migrated=new Store(d);t.after(()=>{migrated.db.close();rmSync(d,{recursive:true,force:true});});
+ assert.equal(migrated.account(a.id).confirmed,0);assert.equal(migrated.account(b.id).confirmed,1);
+ const fresh=migrated.register(a.phone,{restartPending:true});assert.ok(fresh);assert.equal(migrated.browser(pending),undefined);
+ assert.equal(migrated.register(b.phone,{restartPending:true}),null);assert.equal(migrated.browser(active).id,b.id);
 });

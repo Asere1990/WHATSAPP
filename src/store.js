@@ -50,6 +50,17 @@ export class Store {
           OR EXISTS(SELECT 1 FROM routes WHERE account=accounts.id);
         COMMIT;`);
     }
+    // Authentication is not readiness: only ready (or existing conversation
+    // evidence) confirms an account as fully connected to the system.
+    if(!this.db.prepare('PRAGMA table_info(accounts)').all().some(c=>c.name==='confirmed')){
+      this.db.exec(`BEGIN IMMEDIATE;
+        ALTER TABLE accounts ADD COLUMN confirmed INTEGER NOT NULL DEFAULT 0;
+        UPDATE accounts SET confirmed=1 WHERE status='connected'
+          OR EXISTS(SELECT 1 FROM audit WHERE account=accounts.id AND event='connected')
+          OR EXISTS(SELECT 1 FROM inbox WHERE account=accounts.id)
+          OR EXISTS(SELECT 1 FROM routes WHERE account=accounts.id);
+        COMMIT;`);
+    }
   }
   all() { return this.db.prepare("SELECT * FROM accounts WHERE status!='archived' ORDER BY created DESC").all(); }
   account(id) { return this.db.prepare('SELECT * FROM accounts WHERE id=?').get(id); }
@@ -63,8 +74,8 @@ export class Store {
   finishExport(account,message,state) {this.db.prepare('UPDATE media_exports SET state=? WHERE account=? AND message=?').run(state,account,message);}
   update(id, key, value) {
     if (!['consent','paused','status','linked'].includes(key)) throw new Error('Campo inválido');
-    this.db.prepare(`UPDATE accounts SET ${key}=? WHERE id=?`).run(value,id);
-    if(key==='status'&&value==='connected')this.db.prepare('UPDATE accounts SET linked=1 WHERE id=?').run(id);
+    const confirmation=key==='status'&&value==='connected'?',linked=1,confirmed=1':'';
+    this.db.prepare(`UPDATE accounts SET ${key}=?${confirmation} WHERE id=?`).run(value,id);
   }
   invite(phone, name) {
     phone = phoneNumber(phone);
@@ -92,7 +103,7 @@ export class Store {
     const existing=this.db.prepare('SELECT * FROM accounts WHERE phone=?').get(phone);
     // A revoked account may start again with fresh credentials and a fresh account ID.
     // A previously linked account can never be claimed by merely entering its phone number.
-    const unfinished=existing&&!existing.linked&&['pending','connecting','error','expired','needs_pairing','auth_failure','disconnected'].includes(existing.status);
+    const unfinished=existing&&!existing.confirmed&&['pending','connecting','error','expired','needs_pairing','auth_failure','disconnected'].includes(existing.status);
     if(existing&&!(existing.status==='revoked'&&!existing.consent)&&!(restartPending&&unfinished))return null;
     this.db.exec('BEGIN IMMEDIATE');
     try{

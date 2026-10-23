@@ -118,13 +118,14 @@ test('confirmed WhatsApp 429 pauses new pairing requests without affecting live 
 });
 
 
-test('authentication protects a linked account even before synchronization finishes',async t=>{
+test('authentication before readiness remains a temporary attempt without blocking fresh registration',async t=>{
  class Fake extends EventEmitter{async initialize(){}async destroy(){}}
  const {s,a,manager}=setup(t,()=>new Fake());
  const entry=await manager.start(a.id,true);entry.client.emit('authenticated');
- assert.equal(s.account(a.id).linked,1);assert.equal(s.register(a.phone,{restartPending:true}),null);
- await manager.close(a.id);s.update(a.id,'status','error');
- assert.equal(s.register(a.phone,{restartPending:true}),null);
+ assert.equal(s.account(a.id).linked,1);assert.equal(s.account(a.id).confirmed,0);
+ const fresh=s.register(a.phone,{restartPending:true});assert.ok(fresh);
+ await manager.close(a.id);assert.equal(s.account(a.id).status,'archived');
+ assert.equal(s.browser(fresh).confirmed,0);
 });
 
 test('replacing an unfinished attempt closes only its browser and rejects stale ready events',async t=>{
