@@ -1,6 +1,6 @@
 ## Orden actualizado tras el intercambio
 
-Primer slider: Shein con las modelos (3 segundos), teléfono, grupo, remesas del 2%, recargas, supercombo, EcoFlow y equipo (3 segundos cada una).
+Primer slider: Shein con las modelos (5 segundos), teléfono, grupo, remesas del 2%, recargas, supercombo, EcoFlow y equipo (5 segundos cada una).
 Segundo slider: bicicleta eléctrica, moto de gasolina, remesas del local y avión/carga aérea. Conserva editor de Telegram, navegación y botones.
 Se reutilizan las imágenes existentes sin alterar sus diseños y se muestran completas.
 
@@ -8,9 +8,9 @@ Se reutilizan las imágenes existentes sin alterar sus diseños y se muestran co
 
 El slider de portada es independiente del carrusel inferior existente. No modifica formularios, permisos, botones ni sesiones de WhatsApp.
 
-- Foto principal inicial: `contacto.webp`, 3 segundos completos desde que carga. La frase anterior ya no es una diapositiva visible; sus campos se conservan únicamente como título accesible de la página.
+- Foto principal inicial: `contacto.webp`, 5 segundos completos desde que carga. La frase anterior ya no es una diapositiva visible; sus campos se conservan únicamente como título accesible de la página.
 - Segunda foto: `grupo.webp`, el grupo editado con pullovers de Cubamax, caja, bolsa y teléfono.
-- Fotos siguientes: 3 segundos cada una, movimiento hacia la izquierda; gestos y flechas del teclado permiten navegar manualmente.
+- Fotos siguientes: 5 segundos cada una, movimiento hacia la izquierda; gestos y flechas del teclado permiten navegar manualmente.
 - Con movimiento reducido no avanza automáticamente. Con la página oculta suspende el temporizador. Las imágenes que no cargan se omiten.
 - Formato uniforme de las fotos: **1200 × 800, 3:2**, WebP. `object-fit: contain` conserva la imagen completa.
 - Archivos finales: `public/cubamax-promos/{contacto,grupo,remesas,ecoflow,bicicleta,carga,moto,equipo}.webp`.

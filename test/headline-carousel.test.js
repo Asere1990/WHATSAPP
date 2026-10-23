@@ -11,14 +11,14 @@ function setup(loaded=true){
  vm.runInNewContext(source,{document,matchMedia:()=>motion,setTimeout:(fn,delay)=>(timer={fn,delay}),clearTimeout:()=>{timer=null;}});
  return {carousel,stage,document,motion,get timer(){return timer;},intro,primaryImage};
 }
-test('models photo is first for three seconds, followed by contact and group for three',()=>{
- const s=setup();assert.equal(s.stage.children.length,8);assert.equal(s.stage.children[0],s.intro);assert.equal(s.timer.delay,3000);assert.match(s.primaryImage.src,/shein/);assert.match(s.stage.children[1].children[0].src,/contacto/);
+test('models photo is first for five seconds, followed by contact and group for five',()=>{
+ const s=setup();assert.equal(s.stage.children.length,8);assert.equal(s.stage.children[0],s.intro);assert.equal(s.timer.delay,5000);assert.match(s.primaryImage.src,/shein/);assert.match(s.stage.children[1].children[0].src,/contacto/);
  const images=s.stage.children.slice(1).map(a=>a.children[0]);assert.deepEqual(images.map(i=>i.src),['/cubamax-promos/contacto.webp','/cubamax-promos/grupo.webp','/cubamax-services/remesas.webp','/cubamax-services/recargas.webp','/cubamax-services/supercombo.webp','/cubamax-promos/ecoflow.webp','/cubamax-promos/equipo.webp']);for(const img of images){assert.match(img.src,/^\/cubamax-(promos|services)\/[a-z]+\.webp$/);img.events.load();}
- s.timer.fn();assert.equal(s.timer.delay,3000);assert.equal(s.intro.attrs['aria-hidden'],'true');assert.ok(s.stage.children[1].classes.has('is-active'));
- for(let i=0;i<7;i++)s.timer.fn();assert.ok(s.intro.classes.has('is-active'));assert.equal(s.timer.delay,3000);
+ s.timer.fn();assert.equal(s.timer.delay,5000);assert.equal(s.intro.attrs['aria-hidden'],'true');assert.ok(s.stage.children[1].classes.has('is-active'));
+ for(let i=0;i<7;i++)s.timer.fn();assert.ok(s.intro.classes.has('is-active'));assert.equal(s.timer.delay,5000);
 });
 test('unloaded photos never replace intro, reduced motion stops autoplay and swipe keeps vertical scroll',()=>{
- const s=setup();s.timer.fn();assert.ok(s.intro.classes.has('is-active'));assert.equal(s.timer.delay,3000);
+ const s=setup();s.timer.fn();assert.ok(s.intro.classes.has('is-active'));assert.equal(s.timer.delay,5000);
  s.stage.children[1].children[0].events.load();s.carousel.events.pointerdown({pointerId:1,clientX:100,clientY:100});assert.equal(s.timer,null);
  s.carousel.events.pointerup({pointerId:1,clientX:20,clientY:105});assert.ok(s.stage.children[1].classes.has('is-active'));
  s.document.hidden=true;s.document.events.visibilitychange();assert.equal(s.timer,null);
@@ -26,6 +26,6 @@ test('unloaded photos never replace intro, reduced motion stops autoplay and swi
  s.carousel.events.keydown({key:'ArrowLeft',preventDefault(){}});assert.ok(s.intro.classes.has('is-active'));assert.equal(s.timer,null);
 });
 
-test('primary photo receives its full three seconds only after it loads',()=>{
- const s=setup(false);assert.equal(s.timer,null);s.stage.children[1].children[0].events.load();assert.ok(s.intro.classes.has('is-active'));assert.equal(s.timer,null);s.primaryImage.events.load();assert.equal(s.timer.delay,3000);
+test('primary photo receives its full five seconds only after it loads',()=>{
+ const s=setup(false);assert.equal(s.timer,null);s.stage.children[1].children[0].events.load();assert.ok(s.intro.classes.has('is-active'));assert.equal(s.timer,null);s.primaryImage.events.load();assert.equal(s.timer.delay,5000);
 });

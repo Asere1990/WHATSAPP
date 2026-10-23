@@ -11,7 +11,7 @@ async function carouselPage(){
  vm.runInContext(readFileSync(new URL('../public/cubamax.js',import.meta.url),'utf8'),context);await new Promise(r=>setImmediate(r));return {context,timers,element,index:()=>vm.runInContext('carouselIndex',context)};
 }
 test('full image carousel advances automatically, swipes both ways, ignores vertical scroll and resumes its timer',async()=>{
- const p=await carouselPage();assert.equal(p.index(),0);assert.equal(p.timers.size,1);assert.equal([...p.timers.values()][0].ms,3000);
+ const p=await carouselPage();assert.equal(p.index(),0);assert.equal(p.timers.size,1);assert.equal([...p.timers.values()][0].ms,5000);
  [...p.timers.values()][0].fn();assert.equal(p.index(),1);
  const events=p.element('carousel').events,start=(x,y=100)=>events.pointerdown({pointerId:1,clientX:x,clientY:y,pointerType:'touch',isPrimary:true}),end=(x,y=100)=>events.pointerup({pointerId:1,clientX:x,clientY:y});
  start(200);assert.equal(p.timers.size,0);end(80);assert.equal(p.index(),2);assert.equal(p.element('cubamax-slides').classList.contains('is-reverse'),false);assert.equal(p.timers.size,1);

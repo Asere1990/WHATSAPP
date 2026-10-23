@@ -35,7 +35,7 @@ let carouselTimer=null,carouselIndex=0,carouselGesture=null,carouselSlides=[];
 const reducedMotion=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
 function carouselSchedule(){
  clearInterval(carouselTimer);carouselTimer=null;
- if(carouselSlides.length>1&&!carouselGesture&&!document.hidden&&!reducedMotion)carouselTimer=setInterval(()=>carouselShow(carouselIndex+1),3000);
+ if(carouselSlides.length>1&&!carouselGesture&&!document.hidden&&!reducedMotion)carouselTimer=setInterval(()=>carouselShow(carouselIndex+1),5000);
 }
 function carouselShow(index,direction=1){
  if(!carouselSlides.length)return;
