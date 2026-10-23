@@ -1,10 +1,11 @@
 import { randomBytes } from 'node:crypto';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { personLink, escapeHTML, clippedHTML } from './identity.js';
 import { historyPages } from './history.js';
 import { connectionLabel } from './session.js';
 const keyboard=rows=>({inline_keyboard:rows});
 export class Control {
-  constructor(bot){this.bot=bot;this.actions=new Map();this.views=new Map();this.composing=new Map();this.jobs=new Set();this.histories=new Map();}
+  constructor(bot){this.bot=bot;this.actions=new Map();this.views=new Map();this.composing=new Map();this.jobs=new Set();this.histories=new Map();this.outgoingDrafts=new Map();}
   key(chat,actor){return `${chat}:${actor}`;}
   button(chat,actor,text,action){
     for(const [k,v]of this.actions)if(v.expires<Date.now())this.actions.delete(k);
@@ -14,7 +15,7 @@ export class Control {
   }
   async text(chat,text,rows=[]){return this.bot.api('sendMessage',{chat_id:chat,text,parse_mode:'HTML',reply_markup:keyboard(rows),link_preview_options:{is_disabled:true}});}
   async home(chat,actor,page=0){
-    this.composing.delete(this.key(chat,actor));
+    this.composing.delete(this.key(chat,actor));this.outgoingDrafts.delete(this.key(chat,actor));
     const accounts=this.bot.store.all().filter(a=>a.consent&&this.bot.accounts.live.get(a.id)?.ready),connected=accounts.length;
     const pageItems=accounts.slice(page*10,page*10+10),rows=[],lines=[`<b>WHATSAPP · MENÚ PRINCIPAL</b>\nCuentas conectadas: ${connected}\n`];
     for(const [i,a]of pageItems.entries()){
@@ -28,11 +29,14 @@ export class Control {
     return this.text(chat,lines.join('\n\n')+(accounts.length?'':'No hay cuentas conectadas en este momento.'),rows);
   }
   async account(chat,actor,id){
+    this.outgoingDrafts.delete(this.key(chat,actor));
     const a=this.bot.store.account(id);if(!a?.consent)throw new Error('Cuenta no autorizada.');
-    if(!this.bot.accounts.live.get(id)?.ready)return this.text(chat,`${personLink(await this.bot.accounts.tools.identity(id,`${a.phone}@c.us`))}\n\nEstado: ${connectionLabel(this.bot.accounts,a)}\n\nQue el dispositivo figure vinculado en el teléfono no confirma que el servidor esté conectado.`,[[this.button(chat,actor,'🔄 RECUPERAR CONEXIÓN',{kind:'recover',id})],[this.button(chat,actor,'ACTUALIZAR',{kind:'account',id}),this.button(chat,actor,'MENÚ PRINCIPAL',{kind:'home'})]]);
+    if(!this.bot.accounts.live.get(id)?.ready)return this.text(chat,`${personLink(await this.bot.accounts.tools.identity(id,`${a.phone}@c.us`))}\n\nEstado: ${connectionLabel(this.bot.accounts,a)}\n\nQue el dispositivo figure vinculado en el teléfono no confirma que el servidor esté conectado.`,[[this.button(chat,actor,'🔄 RECUPERAR CONEXIÓN',{kind:'recover',id})],[this.button(chat,actor,'🔌 DESCONECTAR CUENTA',{kind:'disconnectPreview',id})],[this.button(chat,actor,'ACTUALIZAR',{kind:'account',id}),this.button(chat,actor,'MENÚ PRINCIPAL',{kind:'home'})]]);
     await this.bot.send(chat,'Consultando la cuenta…');
     const info=await this.bot.accounts.tools.overview(id),rows=[
       [this.button(chat,actor,'💬 CHATS',{kind:'chats',id,page:0})],
+      [this.button(chat,actor,'✉️ ENVIAR WHATSAPP',{kind:'newNumber',id})],
+      [this.button(chat,actor,'🔌 DESCONECTAR CUENTA',{kind:'disconnectPreview',id})],
       [this.button(chat,actor,'📊 CHAT CON MÁS FOTOS Y VIDEOS',{kind:'ranking',id})],
       [this.button(chat,actor,'🔄 ACTUALIZAR',{kind:'account',id}),this.button(chat,actor,'MENÚ PRINCIPAL',{kind:'home'})]
     ];
@@ -137,6 +141,28 @@ export class Control {
     const {id,peer}=a,tools=this.bot.accounts.tools;
     if(a.kind==='home')return this.home(chat,actor,a.page||0);
     if(a.kind==='account')return this.account(chat,actor,id);
+    if(a.kind==='disconnectPreview'){
+      const owner=this.bot.store.account(id);if(!owner?.consent)throw Error('Cuenta no autorizada.');
+      return this.text(chat,`¿Desconectar la cuenta +${escapeHTML(owner.phone)}?\n\nSe quitará el acceso del sistema a esta cuenta. Para volver a usarla tendrás que vincularla de nuevo. Las demás cuentas siguen conectadas.`,[[this.button(chat,actor,'CONFIRMAR DESCONEXIÓN',{kind:'disconnectAccount',id})],[this.button(chat,actor,'CANCELAR',{kind:'account',id})]]);
+    }
+    if(a.kind==='disconnectAccount'){
+      const owner=this.bot.store.account(id);if(!owner?.consent)throw Error('La cuenta ya está desconectada.');
+      this.outgoingDrafts.delete(this.key(chat,actor));await this.bot.accounts.disconnect(id);
+      return this.text(chat,`Cuenta +${escapeHTML(owner.phone)} desconectada.`,[[this.button(chat,actor,'MENÚ PRINCIPAL',{kind:'home'})]]);
+    }
+    if(a.kind==='newNumber'){
+      tools.client(id,true);const key=this.key(chat,actor);this.outgoingDrafts.delete(key);
+      for(const [key,draft]of this.outgoingDrafts)if(draft.expires<Date.now())this.outgoingDrafts.delete(key);
+      this.composing.set(key,{kind:'number',id,expires:Date.now()+300000});
+      return this.text(chat,`ENVIAR WHATSAPP\nDesde: +${escapeHTML(this.bot.store.account(id).phone)}\n\nEscribe el número de destino con + y código de país. Ejemplo: +12025550123.\nSolo WhatsApp; no envía SMS ni activa servicios de pago. /cancelar para salir.`,[[this.button(chat,actor,'CANCELAR',{kind:'account',id})]]);
+    }
+    if(a.kind==='sendNewNumber'){
+      const key=this.key(chat,actor),draft=this.outgoingDrafts.get(key);
+      if(!draft||draft.token!==a.draft||draft.expires<Date.now()||draft.id!==id)throw Error('El mensaje venció o ya fue enviado. Comienza un envío nuevo.');
+      this.outgoingDrafts.delete(key);tools.client(id,true);
+      await this.bot.accounts.send(id,draft.peer,draft.text);
+      return this.text(chat,`✅ Mensaje enviado a WhatsApp.\nDesde: +${escapeHTML(this.bot.store.account(id).phone)}\nPara: +${escapeHTML(draft.phone)}\n\nEsto confirma el envío; no confirma que el destinatario lo haya leído.`,[[this.button(chat,actor,'ENVIAR OTRO',{kind:'newNumber',id})],[this.button(chat,actor,'VOLVER A LA CUENTA',{kind:'account',id})]]);
+    }
     if(a.kind==='recover'){
       await this.bot.accounts.start(id);
       return this.text(chat,'Recuperando la sesión guardada. No hace falta pedir otro código mientras WhatsApp acepte la sesión. Pulsa ACTUALIZAR para consultar el resultado.',[[this.button(chat,actor,'ACTUALIZAR',{kind:'account',id})],[this.button(chat,actor,'MENÚ PRINCIPAL',{kind:'home'})]]);
@@ -203,17 +229,29 @@ export class Control {
   async callback(chat,actor,data,messageId){
     const token=data.slice(4),a=this.actions.get(token);
     if(!a||a.chat!==String(chat)||a.actor!==String(actor)||a.expires<Date.now())throw new Error('Este botón venció. Abre /menu.');
-    if(a.kind==='delete'||a.kind==='exportsReset')this.actions.delete(token);
-    this.composing.delete(this.key(chat,actor));
+    if(['delete','exportsReset','disconnectAccount','sendNewNumber'].includes(a.kind))this.actions.delete(token);
+    this.composing.delete(this.key(chat,actor));if(a.kind!=='sendNewNumber')this.outgoingDrafts.delete(this.key(chat,actor));
     return this.action(chat,actor,{...a,telegramMessageId:messageId});
   }
   async input(m,actor){
     const key=this.key(m.chat.id,actor),raw=m.text||'';
-    if(raw==='/cancelar'||raw==='/menu'||raw==='/start'){this.composing.delete(key);return false;}
-    if(m.reply_to_message||raw.startsWith('/')){this.composing.delete(key);return false;}
+    if(raw==='/cancelar'||raw==='/menu'||raw==='/start'){this.composing.delete(key);this.outgoingDrafts.delete(key);return false;}
+    if(m.reply_to_message||raw.startsWith('/')){this.composing.delete(key);this.outgoingDrafts.delete(key);return false;}
     const pending=this.composing.get(key);
     if(pending){
       if(pending.expires<Date.now()){this.composing.delete(key);throw new Error('La respuesta venció. Pulsa RESPONDER de nuevo.');}
+      if(pending.kind==='number'){
+        if(!/^\+[1-9][0-9 ()-]{6,22}$/.test(raw.trim()))throw Error('Escribe el destino con + y código de país, por ejemplo +12025550123.');
+        const number=parsePhoneNumberFromString(raw.trim());if(!number?.isValid())throw Error('El número de destino no es válido. Revisa el código de país.');
+        this.bot.accounts.tools.client(pending.id,true);pending.kind='newText';pending.phone=number.number.slice(1);pending.peer=pending.phone+'@c.us';pending.expires=Date.now()+300000;
+        await this.text(m.chat.id,`Desde: +${escapeHTML(this.bot.store.account(pending.id).phone)}\nPara: +${escapeHTML(pending.phone)}\n\nEscribe el mensaje de texto (hasta 3000 caracteres). Lo revisarás antes de enviarlo. /cancelar para salir.`,[[this.button(m.chat.id,actor,'CANCELAR',{kind:'account',id:pending.id})]]);return true;
+      }
+      if(pending.kind==='newText'){
+        if(!raw.trim()||raw.length>3000)throw Error('Escribe un mensaje de texto de 1 a 3000 caracteres.');
+        this.bot.accounts.tools.client(pending.id,true);const token=randomBytes(10).toString('hex');
+        this.outgoingDrafts.set(key,{...pending,text:raw.trim(),token,expires:Date.now()+300000});this.composing.delete(key);
+        await this.text(m.chat.id,`VISTA PREVIA · WHATSAPP\nDesde: +${escapeHTML(this.bot.store.account(pending.id).phone)}\nPara: +${escapeHTML(pending.phone)}\n\n${escapeHTML(raw.trim())}\n\n¿Enviar este mensaje?`,[[this.button(m.chat.id,actor,'CONFIRMAR ENVÍO',{kind:'sendNewNumber',id:pending.id,draft:token})],[this.button(m.chat.id,actor,'CANCELAR',{kind:'account',id:pending.id})]]);return true;
+      }
       await this.bot.deliver(m,pending.id,pending.peer);pending.expires=Date.now()+300000;return true;
     }
     if(/^\d+$/.test(raw)){

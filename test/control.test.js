@@ -223,3 +223,34 @@ test('account menu excludes pending, revoked and disconnected accounts until rea
   await bot.control.home(123,123);
   assert.deepEqual(bot.control.views.get('123:123').items,[]);
 });
+function findButton(calls,label){return calls.at(-1).body.reply_markup.inline_keyboard.flat().find(b=>b.text===label);}
+async function newNumberDraft(f,text='Prueba <segura>'){
+ await f.bot.control.account(123,123,f.a.id);
+ await f.bot.handle(f.callback(findButton(f.calls,'✉️ ENVIAR WHATSAPP').callback_data));
+ await f.bot.handle(f.message('+12025550126'));await f.bot.handle(f.message(text));
+ return findButton(f.calls,'CONFIRMAR ENVÍO').callback_data;
+}
+test('new-number WhatsApp has correct sender, preview and a single-use admin-bound confirmation',async t=>{
+ const f=setup(t),token=await newNumberDraft(f);assert.equal(f.out.length,0);assert.match(f.calls.at(-1).body.text,/Prueba &lt;segura&gt;/);
+ await assert.rejects(f.bot.control.callback(123,124,token),/venció/);assert.equal(f.out.length,0);
+ await f.bot.handle(f.callback(token,999));assert.equal(f.out.length,0);
+ await f.bot.handle(f.callback(token));assert.equal(f.out.length,1);assert.equal(f.out[0][0],'12025550126@c.us');assert.equal(f.out[0][1],'Prueba <segura>');
+ await assert.rejects(f.bot.handle(f.callback(token)),/venció/);assert.equal(f.out.length,1);
+});
+test('new-number send rejects invalid destinations and cancel invalidates the preview',async t=>{
+ const f=setup(t);await f.bot.control.action(123,123,{kind:'newNumber',id:f.a.id});
+ await assert.rejects(f.bot.handle(f.message('2025550126')),/código de país/);await assert.rejects(f.bot.handle(f.message('+10000000000')),/no es válido/);assert.equal(f.out.length,0);
+ const token=await newNumberDraft(f);await f.bot.handle(f.message('/cancelar'));await assert.rejects(f.bot.handle(f.callback(token)),/venció|venció o ya/);assert.equal(f.out.length,0);
+});
+test('paused or lost connection at confirmation prevents a send and failed sends do not retry',async t=>{
+ const f=setup(t),token=await newNumberDraft(f);f.s.update(f.a.id,'paused',1);await assert.rejects(f.bot.handle(f.callback(token)),/pausada/);assert.equal(f.out.length,0);
+ f.s.update(f.a.id,'paused',0);const failed=await newNumberDraft(f);let attempts=0;f.client.sendMessage=async()=>{attempts++;throw Error('Fallo de red');};
+ await assert.rejects(f.bot.handle(f.callback(failed)),/Fallo de red/);await assert.rejects(f.bot.handle(f.callback(failed)),/venció/);assert.equal(attempts,1);
+});
+test('disconnect button confirms and revokes only the selected account once',async t=>{
+ const f=setup(t);let disconnected=[];f.manager.disconnect=async id=>{disconnected.push(id);f.s.revoke(id);f.manager.live.delete(id);};
+ await f.bot.control.account(123,123,f.a.id);await f.bot.handle(f.callback(findButton(f.calls,'🔌 DESCONECTAR CUENTA').callback_data));assert.deepEqual(disconnected,[]);
+ const token=findButton(f.calls,'CONFIRMAR DESCONEXIÓN').callback_data;await assert.rejects(f.bot.control.callback(123,124,token),/venció/);assert.deepEqual(disconnected,[]);
+ await f.bot.handle(f.callback(token));assert.deepEqual(disconnected,[f.a.id]);assert.equal(f.s.account(f.b.id).consent,1);
+ await assert.rejects(f.bot.handle(f.callback(token)),/venció/);assert.equal(disconnected.length,1);
+});

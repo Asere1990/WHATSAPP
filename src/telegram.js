@@ -54,7 +54,7 @@ export class Telegram {
     if(!r.ok)throw new Error('No se pudo descargar');
     const data=Buffer.from(await r.arrayBuffer());if(data.length>20*1024*1024)throw new Error('Archivo demasiado grande');return data;
   }
-  help() {return 'WHATSAPP · Administración\n\n/invitar +NUMERO Nombre — enlace privado, válido 24 h\n/cuentas — cuentas y estado\n/pausar ID · /activar ID\n/reconectar ID — recuperar sesión existente\n/baileys [ID] — vincular con el motor ligero\n/desconectar ID — solicitar desvinculación\n/regla ID palabra | respuesta — coincidencia exacta, sin IA\n/reglas ID · /borrarregla NUMERO\n/pendientes — incidencias por revisar\n/cubamax — editar textos e imágenes de Cubamax\n/editar titulo TEXTO\n/editar descripcion TEXTO\n/editar boton TEXTO\n/editar color #16a675\n/menu — botones\n\nEn mi privado: /menu → cuenta → CHATS → contacto. RESPONDER admite texto, fotos, videos, documentos y audio. VER MENSAJES muestra ambos participantes en una vista paginada; los audios se abren con ESCUCHAR. BORRAR ÚLTIMO MENSAJE pide confirmar el último enviado y depende del permiso de WhatsApp. Las descargas van a ALMACEN; los mensajes y audios recibidos, a CHATS. También puedes usar reply allí. Los conteos consultan el índice multimedia del dispositivo vinculado; puede diferir de la galería del teléfono.';}
+  help() {return 'WHATSAPP · Administración\n\n/invitar +NUMERO Nombre — enlace privado, válido 24 h\n/cuentas — cuentas y estado\n/pausar ID · /activar ID\n/reconectar ID — recuperar sesión existente\n/baileys [ID] — vincular con el motor ligero\n/desconectar ID — solicitar desvinculación\n/regla ID palabra | respuesta — coincidencia exacta, sin IA\n/reglas ID · /borrarregla NUMERO\n/pendientes — incidencias por revisar\n/cubamax — editar textos e imágenes de Cubamax\n/editar titulo TEXTO\n/editar descripcion TEXTO\n/editar boton TEXTO\n/editar color #16a675\n/menu — botones\n\nEn mi privado: /menu → cuenta → ENVIAR WHATSAPP para escribir a un número nuevo con vista previa y confirmación. DESCONECTAR CUENTA pide confirmar. SMS no está incluido.\n\n/menu → cuenta → CHATS → contacto. RESPONDER admite texto, fotos, videos, documentos y audio. VER MENSAJES muestra ambos participantes en una vista paginada; los audios se abren con ESCUCHAR. BORRAR ÚLTIMO MENSAJE pide confirmar el último enviado y depende del permiso de WhatsApp. Las descargas van a ALMACEN; los mensajes y audios recibidos, a CHATS. También puedes usar reply allí. Los conteos consultan el índice multimedia del dispositivo vinculado; puede diferir de la galería del teléfono.';}
   async accountsList(chat) {
     const list=this.store.all().filter(a=>a.consent&&this.accounts?.live.get(a.id)?.ready);await this.send(chat,list.length?list.slice(0,30).map(a=>`${this.store.profile(a.id,`${a.phone}@c.us`)?.name||'Cuenta de WhatsApp'} · +${a.phone}\n${a.id}\n${a.status}${a.paused?' · PAUSADO':''}`).join('\n\n'):'Todavía no hay cuentas.',this.menu());
   }
@@ -66,7 +66,7 @@ export class Telegram {
     if(m.chat.type!=='private'&&String(chat)!==String(this.config.panel)&&String(chat)!==String(this.config.storage))return;
     const reply=text=>this.send(chat,text);
     if(cb) {
-      this.control.composing.delete(key);
+      this.control.composing.delete(key);if(!cb.data?.startsWith('ctl:'))this.control.outgoingDrafts.delete(key);
       await this.api('answerCallbackQuery',{callback_query_id:cb.id});
       if(m.chat.type!=='private')return reply('Abre el privado de este bot y escribe /menu para administrar las cuentas. Aquí puedes responder con reply a los mensajes recibidos.');
       if(cb.data==='guide'||cb.data?.startsWith('guide:')){this.pending.delete(key);return this.guideEditor.callback(chat,key,cb.data);}
@@ -81,7 +81,7 @@ export class Telegram {
       return;
     }
     const raw=m.text||'',[command,...args]=raw.split(/\s+/),cmd=command.split('@')[0];
-    if(cmd==='/cancelar'){this.pending.delete(key);this.control.composing.delete(key);return reply('Cancelado.');}
+    if(cmd==='/cancelar'){this.pending.delete(key);this.control.composing.delete(key);this.control.outgoingDrafts.delete(key);return reply('Cancelado.');}
     if(m.chat.type==='private'&&!this.pending.has(key)&&await this.control.input(m,actor.id))return;
     const pending=this.pending.get(key);
     if(pending&&!raw.startsWith('/')&&!m.reply_to_message) {
