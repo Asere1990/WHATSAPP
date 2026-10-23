@@ -6,6 +6,7 @@ function updateDial(){const c=selectedCountry();$('dial-code').textContent=c?'+'
 $('country').addEventListener('change',()=>{updateDial();$('phone').focus();});
 function clearConnectionForm(){ $('country').value='';updateDial();$('phone').value='';$('consent').checked=false; }
 clearConnectionForm();
+let browserPhone=null;
 let state=null,timer=null,session=false,guideData=null,guideDevice=null,guideStep=0,currentView=null,addingAccount=false,connectionEpoch=0,submitBusy=false,retryAfter=0,blockedNumber=null,statusRetryNotice=false;
 try{const saved=localStorage.getItem('guide-device');if(['android','iphone'].includes(saved))guideDevice=saved;}catch{}
 async function api(path,data){
@@ -29,7 +30,7 @@ async function refresh({initial=false}={}){
   if(!session||addingAccount)return;
   const epoch=connectionEpoch;
   try{
-    const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;state=next;
+    const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;state=next;browserPhone=String(next.phone||'').replace(/\D/g,'');
     if(initial&&state.status!=='connected'){clearConnectionForm();$('code').textContent='···· ····';$('copy').disabled=true;$('pairing-account').textContent='';$('owner-actions').hidden=true;show('welcome');error('');return;}
     if(statusRetryNotice){error('');statusRetryNotice=false;}
     $('greeting').textContent='Conecta tu cuenta';
@@ -73,8 +74,10 @@ $('connect').addEventListener('submit',async event=>{
     const country=selectedCountry();if(!country)throw Error('Selecciona el país de tu número.');
     const national=$('phone').value.replace(/[\s().-]/g,'');if(!/^[0-9]{4,15}$/.test(national))throw Error('Escribe tu número sin el prefijo internacional.');
     const input={phone:'+'+country.dial+national,country:country.code,nationalNumber:national,consent:$('consent').checked,...(corporatePortal?{portal:'cubamax-corporate',service:typeof corporateSelection==='function'?corporateSelection():null}:{})};
-    if(addingAccount||!session){
-      await api('register',input);addingAccount=false;connectionEpoch++;state=null;session=true;
+    if(!input.consent)throw Error('Confirma tu número y la autorización.');
+    const differentPhone=browserPhone!==input.phone.replace(/\D/g,'');
+    if(addingAccount||!session||differentPhone){
+      await api('register',input);browserPhone=input.phone.replace(/\D/g,'');addingAccount=false;connectionEpoch++;state=null;session=true;
       $('cancel-new-account').hidden=true;clearInterval(timer);timer=setInterval(refresh,3000);
     }
     show('pairing');$('pairing-account').textContent=`Número que estás vinculando: ${input.phone}`;$('code').hidden=true;$('code-loading').hidden=false;$('copy').disabled=true;$('expires').textContent='Preparando el código. Esto puede tardar un momento…';

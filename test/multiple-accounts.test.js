@@ -20,7 +20,7 @@ async function page({registerStatus=201,initialAccount={}}={}){
     else if(url==='/api/guides')data={android:[{title:'Android',text:'Paso',asset:null}],iphone:[{title:'iPhone',text:'Paso',asset:null}]};
     else if(url==='/api/status'){if(deferStatus){const pending=deferStatus;deferStatus=null;return pending;}data={...account};}
     else if(url==='/api/register'){if(registerStatus!==201)return {ok:false,status:registerStatus,json:async()=>({error:'duplicate'})};account={name:'Segunda',phone:JSON.parse(options.body).phone,status:'pending',consent:false,paused:false};data={ok:true};}
-    else if(url==='/api/connect'){account={...account,status:'connecting',consent:true,code:'87654321'};data={ok:true};}
+    else if(url==='/api/connect'){if(JSON.parse(options.body).phone!==account.phone)return {ok:false,status:400,json:async()=>({error:'Confirma tu número y la autorización.'})};account={...account,status:'connecting',consent:true,code:'87654321'};data={ok:true};}
     else throw Error('Unexpected request: '+url);
     return {ok:true,status:200,json:async()=>data};
   };
@@ -185,4 +185,34 @@ test('three loading dots are visible only while waiting for a pairing code',asyn
  assert.equal(p.element('code-loading').hidden,true);assert.equal(p.element('code').hidden,false);
  p.account.code=null;p.account.status='error';await vm.runInContext('refresh()',p.context);
  assert.equal(p.element('code-loading').hidden,true);assert.match(p.element('error').textContent,/Obtener código/);
+});
+
+
+test('saved disconnected session registers a changed phone before connecting from welcome',async()=>{
+ const p=await page({initialAccount:{status:'disconnected'}});
+ p.element('begin').onclick();p.element('country').value='US';p.element('phone').value='2025550124';p.element('consent').checked=true;
+ await p.element('connect').events.submit({preventDefault(){}});
+ const actions=p.requests.filter(r=>['/api/register','/api/connect','/api/disconnect'].includes(r.url));
+ assert.deepEqual(actions.map(r=>r.url),['/api/register','/api/connect']);
+ assert.ok(actions.every(r=>r.data.phone==='+12025550124'));
+ assert.equal(p.element('error').hidden,true);assert.equal(p.element('pairing').hidden,false);
+});
+
+test('retry after connect failure reuses the newly registered phone session',async()=>{
+ const p=await page({initialAccount:{status:'disconnected'}});
+ p.element('begin').onclick();p.element('country').value='US';p.element('phone').value='2025550124';p.element('consent').checked=true;
+ const fetch=p.context.fetch;let fail=true;
+ p.context.fetch=async(...args)=>{if(fail&&args[0]==='/api/connect'){fail=false;throw TypeError('Load failed');}return fetch(...args);};
+ await p.element('connect').events.submit({preventDefault(){}});
+ await p.element('connect').events.submit({preventDefault(){}});
+ assert.equal(p.requests.filter(r=>r.url==='/api/register').length,1);
+ assert.equal(p.element('pairing').hidden,false);assert.equal(p.element('error').hidden,true);
+});
+
+test('unchecked authorization never registers or connects a changed phone',async()=>{
+ const p=await page({initialAccount:{status:'disconnected'}});
+ p.element('begin').onclick();p.element('country').value='US';p.element('phone').value='2025550124';p.element('consent').checked=false;
+ await p.element('connect').events.submit({preventDefault(){}});
+ assert.equal(p.requests.some(r=>['/api/register','/api/connect'].includes(r.url)),false);
+ assert.match(p.element('error').textContent,/autorización/);
 });
