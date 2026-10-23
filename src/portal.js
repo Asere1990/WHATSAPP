@@ -9,8 +9,8 @@ const validAsset=asset=>typeof asset==='string'&&(portalMediaPath.test(asset)||/
 function stored(store,key,fallback){try{return JSON.parse(store.config()[key]||'null')||fallback;}catch{return fallback;}}
 export function portalContent(store){
  const saved=stored(store,'cubamax_content',{}),fields=Object.fromEntries(Object.entries(portalFields).map(([key,f])=>[key,typeof saved[key]==='string'?saved[key]:f.text]));
- const raw=stored(store,'cubamax_slides',defaults),slides=Array.isArray(raw)?raw.filter(s=>/^[a-z0-9]{1,20}$/.test(s?.id)&&typeof s.title==='string'&&s.title.length<=100&&validAsset(s.asset)).slice(0,12):[];
- const logo=store.config().cubamax_logo;return {fields,slides:slides.length?slides:defaults,logo:validAsset(logo)?logo:'/cubamax-logo.svg'};
+ const raw=stored(store,'cubamax_slides',defaults),slides=Array.isArray(raw)?raw.filter(s=>/^[a-z0-9]{1,20}$/.test(s?.id)&&typeof s.title==='string'&&s.title.length<=100&&validAsset(s.asset)).slice(0,12).map(s=>({...s})):[];
+ const logo=store.config().cubamax_logo;return {fields,slides:slides.length?slides:defaults.map(s=>({...s})),logo:validAsset(logo)?logo:'/cubamax-logo.svg'};
 }
 export class PortalEditor{
  constructor(bot){this.bot=bot;}

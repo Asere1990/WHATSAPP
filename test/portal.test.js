@@ -18,7 +18,7 @@ test('slider upload persists validated image and caption, reorders and removes w
  const slides=portalContent(store).slides,s=slides.find(s=>s.id==='packages');assert.equal(s.title,'Nuestros envíos');assert.match(s.asset,/^\/portal-media\/[a-f0-9]{64}\.png$/);assert.deepEqual(readFileSync(path.join(dir,s.asset)),png);
  await bot.portalEditor.callback(123,'123:123','cm:slide:packages:left');assert.equal(portalContent(store).slides[1].id,'packages');
  await bot.portalEditor.callback(123,'123:123','cm:slide:packages:delete');assert.equal(portalContent(store).slides.some(s=>s.id==='packages'),false);
- await bot.portalEditor.input(123,{field:'logo'},{document:{file_id:'logo'}});assert.match(portalContent(store).logo,/portal-media/);assert.equal(store.config().logo,undefined);
+ await bot.portalEditor.input(123,{field:'logo'},{document:{file_id:'logo'}});assert.match(portalContent(store).logo,/portal-media/);assert.equal(store.config().logo,undefined);store.setConfig('cubamax_slides','[]');assert.equal(portalContent(store).slides.find(s=>s.id==='packages').asset,'/cubamax-slides/packages.svg');
 });
 test('adding and cancelling does not leave a placeholder slide; invalid files never replace the current photo',async t=>{
  const {bot,store}=setup(t);await bot.portalEditor.callback(123,'123:123','cm:add');const pending=bot.pending.get('123:123');assert.equal(portalContent(store).slides.length,4);
