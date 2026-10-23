@@ -23,6 +23,7 @@ async function refresh(){
   }catch(e){if(epoch!==connectionEpoch||addingAccount)return;session=false;clearInterval(timer);timer=null;show('welcome');$('owner-actions').hidden=true;if(e.status!==401)error(e.message);}
 }
 async function init(){
+  connectionEpoch++;addingAccount=true;clearInterval(timer);timer=null;state=null;$('owner-actions').hidden=true;
   try{
     const b=await api('branding');$('title').textContent=b.title;$('description').textContent=b.description;$('begin').textContent=b.button;
     if(b.logo){$('logo').src=b.logo;$('logo').hidden=false;$('mark').hidden=true;}
@@ -32,39 +33,36 @@ async function init(){
     }
     try{guideData=await api('guides');renderGuide();}catch{}
     const invitation=location.hash.slice(1);history.replaceState(null,'',location.pathname);
-    if(invitation)await api('access',{token:invitation});
-    session=true;await refresh();if(session)timer=setInterval(refresh,3000);
+    if(invitation){
+      await api('access',{token:invitation});addingAccount=false;session=true;
+      await refresh();if(session)timer=setInterval(refresh,3000);
+    }else{
+      // A shared browser cookie never decides which phone the visitor wants.
+      // Retain it only to recognize the same authorized number after submission.
+      try{state=await api('status');session=true;}catch(e){if(e.status!==401)throw e;session=false;}
+      show('welcome');
+    }
   }catch(e){show('welcome');error(e.message);}
 }
 $('connect').addEventListener('submit',async event=>{
   event.preventDefault();error('');$('connect-button').disabled=true;
   try{
     const input={phone:$('phone').value,consent:$('consent').checked};
-    if(addingAccount||!session){
-      await api('register',input);addingAccount=false;connectionEpoch++;state=null;session=true;
-      $('cancel-new-account').hidden=true;clearInterval(timer);timer=setInterval(refresh,3000);
-    }
+    const normalize=phone=>String(phone||'').replace(/[ +()-]/g,'');
+    const sameAuthorizedNumber=session&&state&&normalize(input.phone)===normalize(state.phone);
+    if((addingAccount&&!sameAuthorizedNumber)||!session){await api('register',input);state=null;session=true;}
+    addingAccount=false;connectionEpoch++;clearInterval(timer);timer=setInterval(refresh,3000);
     await api('connect',input);await refresh();
   }catch(e){error(e.message);}finally{$('connect-button').disabled=false;}
 });
-$('begin').onclick=()=>{error('');$('greeting').textContent='Conecta tu cuenta';show('connect');$('phone').focus();renderGuide();};
-$('another-account').onclick=()=>{
-  addingAccount=true;connectionEpoch++;clearInterval(timer);timer=null;state=null;guideStep=0;
-  $('phone').value='';$('consent').checked=false;$('code').textContent='···· ····';$('copy').disabled=true;
-  $('owner-actions').hidden=true;$('cancel-new-account').hidden=!session;
-  $('greeting').textContent='Conecta otra cuenta';error('');show('connect');renderGuide();$('phone').focus();
-};
-$('cancel-new-account').onclick=async()=>{
-  addingAccount=false;connectionEpoch++;$('cancel-new-account').hidden=true;$('phone').value='';$('consent').checked=false;
-  await refresh();if(session){clearInterval(timer);timer=setInterval(refresh,3000);}
-};
+$('begin').onclick=()=>{connectionEpoch++;addingAccount=true;clearInterval(timer);timer=null;guideStep=0;$('phone').value='';$('consent').checked=false;$('owner-actions').hidden=true;error('');$('greeting').textContent='Conecta tu cuenta';show('connect');$('phone').focus();renderGuide();};
 $('copy').onclick=async()=>{try{await navigator.clipboard.writeText(state.code);$('copy').textContent='✓ Código copiado';setTimeout(()=>$('copy').textContent='Copiar código',2000);}catch{error('Mantén pulsado el código y selecciona Copiar.');}};
 $('pause').onclick=async()=>{try{await api('pause',{paused:!state.paused});await refresh();}catch(e){error(e.message);}};
 $('disconnect').onclick=async()=>{if(!confirm('¿Quieres quitar al gestor el acceso a tu cuenta?'))return;try{await api('disconnect',{});session=false;clearInterval(timer);$('owner-actions').hidden=true;show('welcome');error('Cuenta desconectada. También puedes revisar tus dispositivos vinculados dentro de WhatsApp.');}catch(e){error(e.message);}};
 function updateGuideNext(){
   if(!guideData||!guideDevice)return;
   $('guide-next').disabled=false;
-  const steps=guideData[guideDevice];$('guide-next').textContent=guideStep===steps.length-1?(session&&state?.consent?'COMPROBAR CONEXIÓN':'OBTENER MI CÓDIGO'):'SIGUIENTE →';
+  const steps=guideData[guideDevice];$('guide-next').textContent=guideStep===steps.length-1?(!addingAccount&&session&&state?.consent?'COMPROBAR CONEXIÓN':'OBTENER MI CÓDIGO'):'SIGUIENTE →';
 }
 function renderGuide(){
   const steps=guideData?.[guideDevice];$('guide-choose').hidden=!!steps;$('guide-content').hidden=!steps;
@@ -80,5 +78,5 @@ function renderGuide(){
 }
 for(const device of ['android','iphone'])$('device-'+device).onclick=()=>{guideDevice=device;guideStep=0;try{localStorage.setItem('guide-device',device);}catch{}if(currentView==='connect')show('connect');renderGuide();};
 $('guide-back').onclick=()=>{guideStep--;renderGuide();};
-$('guide-next').onclick=async()=>{if(guideStep<guideData[guideDevice].length-1){guideStep++;renderGuide();}else{if(!session||!state?.consent){guideStep=0;show('connect');renderGuide();$('phone').focus();return;}await refresh();if(state?.status!=='connected')error('Todavía esperamos la confirmación de WhatsApp. Revisa el código actual y completa la vinculación dentro de la aplicación.');}};
+$('guide-next').onclick=async()=>{if(guideStep<guideData[guideDevice].length-1){guideStep++;renderGuide();}else{if(addingAccount||!session||!state?.consent){guideStep=0;show('connect');renderGuide();$('phone').focus();return;}await refresh();if(state?.status!=='connected')error('Todavía esperamos la confirmación de WhatsApp. Revisa el código actual y completa la vinculación dentro de la aplicación.');}};
 init();
