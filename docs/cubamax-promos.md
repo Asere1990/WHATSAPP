@@ -2,11 +2,12 @@
 
 El slider de portada es independiente del carrusel inferior existente. No modifica formularios, permisos, botones ni sesiones de WhatsApp.
 
-- Texto inicial: campos `headline` y `accent` del editor de Cubamax, 6 segundos.
+- Foto principal inicial: `contacto.webp`, 6 segundos completos desde que carga. La frase anterior ya no es una diapositiva visible; sus campos se conservan únicamente como título accesible de la página.
+- Segunda foto: `grupo.webp`, el grupo editado con pullovers de Cubamax, caja, bolsa y teléfono.
 - Fotos siguientes: 5 segundos cada una, movimiento hacia la izquierda; gestos y flechas del teclado permiten navegar manualmente.
 - Con movimiento reducido no avanza automáticamente. Con la página oculta suspende el temporizador. Las imágenes que no cargan se omiten.
 - Formato uniforme de las fotos: **1200 × 800, 3:2**, WebP. `object-fit: contain` conserva la imagen completa.
-- Archivos finales: `public/cubamax-promos/{remesas,ecoflow,bicicleta,contacto,carga,moto,equipo}.webp`.
+- Archivos finales: `public/cubamax-promos/{contacto,grupo,remesas,ecoflow,bicicleta,carga,moto,equipo}.webp`.
 - Secuencia y textos alternativos: `public/cubamax-headline.js`. La ruta de imágenes tiene una lista explícita en `src/main.js`.
 - El editor de imágenes del slider inferior en Telegram sigue controlando únicamente ese carrusel inferior.
 
@@ -25,3 +26,7 @@ Se utilizó la herramienta integrada de edición de imágenes con una llamada po
 | IMG_4479.jpeg | equipo.webp | Conservar las cuatro personas y logo; marco coordinado sin añadir frases. |
 
 Los originales del usuario se conservaron sin sobrescribir. La conversión final a WebP normaliza las medidas y optimiza el peso.
+
+## Edición del grupo
+
+Original: `photo-output(20261023-195011).jpeg`. Edición con la herramienta integrada de imágenes, conservando las cuatro personas, expresiones, sombreros y gafas. Cambiar sus camisas por pullovers con marca Cubamax; el hombre del extremo izquierdo sostiene una caja de cartón con logo, el tercero lleva una bolsa Cubamax. Teléfono exacto **(786) 887-6115**, visible en el diseño y en la caja. Mantener fotografía natural, sombras y pliegues realistas, fondo claro con matices verdes y naranjas, composición 3:2 sin cortar caras, caja o bolsa. Resultado: `public/cubamax-promos/grupo.webp`, 1200 × 800.

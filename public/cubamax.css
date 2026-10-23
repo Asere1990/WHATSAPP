@@ -140,3 +140,5 @@
 .corporate-portal .headline-carousel:focus-visible{outline:3px solid #278b81;outline-offset:4px;border-radius:18px}
 @media(max-width:800px){.corporate-portal .headline-intro h1{font-size:clamp(27px,8.8vw,43px);letter-spacing:-1.6px}}
 @media(prefers-reduced-motion:reduce){.corporate-portal .headline-slide{animation:none!important}.corporate-portal .headline-slide.is-leaving{visibility:hidden}}
+
+.corporate-portal .headline-accessible{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden;clip-path:inset(50%);white-space:nowrap!important;border:0}

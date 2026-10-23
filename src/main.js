@@ -36,7 +36,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(req.method==='GET'&&route==='/health')return json(200,{ok:true,service:'WHATSAPP',transport:process.env.WA_ENGINE||'baileys'});
     if(req.method==='GET'&&route==='/api/cubamax')return json(200,portalContent(store));
-    if(req.method==='GET'&&/^\/cubamax-promos\/(remesas|ecoflow|bicicleta|contacto|carga|moto|equipo)\.webp$/.test(route)){const bytes=readFileSync(new URL('../public'+route,import.meta.url));res.writeHead(200,{...security,'Content-Type':'image/webp','Content-Length':bytes.length});return res.end(bytes);}
+    if(req.method==='GET'&&/^\/cubamax-promos\/(remesas|ecoflow|bicicleta|contacto|carga|moto|equipo|grupo)\.webp$/.test(route)){const bytes=readFileSync(new URL('../public'+route,import.meta.url));res.writeHead(200,{...security,'Content-Type':'image/webp','Content-Length':bytes.length});return res.end(bytes);}
     if(req.method==='GET'&&/^\/cubamax-slides\/(money|combo|packages|topup)\.svg$/.test(route)){res.writeHead(200,{...security,'Content-Type':'image/svg+xml'});return res.end(readFileSync(new URL('../public'+route,import.meta.url)));}
     if(req.method==='GET'&&portalMediaPath.test(route)){try{const data=readFileSync(path.join(dir,'portal-media',path.basename(route)));return res.writeHead(200,{...security,'Content-Type':{png:'image/png',jpg:'image/jpeg',gif:'image/gif',webp:'image/webp'}[route.split('.').at(-1)]}),res.end(data);}catch{return json(404,{error:'Imagen no encontrada.'});}}
     if(req.method==='GET'&&route==='/api/guides')return json(200,{android:guides(store,'android'),iphone:guides(store,'iphone')});
