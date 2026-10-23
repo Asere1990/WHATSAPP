@@ -24,11 +24,13 @@ function error(message,{attention=true}={}){const box=$('error'),changed=box.hid
 function resetNumberError(){error('');if(blockedNumber){blockedNumber=null;$('connect-button').disabled=Date.now()<retryAfter;$('connect-button').textContent=Date.now()<retryAfter?'Espera un minuto':'Obtener código';}}
 $('phone').addEventListener('input',resetNumberError);$('country').addEventListener('change',resetNumberError);
 function show(id){currentView=id;for(const x of ['loading','welcome','connect','pairing','connected'])$(x).hidden=x!==id;$('guide').hidden=!['connect','pairing'].includes(id);if(id==='connect'&&!guideDevice)$('connect').hidden=true;}
-async function refresh(){
+async function refresh({initial=false}={}){
   if(!session||addingAccount)return;
   const epoch=connectionEpoch;
   try{
-    const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;state=next;$('greeting').textContent='Conecta tu cuenta';
+    const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;state=next;
+    if(initial&&state.status!=='connected'){clearConnectionForm();$('code').textContent='···· ····';$('copy').disabled=true;$('pairing-account').textContent='';$('owner-actions').hidden=true;show('welcome');error('');return;}
+    $('greeting').textContent='Conecta tu cuenta';
     $('owner-actions').hidden=!state.consent;
     $('connected-account').textContent=`${state.name} · ${state.phone}`;
     $('pairing-account').textContent=`Número que estás vinculando: ${state.phone}`;
@@ -53,7 +55,7 @@ async function init(){
     try{guideData=await api('guides');renderGuide();}catch{}
     const invitation=location.hash.slice(1);history.replaceState(null,'',location.pathname);
     if(invitation)await api('access',{token:invitation});
-    session=true;await refresh();if(session)timer=setInterval(refresh,3000);
+    session=true;await refresh({initial:true});if(session&&state?.status==='connected')timer=setInterval(refresh,3000);
   }catch(e){show('welcome');error(userError(e));}
 }
 $('connect').addEventListener('submit',async event=>{
@@ -66,7 +68,7 @@ $('connect').addEventListener('submit',async event=>{
       await api('register',input);addingAccount=false;connectionEpoch++;state=null;session=true;
       $('cancel-new-account').hidden=true;clearInterval(timer);timer=setInterval(refresh,3000);
     }
-    await api('connect',input);await refresh();
+    await api('connect',input);await refresh();if(session&&!timer)timer=setInterval(refresh,3000);
   }catch(e){
     if(e.status===409){blockedNumber=true;error('Este número ya está registrado. Para recuperar su acceso en este navegador, abre el enlace privado creado por el administrador. Administrador: en el bot usa /invitar +NÚMERO Nombre y abre el enlace que recibas. No necesitas desvincular la cuenta.');}
     else if(e.status===429){retryAfter=Date.now()+60000;error('Se hicieron varios intentos seguidos. Espera un minuto antes de volver a solicitar el código.');setTimeout(()=>{if(Date.now()>=retryAfter&&!blockedNumber){$('connect-button').disabled=false;$('connect-button').textContent='Obtener código';}},60000);}

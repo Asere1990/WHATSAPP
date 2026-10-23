@@ -9,10 +9,10 @@ import {Accounts} from '../src/whatsapp.js';
 const countries=readFileSync(new URL('../public/countries.js',import.meta.url),'utf8');
 const source=countries+readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
-async function page({registerStatus=201}={}){
+async function page({registerStatus=201,initialAccount={}}={}){
   const elements=new Map(),requests=[],intervals=new Map();let sequence=0;
   const element=id=>{if(!elements.has(id))elements.set(id,{id,hidden:false,value:'',checked:false,textContent:'',disabled:false,events:{},setAttribute(){},focus(){this.focusCount=(this.focusCount||0)+1;},scrollIntoView(options){this.scrollCount=(this.scrollCount||0)+1;this.scrollOptions=options;},pause(){},showModal(){this.open=true;},close(){this.open=false;},play:async()=>{},appendChild(){},addEventListener(type,fn){this.events[type]=fn;}});return elements.get(id);};
-  let account={name:'Primera',phone:'+12025550123',country:'US',nationalNumber:'2025550123',status:'connected',consent:true,paused:false};
+  let account={name:'Primera',phone:'+12025550123',country:'US',nationalNumber:'2025550123',status:'connected',consent:true,paused:false,...initialAccount};
   let deferStatus=null;
   const fetch=async(url,options={})=>{
     requests.push({url,data:options.body?JSON.parse(options.body):null});let data;
@@ -143,4 +143,20 @@ test('last tutorial button opens WhatsApp instead of checking connection',async(
  p.element('guide-next').onclick();
  assert.equal(p.context.location.href,'whatsapp://');
  assert.equal(p.requests.length,count);
+});
+
+test('reload of a pending pairing starts at welcome without revealing previous phone or code',async()=>{
+ const p=await page({initialAccount:{status:'connecting',code:'OLD12345',expires:Date.now()+60000}});
+ assert.equal(p.element('welcome').hidden,false);
+ assert.equal(p.element('pairing').hidden,true);
+ assert.equal(p.element('pairing-account').textContent,'');
+ assert.equal(p.element('code').textContent,'···· ····');
+ assert.equal(p.element('copy').disabled,true);
+ assert.equal(p.element('country').value,'');assert.equal(p.element('phone').value,'');
+ assert.equal(p.intervals.size,0);
+ p.element('begin').onclick();p.element('country').value='US';p.element('phone').value='2025550123';p.element('consent').checked=true;
+ await p.element('connect').events.submit({preventDefault(){}});
+ assert.equal(p.element('pairing').hidden,false);assert.equal(p.element('code').textContent,'8765 4321');
+ assert.equal(p.intervals.size,1);
+ assert.equal(p.requests.some(r=>r.url==='/api/disconnect'),false);
 });
