@@ -53,7 +53,7 @@ export class Telegram {
     if(!r.ok)throw new Error('No se pudo descargar');
     const data=Buffer.from(await r.arrayBuffer());if(data.length>20*1024*1024)throw new Error('Archivo demasiado grande');return data;
   }
-  help() {return 'WHATSAPP · Administración\n\n/invitar +NUMERO Nombre — enlace privado, válido 24 h\n/cuentas — cuentas y estado\n/pausar ID · /activar ID\n/reconectar ID — recuperar sesión existente\n/desconectar ID — solicitar desvinculación\n/regla ID palabra | respuesta — coincidencia exacta, sin IA\n/reglas ID · /borrarregla NUMERO\n/pendientes — incidencias por revisar\n/editar titulo TEXTO\n/editar descripcion TEXTO\n/editar boton TEXTO\n/editar color #16a675\n/menu — botones\n\nEn mi privado: /menu → cuenta → CHATS → contacto. RESPONDER admite texto, fotos, videos, documentos y audio. VER MENSAJES muestra ambos participantes en una vista paginada; los audios se abren con ESCUCHAR. BORRAR ÚLTIMO MENSAJE pide confirmar el último enviado y depende del permiso de WhatsApp. Las descargas van a ALMACEN; los mensajes y audios recibidos, a CHATS. También puedes usar reply allí. Los conteos consultan el índice multimedia del dispositivo vinculado; puede diferir de la galería del teléfono.';}
+  help() {return 'WHATSAPP · Administración\n\n/invitar +NUMERO Nombre — enlace privado, válido 24 h\n/cuentas — cuentas y estado\n/pausar ID · /activar ID\n/reconectar ID — recuperar sesión existente\n/baileys [ID] — vincular con el motor ligero\n/desconectar ID — solicitar desvinculación\n/regla ID palabra | respuesta — coincidencia exacta, sin IA\n/reglas ID · /borrarregla NUMERO\n/pendientes — incidencias por revisar\n/editar titulo TEXTO\n/editar descripcion TEXTO\n/editar boton TEXTO\n/editar color #16a675\n/menu — botones\n\nEn mi privado: /menu → cuenta → CHATS → contacto. RESPONDER admite texto, fotos, videos, documentos y audio. VER MENSAJES muestra ambos participantes en una vista paginada; los audios se abren con ESCUCHAR. BORRAR ÚLTIMO MENSAJE pide confirmar el último enviado y depende del permiso de WhatsApp. Las descargas van a ALMACEN; los mensajes y audios recibidos, a CHATS. También puedes usar reply allí. Los conteos consultan el índice multimedia del dispositivo vinculado; puede diferir de la galería del teléfono.';}
   async accountsList(chat) {
     const list=this.store.all().filter(a=>a.consent&&this.accounts?.live.get(a.id)?.ready);await this.send(chat,list.length?list.slice(0,30).map(a=>`${this.store.profile(a.id,`${a.phone}@c.us`)?.name||'Cuenta de WhatsApp'} · +${a.phone}\n${a.id}\n${a.status}${a.paused?' · PAUSADO':''}`).join('\n\n'):'Todavía no hay cuentas.',this.menu());
   }
@@ -98,6 +98,16 @@ export class Telegram {
       return this.control.home(chat,actor.id);
     }
     if(cmd==='/comandos')return reply(this.help());
+    if(cmd==='/baileys'){
+      const items=args[0]?[this.store.account(args[0])]:this.store.all().filter(a=>a.consent);
+      if(!items.length||items.some(a=>!a?.consent))throw Error('Cuenta no autorizada.');
+      for(const a of items){
+        if(this.accounts.live.get(a.id)?.client?.kind==='baileys'&&this.accounts.live.get(a.id).ready){await reply(`La cuenta ${a.id} ya está conectada con Baileys.`);continue;}
+        await this.accounts.prepareBaileys(a.id);
+        await this.invite(chat,a.phone,a.name||'Cuenta de WhatsApp');
+      }
+      return reply('Abre el enlace de cada cuenta y vincúlala una vez con el código. La página y el menú se mantienen.');
+    }
     if(cmd==='/invitar')return this.invite(chat,...args);
     if(cmd==='/editar'){
       const fields={titulo:'title',descripcion:'description',boton:'button',color:'color'};

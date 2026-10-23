@@ -46,6 +46,7 @@ export class AccountTools {
     if(!peerOK(peer))throw new Error('Contacto inválido.');
     const client=this.client(id);
     try{
+      if(typeof client.gallery==='function')return await client.gallery(peer);
       const result=await client.pupPage.evaluate(readGallery,peer);
       return {...result,messages:result.messages.map(raw=>new WA.Message(client,raw))};
     }catch(cause){const error=new Error('No se pudo consultar el índice multimedia de WhatsApp. No se mostrará un conteo incompleto como total.',{cause});error.code='WA_GALLERY_READ';throw error;}
@@ -77,7 +78,7 @@ export class AccountTools {
     const client=this.client(id,true),msg=await client.getMessageById(messageId);
     if(!msg?.fromMe||msg.to!==peer)throw new Error('El mensaje ya no está disponible en esa conversación.');
     // The library otherwise silently falls back to deleting only for this account.
-    const allowed=await client.pupPage.evaluate(async serialized=>{
+    const allowed=client.kind==='baileys'?msg.fromMe&&Date.now()/1000-msg.timestamp<2*86400:await client.pupPage.evaluate(async serialized=>{
       const Msg=window.require('WAWebCollections').Msg;
       const m=Msg.get(serialized)||(await Msg.getMessagesById([serialized]))?.messages?.[0];
       return !!m&&window.require('WAWebMsgActionCapability').canSenderRevokeMsg(m);

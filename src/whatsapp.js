@@ -1,4 +1,6 @@
 import WA from 'whatsapp-web.js';
+import { BaileysClient } from './baileys.js';
+import { BaileysStore } from './baileys-store.js';
 import { mkdirSync, writeFileSync, rmSync, existsSync, statfsSync, renameSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
@@ -8,7 +10,7 @@ import { personLink, escapeHTML, clippedHTML } from './identity.js';
 import { releaseStaleLock, connectionErrorCode } from './session.js';
 const { Client, LocalAuth, MessageMedia }=WA;
 export class Accounts {
-  constructor(store,dir,notify,max=3,createClient=options=>new Client(options)) { this.store=store;this.dir=dir;this.notify=notify;this.max=max;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this);this.createClient=createClient;this.pairingTimeoutMs=120000; }
+  constructor(store,dir,notify,max=3,createClient=null) { this.store=store;this.dir=dir;this.notify=notify;this.max=max;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this);this.customClient=!!createClient;this.createClient=createClient||(options=>new Client(options));this.pairingTimeoutMs=120000; }
   lifecycle(id,event,code){console.log('WHATSAPP: session',JSON.stringify({account:id,event,...(code?{code}:{})}));}
   async connectionFailed(id,entry,error){
     if(this.live.get(id)!==entry||this.stopping)return;
@@ -27,6 +29,7 @@ export class Accounts {
     const a=this.store.account(id);
     if (!a?.consent) throw new Error('Falta autorización del titular.');
     if(this.live.has(id)) return this.live.get(id);
+    if(this.engine(id)==='baileys')return this.startBaileys(id,pair);
     if(pair&&this.pairingRetryAfter(id)){const error=new Error('WhatsApp limitó las solicitudes de códigos. El sistema ha pausado los intentos de este número durante 30 minutos.');error.code='WA_PAIRING_RATE_LIMIT';throw error;}
     if(this.live.size>=this.max) throw new Error('Se alcanzó el límite de cuentas del servidor.');
     const folder=path.join(this.dir,'sessions',`session-${id}`);
@@ -131,6 +134,48 @@ export class Accounts {
     entry.initializing=Promise.resolve().then(()=>client.initialize()).catch(error=>this.connectionFailed(id,entry,error));
     return entry;
   }
+  engine(id){
+    const saved=this.store.db.prepare('SELECT value FROM config WHERE key=?').get(`engine:${id}`)?.value;
+    const engine=saved||(this.customClient?'webjs':process.env.WA_ENGINE||'baileys');
+    if(!['baileys','webjs'].includes(engine))throw Error('Motor de WhatsApp inválido.');
+    return engine;
+  }
+  async prepareBaileys(id){
+    const a=this.store.account(id);if(!a?.consent)throw Error('Cuenta no autorizada.');
+    if(this.live.get(id)?.client?.kind==='baileys'&&this.live.get(id).ready)return;
+    await this.close(id);this.store.setConfig(`engine:${id}`,'baileys');
+    if(!new BaileysStore(this.store,id).registered())this.store.update(id,'status','needs_pairing');
+  }
+  async startBaileys(id,pair,clientFactory=options=>new BaileysClient(options)){
+    const a=this.store.account(id);
+    if(this.pairingRetryAfter(id)&&pair){const error=new Error('WhatsApp limitó las solicitudes de códigos.');error.code='WA_PAIRING_RATE_LIMIT';throw error;}
+    if(this.live.size>=this.max)throw Error('Se alcanzó el límite de cuentas del servidor.');
+    const client=clientFactory({store:this.store,id,phone:a.phone,pair});
+    const entry={client,code:null,expires:0,ready:false,chain:Promise.resolve(),pending:0};
+    this.live.set(id,entry);this.store.update(id,'status','connecting');this.lifecycle(id,pair?'baileys_pairing_started':'baileys_restore_started');
+    client.on('code',code=>{if(this.live.get(id)!==entry)return;clearTimeout(entry.codeTimeout);entry.code=code;entry.expires=Date.now()+180000;this.lifecycle(id,'pairing_code_received');});
+    client.on('qr',()=>{if(this.live.get(id)!==entry)return;this.store.update(id,'status','needs_pairing');this.close(id).catch(()=>{});});
+    client.on('authenticated',()=>{if(this.live.get(id)===entry&&this.store.account(id)?.consent)this.store.update(id,'linked',1);});
+    client.on('loading_screen',percent=>this.lifecycle(id,'syncing',String(percent)));
+    client.on('ready',()=>this.connected(id,entry).catch(error=>this.connectionFailed(id,entry,error)));
+    client.on('reconnecting',()=>{if(this.live.get(id)!==entry)return;entry.ready=false;entry.code=null;this.store.update(id,'status','connecting');});
+    client.on('transport_error',error=>this.connectionFailed(id,entry,error).catch(()=>{}));
+    client.on('disconnected',reason=>{
+      if(this.live.get(id)!==entry)return;
+      entry.ready=false;entry.code=null;
+      if(reason==='LOGOUT')this.store.revoke(id);else this.store.update(id,'status','disconnected');
+      this.lifecycle(id,reason==='LOGOUT'?'logged_out':'disconnected');this.close(id).catch(()=>{});
+    });
+    client.on('message',msg=>{
+      if(this.live.get(id)!==entry||this.stopping||!entry.ready||msg.fromMe||msg.isStatus||this.store.account(id)?.paused)return;
+      if(entry.pending>=200){this.store.update(id,'paused',1);return;}
+      entry.pending++;entry.chain=entry.chain.then(()=>this.receive(id,msg)).catch(()=>{}).finally(()=>entry.pending--);
+    });
+    entry.timeout=setTimeout(()=>{if(this.live.get(id)===entry&&!entry.ready){this.store.update(id,'status','expired');this.close(id).catch(()=>{});}},600000);entry.timeout.unref();
+    if(pair){entry.codeTimeout=setTimeout(()=>{if(this.live.get(id)!==entry||entry.ready||entry.code)return;const error=new Error('WhatsApp no entregó el código.');error.code='WA_PAIRING_TIMEOUT';this.connectionFailed(id,entry,error).catch(()=>{});},this.pairingTimeoutMs);entry.codeTimeout.unref();}
+    entry.initializing=Promise.resolve().then(()=>client.initialize()).catch(error=>this.connectionFailed(id,entry,error));
+    return entry;
+  }
   async connected(id,entry) {
     const a=this.store.account(id);
     if(this.live.get(id)!==entry || entry.ready || !a?.consent || this.stopping)return;
@@ -231,11 +276,17 @@ export class Accounts {
   async disconnect(id) {
     const e=this.live.get(id);this.store.revoke(id);
     if(e) {clearTimeout(e.timeout);await e.client.logout().catch(()=>{});await this.close(id);}
+    if(this.engine(id)==='baileys')new BaileysStore(this.store,id).clearCredentials();
     rmSync(path.join(this.dir,'sessions',`session-${id}`),{recursive:true,force:true});
   }
   async restore() {
     for(const a of this.store.all()) {
       if(!a.consent)continue;
+      if(this.engine(a.id)==='baileys'){
+        if(new BaileysStore(this.store,a.id).registered())await this.start(a.id).catch(error=>this.lifecycle(a.id,'restore_failed',connectionErrorCode(error)));
+        else {this.store.update(a.id,'status','needs_pairing');this.lifecycle(a.id,'baileys_link_required');}
+        continue;
+      }
       if(existsSync(path.join(this.dir,'sessions',`session-${a.id}`))) {
         const resumePairing=!a.linked&&a.status==='connecting'&&!this.pairingRetryAfter(a.id)&&!this.store.db.prepare("SELECT 1 FROM audit WHERE account=? AND event='connected' LIMIT 1").get(a.id);
         await this.start(a.id,resumePairing).catch(error=>{this.store.update(a.id,'status','error');this.lifecycle(a.id,'restore_failed',connectionErrorCode(error));});

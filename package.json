@@ -9,11 +9,13 @@
   "scripts": {
     "start": "node src/main.js",
     "test": "node --test",
-    "check": "node --check src/session.js && node --check src/guides.js && node --check src/control.js && node --check src/manage.js && node --check src/identity.js && node --check src/main.js && node --check src/store.js && node --check src/whatsapp.js && node --check src/telegram.js && node --check public/app.js && node --check public/cubamax.js",
+    "check": "node --check src/session.js && node --check src/guides.js && node --check src/control.js && node --check src/manage.js && node --check src/identity.js && node --check src/main.js && node --check src/store.js && node --check src/whatsapp.js && node --check src/telegram.js && node --check public/app.js && node --check public/cubamax.js && node --check src/baileys.js && node --check src/baileys-store.js",
     "postinstall": "node scripts/patch-whatsapp.cjs"
   },
   "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
     "libphonenumber-js": "1.13.15",
+    "pino": "9.14.0",
     "whatsapp-web.js": "1.34.7"
   }
 }
