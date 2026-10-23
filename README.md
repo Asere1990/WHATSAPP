@@ -17,7 +17,7 @@ Variables requeridas:
 | `ADMIN_CHAT_ID` | Compatibilidad: destino de mensajes si no se configura `CHATS` |
 | `PUBLIC_URL` | Opcional: URL pública HTTPS; se usa `RENDER_EXTERNAL_URL` si se omite |
 | `DATA_DIR` | `/var/data/whatsapp`, dentro del disco montado en `/var/data`. El inicio prepara los permisos de esa subcarpeta y ejecuta Node/Chromium con el usuario `node`, sin privilegios |
-| `MAX_ACCOUNTS` | Límite inicial conservador: 2; no es una capacidad garantizada |
+| `MAX_ACCOUNTS` | Variable antigua: ya no se utiliza. No hay límite programado de cuentas; la capacidad depende de los recursos del servidor. |
 | `MAX_MEDIA_MB` | Máximo por archivo descargado: 20 MB por defecto |
 
 La página inicia sin secretos para permitir verificar el diseño, pero rechaza vincular cuentas mientras falten el bot, el panel o administradores. Los operadores se declaran en `admins.txt`, un ID numérico por línea; incluye al propietario `7539025033`. El Dockerfile incorpora el archivo al servicio. Nunca guardar tokens ni sesiones en GitHub.
@@ -90,10 +90,10 @@ Compatibilidad multimedia: el instalador verifica el código original de whatsap
 
 Consulta de galería: no usar mediaType=allMedia, porque en el Web actual ignora chat y consulta la galería global. La consulta por conversación omite mediaType y recorre el índice multimedia del chat; valida además el identificador de conversación de cada archivo antes de mostrarlo o descargarlo.
 
-Varias cuentas desde el mismo teléfono: la página conectada muestra el nombre y número activos. INICIAR CON OTRA CUENTA abre un registro independiente y detiene las consultas de la cuenta anterior; el código pertenece al nuevo número. VOLVER A LA CUENTA ANTERIOR cancela antes de registrar otro número. Las sesiones de WhatsApp anteriores siguen funcionando y se administran desde Telegram. MAX_ACCOUNTS se configura en 3 para probar dos cuentas personales y una Business.
+Varias cuentas desde el mismo teléfono: la página conectada muestra el nombre y número activos. INICIAR CON OTRA CUENTA abre un registro independiente y detiene las consultas de la cuenta anterior; el código pertenece al nuevo número. VOLVER A LA CUENTA ANTERIOR cancela antes de registrar otro número. Las sesiones de WhatsApp anteriores siguen funcionando y se administran desde Telegram. No hay límite programado de cuentas simultáneas.
 
 
-Portal corporativo Cubamax: `/cubamax` es una página separada para trabajadores autorizados y teléfonos propiedad de la compañía. Los cuatro servicios abren un modal que explica el alcance de la vinculación antes de pasar al formulario compartido, con guías de iPhone/Android. La sesión del navegador usa `cubamax_session` y la cabecera `X-Portal: cubamax-corporate`, para no reutilizar accidentalmente una sesión abierta en la página original. Comparte servidor, base de datos y panel de Telegram. Los intentos incluyen origen y servicio en ALMACEN; la confirmación llega mediante el evento real de WhatsApp. La confirmación de acceso no acredita pagos, recargas ni entregas. Los límites de capacidad y pausas por rechazo 429 son los mismos que en el portal original.
+Portal corporativo Cubamax: `/cubamax` es una página separada para trabajadores autorizados y teléfonos propiedad de la compañía. Los cuatro servicios abren un modal que explica el alcance de la vinculación antes de pasar al formulario compartido, con guías de iPhone/Android. La sesión del navegador usa `cubamax_session` y la cabecera `X-Portal: cubamax-corporate`, para no reutilizar accidentalmente una sesión abierta en la página original. Comparte servidor, base de datos y panel de Telegram. Los intentos incluyen origen y servicio en ALMACEN; la confirmación llega mediante el evento real de WhatsApp. La confirmación de acceso no acredita pagos, recargas ni entregas. Las pausas por rechazo 429 son las mismas que en el portal original.
 
 
 ## Motor ligero Baileys

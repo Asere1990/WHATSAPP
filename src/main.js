@@ -12,8 +12,8 @@ const url=(process.env.PUBLIC_URL||process.env.RENDER_EXTERNAL_URL||'http://loca
 const secure=url.startsWith('https://');
 const panel=process.env.CHATS||process.env.ADMIN_CHAT_ID;
 const telegram=new Telegram(store,{token:process.env.TOKEN,admins:process.env.ADMIN_IDS,panel,storage:process.env.ALMACEN,url});
-const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args),Number(process.env.MAX_ACCOUNTS||3));telegram.accounts=accounts;
-console.log('WHATSAPP: account_capacity',accounts.max);
+const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args));telegram.accounts=accounts;
+console.log('WHATSAPP: account_capacity','unlimited');
 console.log('WHATSAPP: transport_default',process.env.WA_ENGINE||'baileys');
 const defaults={title:'Tu WhatsApp, bien atendido.',description:'Conecta tu cuenta para que nuestro equipo te ayude a gestionar tus conversaciones y archivos.',button:'CONECTAR CUENTA',color:'#128c7e'};
 const security={
@@ -62,8 +62,6 @@ const server=http.createServer(async(req,res)=>{
       // An enrolled number completes this public flow; it never grants account access.
       if(previous?.confirmed&&previous.consent&&!unlinked)return json(200,{ok:true,completed:true});
       if(!process.env.TOKEN||!panel||!telegram.admins().size)return json(503,{error:'Estamos preparando el servicio. Vuelve a intentarlo más tarde.'});
-      const replaceable=unlinked||previous&&!previous.confirmed&&['pending','connecting','error','expired','needs_pairing','auth_failure','disconnected'].includes(previous.status);
-      if(accounts.live.size>=accounts.max&&!(replaceable&&accounts.live.has(previous.id)))return json(503,{error:'No hay conexiones disponibles en este momento. Inténtalo más tarde.'});
       const session=store.register(phone,{restartPending:true,restartUnlinked:unlinked});
       if(!session)return json(409,{error:'Este número ya tiene un acceso creado. Vuelve a abrir la página desde el teléfono y navegador donde comenzaste, o contacta con soporte.'});
       if(previous&&store.account(previous.id)?.status==='archived')await accounts.close(previous.id);

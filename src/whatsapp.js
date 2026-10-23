@@ -10,7 +10,7 @@ import { personLink, escapeHTML, clippedHTML } from './identity.js';
 import { releaseStaleLock, connectionErrorCode } from './session.js';
 const { Client, LocalAuth, MessageMedia }=WA;
 export class Accounts {
-  constructor(store,dir,notify,max=3,createClient=null) { this.store=store;this.dir=dir;this.notify=notify;this.max=max;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this);this.customClient=!!createClient;this.createClient=createClient||(options=>new Client(options));this.pairingTimeoutMs=120000; }
+  constructor(store,dir,notify,_legacyMax=Infinity,createClient=null) { this.store=store;this.dir=dir;this.notify=notify;this.max=Infinity;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this);this.customClient=!!createClient;this.createClient=createClient||(options=>new Client(options));this.pairingTimeoutMs=120000; }
   lifecycle(id,event,code){console.log('WHATSAPP: session',JSON.stringify({account:id,event,...(code?{code}:{})}));}
   async connectionFailed(id,entry,error){
     if(this.live.get(id)!==entry||this.stopping)return;
@@ -31,7 +31,6 @@ export class Accounts {
     if(this.live.has(id)) return this.live.get(id);
     if(this.engine(id)==='baileys')return this.startBaileys(id,pair);
     if(pair&&this.pairingRetryAfter(id)){const error=new Error('WhatsApp limitó las solicitudes de códigos. El sistema ha pausado los intentos de este número durante 30 minutos.');error.code='WA_PAIRING_RATE_LIMIT';throw error;}
-    if(this.live.size>=this.max) throw new Error('Se alcanzó el límite de cuentas del servidor.');
     const folder=path.join(this.dir,'sessions',`session-${id}`);
     // A retry before any successful link must not reuse an unfinished browser state.
     // Preserve it separately; confirmed account profiles are never moved.
@@ -149,7 +148,6 @@ export class Accounts {
   async startBaileys(id,pair,clientFactory=options=>new BaileysClient(options)){
     const a=this.store.account(id);
     if(this.pairingRetryAfter(id)&&pair){const error=new Error('WhatsApp limitó las solicitudes de códigos.');error.code='WA_PAIRING_RATE_LIMIT';throw error;}
-    if(this.live.size>=this.max)throw Error('Se alcanzó el límite de cuentas del servidor.');
     const client=clientFactory({store:this.store,id,phone:a.phone,pair});
     const entry={client,code:null,expires:0,ready:false,chain:Promise.resolve(),pending:0};
     this.live.set(id,entry);this.store.update(id,'status','connecting');this.lifecycle(id,pair?'baileys_pairing_started':'baileys_restore_started');

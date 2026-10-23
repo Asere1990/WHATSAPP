@@ -49,17 +49,17 @@ test('cancel after a completed account returns to clean welcome without revoking
   const p=await page();p.element('another-account').onclick();await p.element('cancel-new-account').onclick();
   assert.equal(p.element('welcome').hidden,false);assert.equal(p.element('phone').value,'');assert.equal(p.requests.some(r=>r.url==='/api/disconnect'),false);
 });
-test('three phone numbers have separate authorization and WhatsApp browser profiles',async t=>{
+test('more than three phone numbers connect independently despite a legacy capacity argument',async t=>{
   const dir=mkdtempSync(`${tmpdir()}/wa-multi-`),store=new Store(dir),options=[];
-  const phones=['12025550123','12025550124','12025550125'];
+  const phones=['12025550123','12025550124','12025550125','12025550126','12025550127'];
   class Fake extends EventEmitter{async initialize(){}async destroy(){}}
   const manager=new Accounts(store,dir,async()=>{},3,config=>{options.push(config);return new Fake();});
   t.after(async()=>{for(const account of store.all())await manager.close(account.id);store.db.close();rmSync(dir,{recursive:true,force:true});});
   const tokens=phones.map(phone=>store.register(phone)),accounts=tokens.map(token=>store.browser(token));
   for(const account of accounts){store.update(account.id,'consent',1);await manager.start(account.id,true);}
-  assert.equal(manager.live.size,3);assert.equal(new Set(accounts.map(a=>a.id)).size,3);
+  assert.equal(manager.live.size,5);assert.equal(manager.max,Infinity);assert.equal(new Set(accounts.map(a=>a.id)).size,5);
   assert.deepEqual(options.map(o=>o.pairWithPhoneNumber.phoneNumber),phones);
-  assert.equal(new Set(options.map(o=>o.authStrategy.clientId)).size,3);
+  assert.equal(new Set(options.map(o=>o.authStrategy.clientId)).size,5);
   for(const [i,token]of tokens.entries())assert.equal(store.browser(token).phone,phones[i]);
   assert.equal(store.register(phones[0]),null); // A phone number never grants another browser access.
 });
