@@ -95,7 +95,7 @@
 .corporate-portal #copy-help::backdrop{background:#163f3988}
 .corporate-portal .copy-help-content ol{color:var(--muted)}
 .corporate-portal .hero-carousel{min-width:0;position:relative;overflow:hidden;border:1px solid #d6e7e1;border-radius:28px;background:#f1f9f6;box-shadow:0 16px 45px #276d5d10}
-.corporate-portal .carousel-stage{position:relative;aspect-ratio:600/420;overflow:hidden;isolation:isolate}
+.corporate-portal .carousel-stage{position:relative;aspect-ratio:3/2;overflow:hidden;isolation:isolate}
 .corporate-portal .carousel-slide{display:none;position:absolute;inset:0;margin:0;background:#edf7f3}
 .corporate-portal .carousel-slide.is-active{display:block;z-index:2;animation:cubamax-slide-in .65s cubic-bezier(.22,.61,.36,1) both}
 .corporate-portal .carousel-slide.is-leaving{display:block;z-index:1;animation:cubamax-slide-out .65s cubic-bezier(.22,.61,.36,1) both}
@@ -142,6 +142,3 @@
 @media(prefers-reduced-motion:reduce){.corporate-portal .headline-slide{animation:none!important}.corporate-portal .headline-slide.is-leaving{visibility:hidden}}
 
 .corporate-portal .headline-accessible{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden;clip-path:inset(50%);white-space:nowrap!important;border:0}
-
-/* Preserve the complete artwork when the exchanged slides use different proportions. */
-.corporate-portal .carousel-slide img{object-fit:contain}
