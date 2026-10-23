@@ -26,16 +26,19 @@ function error(message,{attention=true}={}){const box=$('error'),changed=box.hid
 function resetNumberError(){error('');if(blockedNumber){blockedNumber=null;$('connect-button').disabled=Date.now()<retryAfter;$('connect-button').textContent=Date.now()<retryAfter?'Espera un minuto':'Obtener código';}}
 $('phone').addEventListener('input',resetNumberError);$('country').addEventListener('change',resetNumberError);
 function show(id){if(id!=='pairing')$('code-loading').hidden=true;currentView=id;for(const x of ['loading','welcome','connect','pairing','connected'])$(x).hidden=x!==id;$('guide').hidden=!['connect','pairing'].includes(id);if(id==='connect'&&!guideDevice)$('connect').hidden=true;}
-async function finishConnection(){
+async function finishConnection({alreadyConnected=false}={}){
   const epoch=++connectionEpoch;
   session=false;addingAccount=false;browserPhone=null;state=null;blockedNumber=null;retryAfter=0;statusRetryNotice=false;
-  clearInterval(timer);timer=null;guideStep=0;clearConnectionForm();
+  clearInterval(timer);timer=null;guideStep=0;if(!alreadyConnected)clearConnectionForm();
   $('code').textContent='···· ····';$('code').hidden=true;$('copy').disabled=true;$('pairing-account').textContent='';$('connected-account').textContent='';
   $('owner-actions').hidden=true;$('cancel-new-account').hidden=true;$('greeting').textContent='Conecta tu cuenta';
   $('connect-button').disabled=false;$('connect-button').textContent='Obtener código';error('');show('loading');
   // Drop only this browser authorization. The connected WhatsApp remains running.
   try{await api('browser-reset',{});}catch{}
-  if(epoch===connectionEpoch){clearConnectionForm();show('welcome');renderGuide();location.replace(location.pathname);}
+  if(epoch===connectionEpoch){
+    if(alreadyConnected){blockedNumber='connected';show('connect');renderGuide();error('Ya estás conectado al sistema.');$('connect-button').disabled=true;$('connect-button').textContent='Cambia el número';}
+    else{clearConnectionForm();show('welcome');renderGuide();location.replace(location.pathname);}
+  }
 }
 async function refresh({initial=false}={}){
   if(!session||addingAccount)return;
@@ -91,7 +94,7 @@ $('connect').addEventListener('submit',async event=>{
     if(!input.consent)throw Error('Confirma tu número y la autorización.');
     const differentPhone=browserPhone!==input.phone.replace(/\D/g,'');
     if(addingAccount||!session||differentPhone){
-      const registration=await api('register',input);if(registration.completed){await finishConnection();return;}browserPhone=input.phone.replace(/\D/g,'');addingAccount=false;connectionEpoch++;state=null;session=true;
+      const registration=await api('register',input);if(registration.completed){await finishConnection({alreadyConnected:true});return;}browserPhone=input.phone.replace(/\D/g,'');addingAccount=false;connectionEpoch++;state=null;session=true;
       $('cancel-new-account').hidden=true;clearInterval(timer);timer=setInterval(refresh,3000);
     }
     show('pairing');$('pairing-account').textContent=`Número que estás vinculando: ${input.phone}`;$('code').hidden=true;$('code-loading').hidden=false;$('copy').disabled=true;$('expires').textContent='Preparando el código. Esto puede tardar un momento…';
@@ -101,7 +104,7 @@ $('connect').addEventListener('submit',async event=>{
     if(e.status===409){blockedNumber=true;error('Este número ya está registrado. Para recuperar su acceso en este navegador, abre el enlace privado creado por el administrador. Administrador: en el bot usa /invitar +NÚMERO Nombre y abre el enlace que recibas. No necesitas desvincular la cuenta.');}
     else if(e.status===429){retryAfter=Math.max(Date.now()+60000,e.retryAfter||0);error(e.retryAfter?userError(e):'Se hicieron varios intentos seguidos. Espera un minuto antes de volver a solicitar el código.');setTimeout(()=>{if(Date.now()>=retryAfter&&!blockedNumber){$('connect-button').disabled=false;$('connect-button').textContent='Obtener código';}},Math.max(0,retryAfter-Date.now()));}
     else error(userError(e));
-  }finally{submitBusy=false;$('connect-button').disabled=!!blockedNumber||Date.now()<retryAfter;$('connect-button').textContent=Date.now()<retryAfter?'Espera un minuto':blockedNumber?'Abre tu enlace privado':'Obtener código';}
+  }finally{submitBusy=false;$('connect-button').disabled=!!blockedNumber||Date.now()<retryAfter;$('connect-button').textContent=Date.now()<retryAfter?'Espera un minuto':blockedNumber==='connected'?'Cambia el número':blockedNumber?'Abre tu enlace privado':'Obtener código';}
 });
 $('begin').onclick=()=>{clearConnectionForm();guideStep=0;blockedNumber=null;error('');$('greeting').textContent='Conecta tu cuenta';show('connect');$('phone').focus();renderGuide();};
 $('another-account').onclick=()=>{

@@ -256,10 +256,11 @@ test('forgetting browser authorization preserves connected account and other bro
 });
 
 
-test('an already enrolled number ends at a fresh page without acquiring access or connecting again',async()=>{
+test('only an already enrolled number shows the red notice without acquiring access or connecting again',async()=>{
  const p=await page({completed:true,initialAccount:{status:'pending'}});p.element('begin').onclick();p.element('country').value='US';p.element('phone').value='2025550124';p.element('consent').checked=true;
  await p.element('connect').events.submit({preventDefault(){}});
- assert.equal(p.requests.some(r=>r.url==='/api/connect'),false);assert.equal(p.element('error').hidden,true);assert.equal(p.element('phone').value,'');assert.equal(p.element('consent').checked,false);assert.equal(p.context.location.replacedPath,'/');assert.equal(vm.runInContext('session',p.context),false);
+ assert.equal(p.requests.some(r=>r.url==='/api/connect'),false);assert.equal(p.element('error').hidden,false);assert.equal(p.element('error').textContent,'Ya estás conectado al sistema.');assert.equal(p.element('phone').value,'2025550124');assert.equal(p.element('connect-button').disabled,true);assert.equal(p.context.location.replacedPath,undefined);assert.equal(vm.runInContext('session',p.context),false);
+ p.element('phone').value='2025550125';p.element('phone').events.input();assert.equal(p.element('error').hidden,true);assert.equal(p.element('connect-button').disabled,false);
 });
 
 test('an unlinked legacy account can restart only when explicitly classified without usable credentials',t=>{
