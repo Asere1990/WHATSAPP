@@ -88,3 +88,9 @@
 }
 @media(max-width:350px){.corporate-portal .service-grid{grid-template-columns:1fr}.corporate-portal .service-card{min-height:160px}.corporate-portal .corporate-hero h1{font-size:35px}.corporate-portal .staff-banner{font-size:7px}}
 @media(prefers-reduced-motion:reduce){.corporate-portal *{scroll-behavior:auto!important;transition:none!important}}
+.corporate-portal #country{color:var(--navy);background:#f5f7fc;border-color:#d6e0f0}
+.corporate-portal #country:focus,.corporate-portal .phone-number:focus-within{outline:2px solid #6493ec;outline-offset:2px}
+.corporate-portal .phone-number #dial-code{color:var(--blue);border-color:#d6e0f0}
+.corporate-portal #copy-help{color:var(--navy)}
+.corporate-portal #copy-help::backdrop{background:#12284988}
+.corporate-portal .copy-help-content ol{color:var(--muted)}
