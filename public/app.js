@@ -92,7 +92,7 @@ function renderGuide(){
   for(const device of ['android','iphone'])$('device-'+device).setAttribute('aria-pressed',String(guideDevice===device));
   if(!steps)return;guideStep=Math.max(0,Math.min(guideStep,steps.length-1));const step=steps[guideStep];
   $('guide-count').textContent=`PASO ${guideStep+1} DE ${steps.length}`;$('guide-device').textContent=guideDevice.toUpperCase();
-  $('guide-title').textContent=step.title;$('guide-text').textContent=step.text;
+  $('guide-title').textContent=step.title;$('guide-text').textContent=step.text;$('guide-text').hidden=guideDevice==='iphone'&&guideStep===0;
   const image=$('guide-image'),video=$('guide-video');video.pause();image.hidden=true;video.hidden=true;
   const asset=step.asset,valid=typeof asset==='string'&&(/^\/guides\/(android|iphone)-(prepare|open|linked|number|approve)\.svg$/.test(asset)||/^\/guides\/iphone-2026\/step-[1-5]\.gif$/.test(asset)||/^\/guide-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/.test(asset));
   if(valid){if(asset.endsWith('.mp4')){video.src=asset;video.hidden=false;video.play().catch(()=>{});}else{image.src=asset;image.alt=step.title;image.hidden=false;}}
