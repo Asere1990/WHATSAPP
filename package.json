@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node src/main.js",
     "test": "node --test",
-    "check": "node --check src/system-config.js && node --check src/system-messages.js && node --check src/session.js && node --check src/guides.js && node --check src/control.js && node --check src/manage.js && node --check src/identity.js && node --check src/main.js && node --check src/store.js && node --check src/whatsapp.js && node --check src/telegram.js && node --check public/app.js && node --check public/cubamax.js && node --check src/baileys.js && node --check src/baileys-store.js && node --check src/portal.js",
+    "check": "node --check src/system-config.js && node --check src/system-messages.js && node --check src/session.js && node --check src/guides.js && node --check src/control.js && node --check src/manage.js && node --check src/identity.js && node --check src/main.js && node --check src/store.js && node --check src/whatsapp.js && node --check src/telegram.js && node --check public/app.js && node --check public/cubamax-headline.js && node --check public/cubamax.js && node --check src/baileys.js && node --check src/baileys-store.js && node --check src/portal.js",
     "postinstall": "node scripts/patch-whatsapp.cjs"
   },
   "dependencies": {

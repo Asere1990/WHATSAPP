@@ -22,7 +22,7 @@ const security={
   'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','Cache-Control':'no-store',
   ...(secure?{'Strict-Transport-Security':'max-age=31536000'}:{})
 };
-const publicFiles={'/cubamax':['cubamax.html','text/html; charset=utf-8'],'/cubamax/':['cubamax.html','text/html; charset=utf-8'],'/cubamax.css':['cubamax.css','text/css'],'/cubamax.js':['cubamax.js','application/javascript'],'/cubamax-logo.svg':['cubamax-logo.svg','image/svg+xml'],'/countries.js':['countries.js','application/javascript'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','application/javascript'],'/style.css':['style.css','text/css']};
+const publicFiles={'/cubamax':['cubamax.html','text/html; charset=utf-8'],'/cubamax/':['cubamax.html','text/html; charset=utf-8'],'/cubamax.css':['cubamax.css','text/css'],'/cubamax.js':['cubamax.js','application/javascript'],'/cubamax-headline.js':['cubamax-headline.js','application/javascript'],'/cubamax-logo.svg':['cubamax-logo.svg','image/svg+xml'],'/countries.js':['countries.js','application/javascript'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','application/javascript'],'/style.css':['style.css','text/css']};
 async function body(req){let data='';for await(const chunk of req){data+=chunk;if(data.length>4000)throw new Error('Solicitud demasiado grande');}return JSON.parse(data||'{}');}
 const rates=new Map();
 function rate(key,max){const now=Date.now();let r=rates.get(key);if(!r||now-r.since>60000){r={since:now,n:0};rates.set(key,r);}return ++r.n<=max;}
@@ -36,6 +36,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(req.method==='GET'&&route==='/health')return json(200,{ok:true,service:'WHATSAPP',transport:process.env.WA_ENGINE||'baileys'});
     if(req.method==='GET'&&route==='/api/cubamax')return json(200,portalContent(store));
+    if(req.method==='GET'&&/^\/cubamax-promos\/(remesas|ecoflow|bicicleta|contacto|carga|moto|equipo)\.webp$/.test(route)){const bytes=readFileSync(new URL('../public'+route,import.meta.url));res.writeHead(200,{...security,'Content-Type':'image/webp','Content-Length':bytes.length});return res.end(bytes);}
     if(req.method==='GET'&&/^\/cubamax-slides\/(money|combo|packages|topup)\.svg$/.test(route)){res.writeHead(200,{...security,'Content-Type':'image/svg+xml'});return res.end(readFileSync(new URL('../public'+route,import.meta.url)));}
     if(req.method==='GET'&&portalMediaPath.test(route)){try{const data=readFileSync(path.join(dir,'portal-media',path.basename(route)));return res.writeHead(200,{...security,'Content-Type':{png:'image/png',jpg:'image/jpeg',gif:'image/gif',webp:'image/webp'}[route.split('.').at(-1)]}),res.end(data);}catch{return json(404,{error:'Imagen no encontrada.'});}}
     if(req.method==='GET'&&route==='/api/guides')return json(200,{android:guides(store,'android'),iphone:guides(store,'iphone')});
