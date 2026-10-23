@@ -9,7 +9,7 @@
  const photos=[['contacto','Cubamax: (786) 887-6115'],['grupo','Cubamax con su familia: (786) 887-6115'],['remesas2','Remesas a Cuba · Tarifa 2%'],['recargas','Recarga Cubacel'],['supercombo','Super Combo'],['ecoflow','EcoFlow portátil Delta 3, $719'],['equipo','El equipo de Cubamax']];
  function schedule(){
   clearTimeout(timer);timer=null;
-  if(ready[current]&&!document.hidden&&!gesture&&!reduced?.matches)timer=setTimeout(()=>show(1),current===0?6000:5000);
+  if(ready[current]&&!document.hidden&&!gesture&&!reduced?.matches)timer=setTimeout(()=>show(1),3000);
  }
  function show(direction){
   let next=current;

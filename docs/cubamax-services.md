@@ -1,6 +1,6 @@
 ## Orden actualizado tras el intercambio
 
-Primer slider: Shein con las modelos (6 segundos), teléfono, grupo, remesas del 2%, recargas, supercombo, EcoFlow y equipo (5 segundos cada una).
+Primer slider: Shein con las modelos (3 segundos), teléfono, grupo, remesas del 2%, recargas, supercombo, EcoFlow y equipo (3 segundos cada una).
 Segundo slider: bicicleta eléctrica, moto de gasolina, remesas del local y avión/carga aérea. Conserva editor de Telegram, navegación y botones.
 Se reutilizan las imágenes existentes sin alterar sus diseños y se muestran completas.
 
@@ -8,7 +8,7 @@ Se reutilizan las imágenes existentes sin alterar sus diseños y se muestran co
 
 Orden: Shein, remesas, recargas, supercombo. Todas las imágenes son WebP de **1200 × 840 (10:7)**. Archivos finales: `public/cubamax-services/{shein,remesas,recargas,supercombo}.webp`.
 
-El carrusel conserva el avance de derecha a izquierda cada 5 segundos, gestos manuales y el editor de Telegram. Los identificadores del editor son `packages` (Shein), `money` (remesas), `topup` (recargas) y `combo` (supercombo). Los cuatro dibujos iniciales se sustituyen una sola vez; las imágenes ya personalizadas desde Telegram se conservan. No se modifican botones, ventanas de permisos ni conexiones.
+El carrusel conserva el avance de derecha a izquierda cada 3 segundos, gestos manuales y el editor de Telegram. Los identificadores del editor son `packages` (Shein), `money` (remesas), `topup` (recargas) y `combo` (supercombo). Los cuatro dibujos iniciales se sustituyen una sola vez; las imágenes ya personalizadas desde Telegram se conservan. No se modifican botones, ventanas de permisos ni conexiones.
 
 ## Especificación de imágenes
 
