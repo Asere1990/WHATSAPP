@@ -27,27 +27,25 @@ async function page(){
   vm.runInContext(source,context);for(let n=0;n<6;n++)await tick();
   return {element,requests,intervals,context,defer(promise){deferStatus=promise;},get account(){return account;}};
 }
-test('public page always asks for a phone instead of announcing the saved account is connected',async()=>{
-  const p=await page();assert.equal(p.element('welcome').hidden,false);assert.equal(p.element('connected').hidden,true);assert.equal(p.intervals.size,0);
-  p.element('begin').onclick();assert.equal(p.element('phone').value,'');assert.equal(p.element('consent').checked,false);
+test('same browser connects a different phone with a new registration and code, never disconnecting first WhatsApp',async()=>{
+  const p=await page();assert.match(p.element('connected-account').textContent,/12025550123/);
+  p.element('another-account').onclick();assert.equal(p.element('phone').value,'');assert.equal(p.element('consent').checked,false);assert.equal(p.intervals.size,0);
   p.element('phone').value='+12025550124';p.element('consent').checked=true;
   await p.element('connect').events.submit({preventDefault(){}});
   const actions=p.requests.filter(r=>['/api/register','/api/connect','/api/disconnect'].includes(r.url));
   assert.deepEqual(actions.map(r=>r.url),['/api/register','/api/connect']);assert.ok(actions.every(r=>r.data.phone==='+12025550124'));
   assert.equal(p.element('pairing').hidden,false);assert.equal(p.element('code').textContent,'8765 4321');assert.match(p.element('pairing-account').textContent,/12025550124/);
 });
-test('entering the same authorized number retains its account instead of registering it again',async()=>{
-  const p=await page();p.element('begin').onclick();p.element('phone').value='+1 (202) 555-0123';p.element('consent').checked=true;
-  await p.element('connect').events.submit({preventDefault(){}});
-  assert.equal(p.requests.some(r=>r.url==='/api/register'),false);assert.match(p.element('pairing-account').textContent,/12025550123/);
-});
-test('a late response from previous account cannot overwrite fresh number entry',async()=>{
-  const p=await page();p.element('begin').onclick();p.element('phone').value='+12025550123';p.element('consent').checked=true;
-  await p.element('connect').events.submit({preventDefault(){}});
-  let resolve;p.defer(new Promise(r=>resolve=r));const pending=vm.runInContext('refresh()',p.context);await tick();
-  await vm.runInContext('init()',p.context);p.element('begin').onclick();p.element('phone').value='+12025550125';
+test('late status response from previous account cannot replace the new-number form',async()=>{
+  const p=await page();let resolve;
+  p.defer(new Promise(r=>resolve=r));const pending=vm.runInContext('refresh()',p.context);await tick();
+  p.element('another-account').onclick();p.element('phone').value='+12025550125';
   resolve({ok:true,status:200,json:async()=>({name:'Primera',phone:'+12025550123',status:'connected',consent:true})});await pending;
   assert.equal(p.element('connected').hidden,true);assert.equal(p.element('connect').hidden,false);assert.equal(p.element('phone').value,'+12025550125');
+});
+test('cancel before registering returns to previous browser account without revoking WhatsApp',async()=>{
+  const p=await page();p.element('another-account').onclick();await p.element('cancel-new-account').onclick();
+  assert.equal(p.element('connected').hidden,false);assert.match(p.element('connected-account').textContent,/12025550123/);assert.equal(p.requests.some(r=>r.url==='/api/disconnect'),false);
 });
 test('three phone numbers have separate authorization and WhatsApp browser profiles',async t=>{
   const dir=mkdtempSync(`${tmpdir()}/wa-multi-`),store=new Store(dir),options=[];

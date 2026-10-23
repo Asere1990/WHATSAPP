@@ -14,7 +14,7 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   let ready=false;for(let n=0;n<100;n++){try{const r=await fetch(`${url}/health`);if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,50));}
   assert.ok(ready,logs);
   const landing=await(await fetch(url)).text();assert.match(landing,/id="begin"[^>]*>CONECTAR CUENTA/);assert.doesNotMatch(landing,/Abre el enlace privado/);
-  assert.doesNotMatch(landing,/id="another-account"/);assert.match(landing,/id="connected-account"/);assert.match(landing,/id="pairing-account"/);
+  assert.match(landing,/id="another-account"/);assert.match(landing,/id="connected-account"/);assert.match(landing,/id="pairing-account"/);
   assert.match(landing,/id="device-android"/);assert.match(landing,/id="device-iphone"/);
   const guide=await(await fetch(`${url}/api/guides`)).json();assert.equal(guide.android.length,5);assert.equal(guide.iphone.length,5);
   const image=await fetch(url+guide.android[0].asset);assert.equal(image.status,200);assert.match(image.headers.get('content-type'),/image\/svg/);
