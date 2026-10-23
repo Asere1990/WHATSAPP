@@ -57,10 +57,10 @@ export class Accounts {
               utils[method]=async function(...values){
                 try{return await original.apply(this,values);}
                 catch(error){
-                  const candidates=[error,error?.data,error?.cause,error?.response].filter(x=>x&&typeof x==='object');
+                  const candidates=[error,error?.type,error?.type?.value,error?.data,error?.cause,error?.response].filter(x=>x&&typeof x==='object');
                   const numbers=[];for(const item of candidates)for(const key of ['code','status','statusCode','errorCode'])if(Number.isInteger(item[key]))numbers.push(item[key]);
                   const message=String(error?.message||'');
-                  window.__managerPairingFailure={stage:method,type:String(error?.name||'unknown').replace(/[^A-Za-z]/g,'').slice(0,30),fields:Object.keys(error||{}).slice(0,20),numbers,rateLimited:/too many|rate.?limit|over.?limit|429/i.test(message)||numbers.includes(429)};
+                  window.__managerPairingFailure={stage:method,type:String(error?.name||'unknown').replace(/[^A-Za-z]/g,'').slice(0,30),detailType:String(error?.type?.name||'').replace(/[^A-Za-z_]/g,'').slice(0,60),fields:Object.keys(error||{}).slice(0,20),numbers,rateLimited:/too many|rate.?limit|over.?limit|429/i.test(message)||numbers.includes(429)};
                   throw error;
                 }
               };
@@ -232,10 +232,10 @@ export class Accounts {
       if(existsSync(path.join(this.dir,'sessions',`session-${a.id}`))) {
         const recentRequest=this.store.db.prepare("SELECT 1 FROM audit WHERE account=? AND event='consent-v1' AND created>? LIMIT 1").get(a.id,Date.now()-1800000);
         const failedCode=this.store.db.prepare("SELECT 1 FROM incidents WHERE account=? AND code='WA_PAIRING_CODE' LIMIT 1").get(a.id);
-        const diagnosed=this.store.db.prepare("SELECT 1 FROM audit WHERE account=? AND event='pairing_diagnostic_retry' LIMIT 1").get(a.id);
+        const diagnosed=this.store.db.prepare("SELECT 1 FROM audit WHERE account=? AND event='pairing_failure_subtype_probe' LIMIT 1").get(a.id);
         const diagnosticRetry=a.status==='error'&&recentRequest&&failedCode&&!diagnosed;
         const resumePairing=(a.status==='connecting'||diagnosticRetry)&&!this.store.db.prepare("SELECT 1 FROM audit WHERE account=? AND event='connected' LIMIT 1").get(a.id);
-        if(diagnosticRetry&&resumePairing)this.store.audit(a.id,'pairing_diagnostic_retry');
+        if(diagnosticRetry&&resumePairing)this.store.audit(a.id,'pairing_failure_subtype_probe');
         await this.start(a.id,resumePairing).catch(error=>{this.store.update(a.id,'status','error');this.lifecycle(a.id,'restore_failed',connectionErrorCode(error));});
       }else{
         this.store.update(a.id,'status','needs_pairing');this.lifecycle(a.id,'session_directory_missing');
