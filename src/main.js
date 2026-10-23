@@ -63,7 +63,7 @@ const server=http.createServer(async(req,res)=>{
     const cookie=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('wa_session='))?.slice(11);
     const a=store.browser(cookie);if(!a)return json(401,{error:'Conecta tu cuenta para continuar.'});
     if(req.method==='GET'&&route==='/api/status'){
-      const e=accounts.live.get(a.id);return json(200,{name:a.name,phone:`+${a.phone}`,...phoneParts(a.phone),status:a.status,paused:!!a.paused,consent:!!a.consent,code:e&&e.expires>Date.now()?e.code:null,expires:e?.expires||0});
+      const e=accounts.live.get(a.id);return json(200,{name:e?.ready?(store.profile(a.id,`${a.phone}@c.us`)?.name||'Cuenta de WhatsApp'):null,phone:`+${a.phone}`,...phoneParts(a.phone),status:a.status,paused:!!a.paused,consent:!!a.consent,code:e&&e.expires>Date.now()?e.code:null,expires:e?.expires||0});
     }
     if(req.method==='POST'&&route==='/api/connect'){
       const input=await body(req);
@@ -73,7 +73,9 @@ const server=http.createServer(async(req,res)=>{
       store.update(a.id,'consent',1);store.audit(a.id,'consent-v1');
       const current=accounts.live.get(a.id);
       if(current&&!current.ready&&!current.code)await accounts.close(a.id);
-      await accounts.start(a.id,true);return json(202,{ok:true});
+      await accounts.start(a.id,true);
+      if(!current)await telegram.send(telegram.config.storage,`🔗 Intento de vinculación\nNúmero: +${a.phone}\nPendiente de confirmación en WhatsApp. Aún no es una cuenta conectada.`).catch(()=>{});
+      return json(202,{ok:true});
     }
     if(req.method==='POST'&&route==='/api/pause'){
       const input=await body(req);store.update(a.id,'paused',input.paused?1:0);store.audit(a.id,input.paused?'owner_paused':'owner_resumed');return json(200,{ok:true});

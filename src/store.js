@@ -88,7 +88,7 @@ export class Store {
         this.db.prepare("UPDATE accounts SET phone=NULL,status='archived',consent=0 WHERE id=?").run(existing.id);
         this.audit(existing.id,'archived_after_revocation');
       }
-      const invite=this.invite(phone,`Cuenta · ${phone.slice(-4)}`),secret=this.exchange(invite.secret);
+      const invite=this.invite(phone,'Cuenta de WhatsApp'),secret=this.exchange(invite.secret);
       this.db.exec('COMMIT');return secret;
     }catch(error){this.db.exec('ROLLBACK');throw error;}
   }

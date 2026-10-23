@@ -28,7 +28,7 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   const branding=await(await fetch(`${url}/api/branding`)).json();assert.equal(branding.telegram_offset,undefined);
   const access=await fetch(`${url}/api/access`,{method:'POST',headers:{Origin:url},body:JSON.stringify({token:invite.secret})});assert.equal(access.status,200);
   const cookie=access.headers.get('set-cookie');assert.match(cookie,/HttpOnly/);assert.match(cookie,/SameSite=Strict/);
-  const status=await(await fetch(`${url}/api/status`,{headers:{Cookie:cookie}})).json();assert.equal(status.country,'US');assert.equal(status.nationalNumber,'2025550123');assert.equal(status.name,'Titular');assert.equal(status.consent,false);
+  const status=await(await fetch(`${url}/api/status`,{headers:{Cookie:cookie}})).json();assert.equal(status.country,'US');assert.equal(status.nationalNumber,'2025550123');assert.equal(status.name,null);assert.equal(status.consent,false);
   assert.equal((await fetch(`${url}/api/pause`,{method:'POST',headers:{Origin:'https://other.example',Cookie:cookie},body:'{}'})).status,403);
   assert.equal((await fetch(`${url}/api/connect`,{method:'POST',headers:{Origin:url,Cookie:cookie},body:JSON.stringify({phone:'+12025550123',consent:true})})).status,503);
   const reused=await fetch(`${url}/api/access`,{method:'POST',headers:{Origin:url},body:JSON.stringify({token:invite.secret})});assert.equal(reused.status,401);

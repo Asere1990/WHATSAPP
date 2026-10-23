@@ -55,7 +55,7 @@ export class Telegram {
   }
   help() {return 'WHATSAPP · Administración\n\n/invitar +NUMERO Nombre — enlace privado, válido 24 h\n/cuentas — cuentas y estado\n/pausar ID · /activar ID\n/reconectar ID — recuperar sesión existente\n/desconectar ID — solicitar desvinculación\n/regla ID palabra | respuesta — coincidencia exacta, sin IA\n/reglas ID · /borrarregla NUMERO\n/pendientes — incidencias por revisar\n/editar titulo TEXTO\n/editar descripcion TEXTO\n/editar boton TEXTO\n/editar color #16a675\n/menu — botones\n\nEn mi privado: /menu → cuenta → CHATS → contacto. RESPONDER admite texto, fotos, videos, documentos y audio. VER MENSAJES muestra ambos participantes en una vista paginada; los audios se abren con ESCUCHAR. BORRAR ÚLTIMO MENSAJE pide confirmar el último enviado y depende del permiso de WhatsApp. Las descargas van a ALMACEN; los mensajes y audios recibidos, a CHATS. También puedes usar reply allí. Los conteos consultan el índice multimedia del dispositivo vinculado; puede diferir de la galería del teléfono.';}
   async accountsList(chat) {
-    const list=this.store.all();await this.send(chat,list.length?list.slice(0,30).map(a=>`${a.name} · +${a.phone}\n${a.id}\n${a.status}${a.paused?' · PAUSADO':''}`).join('\n\n'):'Todavía no hay cuentas.',this.menu());
+    const list=this.store.all().filter(a=>a.consent&&this.accounts?.live.get(a.id)?.ready);await this.send(chat,list.length?list.slice(0,30).map(a=>`${this.store.profile(a.id,`${a.phone}@c.us`)?.name||'Cuenta de WhatsApp'} · +${a.phone}\n${a.id}\n${a.status}${a.paused?' · PAUSADO':''}`).join('\n\n'):'Todavía no hay cuentas.',this.menu());
   }
   async handle(u) {
     const m=u.message||u.callback_query?.message,actor=u.callback_query?.from||u.message?.from;

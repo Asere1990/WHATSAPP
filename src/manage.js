@@ -23,7 +23,7 @@ export class AccountTools {
       const found=await client.getContactLidAndPhone([peer]);
       const pn=found?.[0]?.pn;if(typeof pn==='string'&&/^[0-9]+@c\.us$/.test(pn))phone=pn.split('@')[0];
     }catch{}
-    const name=(self?client?.info?.pushname:contact?.pushname)||contact?.name||contact?.shortName||(self?a.name:phone?'+'+phone:'Sin nombre');
+    const name=(self?client?.info?.pushname:contact?.pushname)||contact?.name||contact?.shortName||(self?(a.name&&!/^Cuenta\s*[·•]/.test(a.name)?a.name:'Cuenta de WhatsApp'):phone?'+'+phone:'Sin nombre');
     s.saveProfile(id,peer,name,phone);
     return {peer,name,phone,country:countryOf(phone)};
   }

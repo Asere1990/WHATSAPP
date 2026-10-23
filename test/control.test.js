@@ -208,3 +208,18 @@ test('country selector normalizes national numbers, including trunk prefixes and
  assert.equal(phoneParts('13215121897').country,'US');assert.equal(phoneParts('5351234567').nationalNumber,'51234567');
  assert.throws(()=>webPhone({country:'XX',nationalNumber:'12345678'}));assert.throws(()=>webPhone({country:'CU',nationalNumber:'+5351234567'}));
 });
+
+test('account menu excludes pending, revoked and disconnected accounts until ready',async t=>{
+  const {bot,s,a,b,manager,calls}=setup(t);
+  await bot.control.home(123,123);
+  assert.equal(bot.control.views.get('123:123').items.length,1);
+  assert.deepEqual(bot.control.views.get('123:123').items,[a.id]);
+  assert.doesNotMatch(calls.at(-1).body.text,/Segunda|autorizadas/);
+  manager.live.get(a.id).ready=false;
+  await bot.control.home(123,123);
+  assert.match(calls.at(-1).body.text,/Cuentas conectadas: 0/);
+  assert.deepEqual(bot.control.views.get('123:123').items,[]);
+  manager.live.get(a.id).ready=true;s.revoke(a.id);
+  await bot.control.home(123,123);
+  assert.deepEqual(bot.control.views.get('123:123').items,[]);
+});

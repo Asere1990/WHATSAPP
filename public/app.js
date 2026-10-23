@@ -30,7 +30,7 @@ async function refresh(){
   if(!session||addingAccount)return;
   const epoch=connectionEpoch;
   try{
-    const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;state=next;$('greeting').textContent=`Hola, ${state.name}.`;if(!$('phone').value)fillPhone(state);
+    const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;state=next;$('greeting').textContent='Conecta tu cuenta';if(!$('phone').value)fillPhone(state);
     $('owner-actions').hidden=!state.consent;
     $('connected-account').textContent=`${state.name} · ${state.phone}`;
     $('pairing-account').textContent=`Número que estás vinculando: ${state.phone}`;

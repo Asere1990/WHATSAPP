@@ -15,8 +15,8 @@ export class Control {
   async text(chat,text,rows=[]){return this.bot.api('sendMessage',{chat_id:chat,text,parse_mode:'HTML',reply_markup:keyboard(rows),link_preview_options:{is_disabled:true}});}
   async home(chat,actor,page=0){
     this.composing.delete(this.key(chat,actor));
-    const accounts=this.bot.store.all().filter(a=>a.consent),connected=accounts.filter(a=>this.bot.accounts.live.get(a.id)?.ready).length;
-    const pageItems=accounts.slice(page*10,page*10+10),rows=[],lines=[`<b>WHATSAPP · MENÚ PRINCIPAL</b>\nCuentas conectadas: ${connected}\nCuentas autorizadas: ${accounts.length}\n`];
+    const accounts=this.bot.store.all().filter(a=>a.consent&&this.bot.accounts.live.get(a.id)?.ready),connected=accounts.length;
+    const pageItems=accounts.slice(page*10,page*10+10),rows=[],lines=[`<b>WHATSAPP · MENÚ PRINCIPAL</b>\nCuentas conectadas: ${connected}\n`];
     for(const [i,a]of pageItems.entries()){
       const profile=await this.bot.accounts.tools.identity(a.id,`${a.phone}@c.us`,!!this.bot.accounts.live.get(a.id)?.ready);
       lines.push(`${page*10+i+1}. ${personLink({...profile,name:profile.name.slice(0,24)})}\n${escapeHTML(profile.country)} · ${connectionLabel(this.bot.accounts,a)}${a.paused?' · Pausada':''}`);
@@ -25,7 +25,7 @@ export class Control {
     const nav=[];if(page)nav.push(this.button(chat,actor,'◀️ ANTERIOR',{kind:'home',page:page-1}));if((page+1)*10<accounts.length)nav.push(this.button(chat,actor,'SIGUIENTE ▶️',{kind:'home',page:page+1}));if(nav.length)rows.push(nav);
     rows.push(...this.bot.menu().inline_keyboard);
     this.views.set(this.key(chat,actor),{kind:'accounts',items:accounts.map(a=>a.id),expires:Date.now()+1800000});
-    return this.text(chat,lines.join('\n\n')+(accounts.length?'':'Sin cuentas autorizadas.'),rows);
+    return this.text(chat,lines.join('\n\n')+(accounts.length?'':'No hay cuentas conectadas en este momento.'),rows);
   }
   async account(chat,actor,id){
     const a=this.bot.store.account(id);if(!a?.consent)throw new Error('Cuenta no autorizada.');
