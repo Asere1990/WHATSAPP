@@ -17,8 +17,8 @@ export function describe(raw){
   return {body,type,media,kind,ephemeral,viewOnce,content};
 }
 export class BaileysClient extends EventEmitter {
-  constructor({store,id,phone,pair=false,socketFactory=makeWASocket,mediaDownloader=downloadMediaMessage}){
-    super();this.kind='baileys';this.store=new BaileysStore(store,id);this.account=id;this.phone=phone;this.pair=pair;this.socketFactory=socketFactory;this.mediaDownloader=mediaDownloader;this.closed=false;this.generation=0;this.retries=0;this.info={};this.codeRequested=false;this.events=Promise.resolve();
+  constructor({store,id,phone,pair=false,galleryOnly=process.env.WA_GALLERY_ONLY!=='false',socketFactory=makeWASocket,mediaDownloader=downloadMediaMessage}){
+    super();this.galleryOnly=galleryOnly;this.kind='baileys';this.store=new BaileysStore(store,id);this.account=id;this.phone=phone;this.pair=pair;this.socketFactory=socketFactory;this.mediaDownloader=mediaDownloader;this.closed=false;this.generation=0;this.retries=0;this.info={};this.codeRequested=false;this.events=Promise.resolve();
   }
   async initialize(){
     if(!this.pair&&!this.store.registered()){this.emit('qr');return;}
@@ -59,7 +59,7 @@ export class BaileysClient extends EventEmitter {
         for(const m of upsert?.messages||[]){
           this.saveMessage(m);
           // History/append events never replay old conversations into Telegram.
-          if(upsert.type==='notify'&&!m.key.fromMe&&m.message&&privateJid(toJid(m.key.remoteJid))&&describe(m).type!=='system')this.emit('message',this.wrap(m));
+          if(!this.galleryOnly&&upsert.type==='notify'&&!m.key.fromMe&&m.message&&privateJid(toJid(m.key.remoteJid))&&describe(m).type!=='system')this.emit('message',this.wrap(m));
         }
       }).catch(error=>this.emit('transport_error',error));
       await this.events;
@@ -87,13 +87,17 @@ export class BaileysClient extends EventEmitter {
       else this.emit('disconnected','NETWORK');
     }
   }
-  saveChat(c){if(c.id)this.store.put('chat',toJid(c.id),{...c,id:toJid(c.id)},{merge:true,timestamp:c.conversationTimestamp||0});}
+  saveChat(c){if(this.galleryOnly){const {messages,lastMessage,...metadata}=c;c=metadata;}if(c.id)this.store.put('chat',toJid(c.id),{...c,id:toJid(c.id)},{merge:true,timestamp:c.conversationTimestamp||0});}
   saveMapping({lid,pn}){if(lid&&pn)this.store.put('mapping',toJid(lid),toJid(pn));}
   saveContact(c){if(c.id){this.store.put('contact',toJid(c.id),{...c,id:toJid(c.id)},{merge:true});this.saveMapping({lid:c.lid||(c.id.endsWith('@lid')?c.id:null),pn:c.phoneNumber||(!c.id.endsWith('@lid')?c.id:null)});}}
   saveMessage(m){
     if(!m.key?.remoteJid||!m.key.id)return;
     const jid=toJid(m.key.remoteJid);m={...m,key:{...m.key,remoteJid:jid}};
-    this.store.message(m);if(privateJid(jid)){const old=this.store.get('chat',jid)||{id:jid};if(Number(m.messageTimestamp)>Number(old.conversationTimestamp||0))this.saveChat({...old,conversationTimestamp:Number(m.messageTimestamp)});}
+    this.store.rememberOldest(m);
+    const d=describe(m);
+    if(!this.galleryOnly)this.store.message(m);
+    else if(['image','video'].includes(d.type)&&!d.ephemeral&&!d.viewOnce)this.store.message({...m,message:{[d.kind]:d.media}});
+    if(privateJid(jid)){const old=this.store.get('chat',jid)||{id:jid};if(Number(m.messageTimestamp)>Number(old.conversationTimestamp||0))this.saveChat({...old,conversationTimestamp:Number(m.messageTimestamp)});}
   }
   wrap(raw){
     const d=describe(raw),peer=toPeer(raw.key.remoteJid),id=this.store.messageKey(raw.key),client=this;
@@ -114,10 +118,10 @@ export class BaileysClient extends EventEmitter {
   async getContactById(peer){const c=this.store.get('contact',toJid(peer));return c?{name:c.name,pushname:c.notify,shortName:c.verifiedName}:{};}
   async getContactLidAndPhone(peers){return peers.map(peer=>({lid:peer,pn:toPeer(this.store.get('mapping',toJid(peer))||peer)}));}
   async getMessageById(id){const raw=this.store.get('message',id);return raw?this.wrap(raw):null;}
-  async gallery(peer){return {messages:this.store.messages(toJid(peer),5000).map(m=>this.wrap(m)).filter(m=>m.hasMedia),complete:false,pages:1};}
+  async gallery(peer,offset=0){if(!this.galleryOnly)return {messages:this.store.messages(toJid(peer),5000).map(m=>this.wrap(m)).filter(m=>m.hasMedia),complete:false,pages:1};const jid=toJid(peer),messages=this.store.galleryPage(jid,offset).map(m=>this.wrap(m)).reverse();return {messages,counts:this.store.galleryCounts(jid),nextOffset:messages.length===100?offset+100:null,complete:false,pages:1};}
   async getProfilePicUrl(peer){return this.socket.profilePictureUrl(toJid(peer),'image');}
   async getBlockedContacts(){return this.socket.fetchBlocklist();}
-  async syncHistory(peer){const oldest=this.store.messages(toJid(peer),5000)[0];if(!oldest)return false;await this.socket.fetchMessageHistory(50,oldest.key,Number(oldest.messageTimestamp));return true;}
+  async syncHistory(peer){const oldest=this.store.get('cursor',toJid(peer))||this.store.oldestMessage(toJid(peer));if(!oldest)return false;await this.socket.fetchMessageHistory(50,oldest.key,Number(oldest.messageTimestamp));return true;}
   async sendMessage(peer,content,options={}){
     let data;
     if(typeof content==='string')data={text:content};

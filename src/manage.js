@@ -42,11 +42,11 @@ export class AccountTools {
   }
   async chat(id,peer){if(!peerOK(peer))throw new Error('Contacto inválido.');return this.client(id).getChatById(peer);}
   async history(id,peer,limit=500){return (await (await this.chat(id,peer)).fetchMessages({limit})).filter(m=>!m.isStatus);}
-  async gallery(id,peer){
+  async gallery(id,peer,offset=0){
     if(!peerOK(peer))throw new Error('Contacto inválido.');
     const client=this.client(id);
     try{
-      if(typeof client.gallery==='function')return await client.gallery(peer);
+      if(typeof client.gallery==='function')return await client.gallery(peer,offset);
       const result=await client.pupPage.evaluate(readGallery,peer);
       return {...result,messages:result.messages.map(raw=>new WA.Message(client,raw))};
     }catch(cause){const error=new Error('No se pudo consultar el índice multimedia de WhatsApp. No se mostrará un conteo incompleto como total.',{cause});error.code='WA_GALLERY_READ';throw error;}
@@ -87,11 +87,12 @@ export class AccountTools {
     await msg.delete(true);this.accounts.store.audit(id,'delete_outgoing');
   }
   async downloadRecent(id,peer,kind,onFile,onProgress=async()=>{}){
-    const key=id+':'+peer;if(this.busy.has(key))throw new Error('Ya hay una descarga en este chat.');
+    const key=this.client(id).galleryOnly?'gallery':id+':'+peer;if(this.busy.has(key))throw new Error('Ya hay una descarga en curso. Espera a que termine.');
     this.busy.add(key);
     try{
       this.client(id,true);const s=this.accounts.store,gallery=await this.gallery(id,peer),messages=gallery.messages,allowed=kind==='photos'?['image']:kind==='videos'?['video']:['image','video'];
-      const candidates=messages.slice().reverse().filter(m=>allowed.includes(m.type)&&m.hasMedia&&!m.isEphemeral&&!m.rawData?.isViewOnce&&!s.exportState(id,m.id._serialized));
+      const candidates=[];let page=gallery;
+      while(true){for(const m of page.messages.slice().reverse()){if(allowed.includes(m.type)&&m.hasMedia&&!m.isEphemeral&&!m.rawData?.isViewOnce&&!s.exportState(id,m.id._serialized))candidates.push(m);if(candidates.length>=10)break;}if(candidates.length>=10||page.nextOffset==null)break;page=await this.gallery(id,peer,page.nextOffset);}
       let sent=0,skipped=0,failed=0;const target=Math.min(10,candidates.length);
       const progress=async phase=>{try{await onProgress({sent,target,skipped,failed,phase,percent:target?Math.floor(sent*100/target):0});}catch{}};
       await progress('downloading');

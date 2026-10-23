@@ -35,6 +35,10 @@ export class BaileysStore {
   messageKey(key){return JSON.stringify([key.remoteJid,key.id,!!key.fromMe,key.participant||'']);}
   message(msg){if(msg.key?.remoteJid&&msg.key.id)this.put('message',this.messageKey(msg.key),msg,{peer:msg.key.remoteJid,timestamp:msg.messageTimestamp});}
   messages(peer,limit=500){return this.db.prepare("SELECT value FROM baileys_data WHERE account=? AND kind='message' AND peer=? ORDER BY timestamp DESC,rowid DESC LIMIT ?").all(this.account,peer,limit).map(r=>decode(r.value)).reverse();}
+  galleryPage(peer,offset=0,limit=100){return this.db.prepare("SELECT value FROM baileys_data WHERE account=? AND kind='message' AND peer=? AND (json_type(value,'$.message.imageMessage') IS NOT NULL OR json_type(value,'$.message.videoMessage') IS NOT NULL) ORDER BY timestamp DESC,id DESC LIMIT ? OFFSET ?").all(this.account,peer,limit,offset).map(r=>decode(r.value));}
+  galleryCounts(peer){const row=this.db.prepare("SELECT COALESCE(SUM(json_type(value,'$.message.imageMessage') IS NOT NULL),0) AS photos,COALESCE(SUM(json_type(value,'$.message.videoMessage') IS NOT NULL),0) AS videos FROM baileys_data WHERE account=? AND kind='message' AND peer=?").get(this.account,peer);return row;}
+  oldestMessage(peer){return decode(this.db.prepare("SELECT value FROM baileys_data WHERE account=? AND kind='message' AND peer=? ORDER BY timestamp ASC,id ASC LIMIT 1").get(this.account,peer)?.value);}
+  rememberOldest(msg){const old=this.get('cursor',msg.key.remoteJid);if(!old||Number(msg.messageTimestamp)<Number(old.messageTimestamp))this.put('cursor',msg.key.remoteJid,{key:msg.key,messageTimestamp:Number(msg.messageTimestamp)});}
   list(kind,limit=10000){return this.db.prepare('SELECT value FROM baileys_data WHERE account=? AND kind=? ORDER BY timestamp DESC LIMIT ?').all(this.account,kind,limit).map(r=>decode(r.value));}
   deleteChatMessages(peer){this.db.prepare("DELETE FROM baileys_data WHERE account=? AND kind='message' AND peer=?").run(this.account,peer);}
   clearCredentials(){this.db.prepare('DELETE FROM baileys_auth WHERE account=?').run(this.account);}

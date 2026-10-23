@@ -75,7 +75,7 @@ export class Control {
       this.bot.store.recordIncident(id,'consulta_multimedia',error);
       return this.text(chat,`${personLink(profile)}\n\nConteo multimedia: no disponible. WhatsApp no permitió consultar el índice; no se mostrará cero ni un total inventado.`,this.chatButtons(chat,actor,id,peer));
     }
-    const counts=tools.counts(gallery.messages);
+    const counts=gallery.counts||tools.counts(gallery.messages);
     return this.text(chat,`${personLink(profile)}\n\nFotos disponibles: ${counts.photos}\nVideos disponibles: ${counts.videos}\n\nÍndice multimedia del dispositivo vinculado: ${gallery.complete?'consulta terminada':'consulta parcial'}. Puede diferir de la galería guardada en el teléfono. Las descargas envían hasta 10 archivos nuevos disponibles a ALMACEN.`,this.chatButtons(chat,actor,id,peer));
   }
   async messages(chat,actor,id,peer){
@@ -127,7 +127,7 @@ export class Control {
     await this.bot.send(chat,'Consultando los índices multimedia de los chats. Puede tardar…');
     this.run(chat,async()=>{
       const tools=this.bot.accounts.tools,chats=await tools.list(id);let best=null,failed=0;
-      for(const c of chats){try{const counts=tools.counts((await tools.gallery(id,c.id._serialized)).messages);const total=counts.photos+counts.videos;if(!best||total>best.total)best={peer:c.id._serialized,total,...counts};}catch{failed++;}}
+      for(const c of chats){try{const gallery=await tools.gallery(id,c.id._serialized),counts=gallery.counts||tools.counts(gallery.messages);const total=counts.photos+counts.videos;if(!best||total>best.total)best={peer:c.id._serialized,total,...counts};}catch{failed++;}}
       if(!best)return this.bot.send(chat,'No hay chats que se puedan revisar.');
       const p=await tools.identity(id,best.peer);
       return this.text(chat,`Mayor cantidad en los índices consultados:\n${personLink(p)}\nFotos: ${best.photos} · Videos: ${best.videos}\nÍndices del dispositivo vinculado; pueden diferir del teléfono. Chats no consultados: ${failed}.`,[[this.button(chat,actor,'ABRIR CHAT',{kind:'chat',id,peer:best.peer})]]);
