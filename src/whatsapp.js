@@ -71,6 +71,7 @@ export class Accounts {
     this.store.audit(id,'connected');
     const profile=await this.tools.identity(id,`${a.phone}@c.us`,true);
     await this.notify(`✅ Cuenta conectada: ${personLink(profile)}\nPaís del número: ${escapeHTML(profile.country)}\nCuenta: ${id}`,null,{parse_mode:'HTML'}).catch(()=>{});
+    if(entry.client.pupPage)await this.tools.profilePhoto(id);
     // Read-only production probe: log counts, never names, phones or messages.
     if(entry.client.getChats)try{
       const chats=await this.tools.list(id);this.lifecycle(id,'chat_list_verified',`${chats.length}:${this.tools.listProblems.get(id)||0}`);

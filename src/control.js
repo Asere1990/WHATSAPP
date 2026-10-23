@@ -38,7 +38,8 @@ export class Control {
     ];
     const warning=info.total===null?'\n⚠️ No se pudo consultar la lista de chats. Pulsa ACTUALIZAR.':info.unreadable?`\n⚠️ Lista parcial: ${info.unreadable} chats no pudieron leerse.`:'';
     const caption=`${personLink(info.profile)}\nPaís del número: ${escapeHTML(info.profile.country)}\n\nChats privados disponibles: ${info.total??'No disponible'}\nChats abiertos (sin archivar): ${info.open??'No disponible'}\nChats con candado visibles: ${info.locked??'No disponible'}\nContactos bloqueados: ${info.blocked??'No disponible'}${warning}\n\nLos chats ocultos o no sincronizados pueden no aparecer.`;
-    if(info.photo){let data;try{data=await this.bot.profilePhoto(info.photo);}catch{}
+    if(info.photoData)return this.bot.sendFile(chat,{...info.photoData,display:true,caption,parse_mode:'HTML'},keyboard(rows));
+    if(info.photo){let data;try{data=await this.bot.profilePhoto(info.photo);}catch{console.error('WHATSAPP: profile_url_download_failed',JSON.stringify({account:id,code:'WA_PROFILE_URL_FETCH'}));}
       if(data)return this.bot.sendFile(chat,{data,mime:'image/jpeg',name:'perfil.jpg',display:true,caption,parse_mode:'HTML'},keyboard(rows));
     }
     return this.text(chat,caption+'\n\nFoto de perfil no disponible.',rows);

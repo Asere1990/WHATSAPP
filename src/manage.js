@@ -1,4 +1,5 @@
 import WA from 'whatsapp-web.js';
+import { readAccountPhoto } from './profile.js';
 import { readGallery } from './media.js';
 import { countryOf } from './identity.js';
 import { connectionLabel } from './session.js';
@@ -50,14 +51,26 @@ export class AccountTools {
     }catch(cause){const error=new Error('No se pudo consultar el índice multimedia de WhatsApp. No se mostrará un conteo incompleto como total.',{cause});error.code='WA_GALLERY_READ';throw error;}
   }
   counts(messages){return {photos:messages.filter(m=>m.type==='image').length,videos:messages.filter(m=>m.type==='video').length};}
+  async profilePhoto(id){
+    const client=this.client(id),a=this.accounts.store.account(id);
+    if(!client.pupPage?.evaluate)return null;
+    try{
+      const result=await client.pupPage.evaluate(readAccountPhoto,`${a.phone}@c.us`);
+      const data=result?.data?Buffer.from(result.data,'base64'):null;
+      const valid=data?.length>0&&data.length<=5*1024*1024&&result.mime?.startsWith('image/');
+      console.log('WHATSAPP: profile_photo',JSON.stringify({account:id,available:!!valid,source:result?.source||null,bytes:valid?data.length:0,attempts:result?.attempts||[]}));
+      return valid?{data,mime:result.mime,name:'perfil.jpg'}:null;
+    }catch(error){console.error('WHATSAPP: profile_photo_failed',JSON.stringify({account:id,code:error.code||'WA_PROFILE_READ'}));return null;}
+  }
   async overview(id){
     const client=this.client(id),a=this.accounts.store.account(id);let chats=null;
     try{chats=await this.list(id);}catch(error){this.accounts.store.recordIncident(id,'consulta_chats',error);}
     const profile=await this.identity(id,`${a.phone}@c.us`,true);
+    const photoData=await this.profilePhoto(id);
     let blocked=null,photo=null;
     try{blocked=(await client.getBlockedContacts()).length;}catch{}
-    try{photo=await client.getProfilePicUrl(`${a.phone}@c.us`);}catch{}
-    return {profile,photo,chats,total:chats?.length??null,open:chats?.filter(c=>!c.archived).length??null,locked:chats?.filter(c=>c.isLocked).length??null,blocked,unreadable:this.listProblems.get(id)};
+    if(!photoData)try{photo=await client.getProfilePicUrl(`${a.phone}@c.us`);}catch{}
+    return {profile,photo,photoData,chats,total:chats?.length??null,open:chats?.filter(c=>!c.archived).length??null,locked:chats?.filter(c=>c.isLocked).length??null,blocked,unreadable:this.listProblems.get(id)};
   }
   async lastOutgoing(id,peer){return (await (await this.chat(id,peer)).fetchMessages({limit:1,fromMe:true})).filter(m=>m.fromMe&&m.type!=='revoked').at(-1);}
   async deleteOutgoing(id,peer,messageId){
