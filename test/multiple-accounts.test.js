@@ -74,3 +74,13 @@ test('copying current code opens activation popup; expired code is never copied'
  assert.equal(p.element('clipboard').value,'12345678');assert.equal(p.element('copy-help').open,true);p.element('close-copy-help').onclick();assert.equal(p.element('copy-help').open,false);
  p.element('clipboard').value='';vm.runInContext("state={code:'87654321',expires:Date.now()-1}",p.context);await p.element('copy').onclick();assert.equal(p.element('clipboard').value,'');
 });
+
+test('Safari pattern errors and network or invalid server responses are presented in Spanish',async()=>{
+ const p=await page();
+ const message=vm.runInContext("userError(Object.assign(new Error('The string did not match the expected pattern.'),{name:'SyntaxError'}))",p.context);
+ assert.match(message,/No se pudo preparar la conexión/);assert.doesNotMatch(message,/pattern/);
+ p.context.fetch=async()=>{throw TypeError('Load failed');};
+ await assert.rejects(vm.runInContext("api('status')",p.context),/No se pudo conectar con el servicio/);
+ p.context.fetch=async()=>({ok:false,status:503,json:async()=>{throw SyntaxError('The string did not match the expected pattern.');}});
+ await assert.rejects(vm.runInContext("api('status')",p.context),/No se pudo leer la respuesta del servicio/);
+});
