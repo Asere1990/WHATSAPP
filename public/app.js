@@ -3,10 +3,8 @@ for(const c of countryList){const option=document.createElement('option');option
 function selectedCountry(){return countryList.find(c=>c.code===$('country').value);}
 function updateDial(){const c=selectedCountry();$('dial-code').textContent=c?'+'+c.dial:'—';}
 $('country').addEventListener('change',()=>{updateDial();$('phone').focus();});
-function fillPhone(account){
-  const c=countryList.find(c=>c.code===account.country);if(!c)return;
-  $('country').value=c.code;updateDial();$('phone').value=account.nationalNumber||'';
-}
+function clearConnectionForm(){ $('country').value='';updateDial();$('phone').value='';$('consent').checked=false; }
+clearConnectionForm();
 let state=null,timer=null,session=false,guideData=null,guideDevice=null,guideStep=0,currentView=null,addingAccount=false,connectionEpoch=0,submitBusy=false,retryAfter=0,blockedNumber=null;
 try{const saved=localStorage.getItem('guide-device');if(['android','iphone'].includes(saved))guideDevice=saved;}catch{}
 async function api(path,data){
@@ -30,7 +28,7 @@ async function refresh(){
   if(!session||addingAccount)return;
   const epoch=connectionEpoch;
   try{
-    const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;const previous=state;state=next;$('greeting').textContent='Conecta tu cuenta';if(!previous||previous.phone!==state.phone)fillPhone(state);
+    const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;state=next;$('greeting').textContent='Conecta tu cuenta';
     $('owner-actions').hidden=!state.consent;
     $('connected-account').textContent=`${state.name} · ${state.phone}`;
     $('pairing-account').textContent=`Número que estás vinculando: ${state.phone}`;

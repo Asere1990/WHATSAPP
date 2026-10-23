@@ -111,3 +111,16 @@ test('validation alerts clear when editing and repeated alerts do not scroll or 
  assert.equal(p.element('error').hidden,true);
  assert.equal(p.element('error').textContent,'');
 });
+
+test('reloading with a saved unlinked session leaves country and phone empty',async()=>{
+ const p=await page();
+ assert.equal(p.element('country').value,'');
+ assert.equal(p.element('phone').value,'');
+ assert.equal(p.element('consent').checked,false);
+ p.account.status='disconnected';
+ for(let n=0;n<3;n++)await vm.runInContext('refresh()',p.context);
+ assert.equal(p.element('country').value,'');
+ assert.equal(p.element('phone').value,'');
+ assert.equal(p.element('connect').hidden,false);
+ assert.equal(p.requests.some(r=>r.url==='/api/disconnect'),false);
+});
