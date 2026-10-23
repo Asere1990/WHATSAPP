@@ -35,6 +35,20 @@ export class Accounts {
     });
     const entry={client,code:null,expires:0,ready:false,chain:Promise.resolve(),pending:0};
     this.live.set(id,entry);this.store.update(id,'status','connecting');
+    // The pinned client launches this async method without awaiting its promise.
+    // Handle rejection here so a refused pairing request cannot crash every account.
+    if(typeof client.requestPairingCode==='function'){
+      const requestCode=client.requestPairingCode.bind(client);
+      client.requestPairingCode=async(...args)=>{
+        try{return await requestCode(...args);}
+        catch(cause){
+          const error=new Error('WhatsApp no pudo generar el código de vinculación.',{cause});error.code='WA_PAIRING_CODE';
+          await this.connectionFailed(id,entry,error).catch(()=>{});
+          return null;
+        }
+      };
+    }
+
     client.on('code', code=>{if(this.live.get(id)!==entry)return;entry.code=code;entry.expires=Date.now()+180000;});
     client.on('qr',()=>{
       if(this.live.get(id)!==entry)return;

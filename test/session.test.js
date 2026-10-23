@@ -72,3 +72,19 @@ test('LOGOUT from WhatsApp revokes browser access, while a temporary disconnecti
  let e=await manager.start(a.id);e.client.emit('disconnected','CONFLICT');assert.equal(s.account(a.id).consent,1);assert.equal(s.register(a.phone),null);assert.ok(s.browser(secret));
  e=await manager.start(a.id);e.client.emit('disconnected','LOGOUT');assert.equal(s.account(a.id).consent,0);assert.equal(s.account(a.id).status,'revoked');assert.ok(!s.browser(secret));assert.ok(s.register(a.phone));
 });
+
+test('unawaited library pairing rejection is contained to its own account',async t=>{
+ class Fake extends EventEmitter{
+   async requestPairingCode(){throw Error('t: t');}
+   async initialize(){this.requestPairingCode('12025550123');}
+   async destroy(){}
+ }
+ const {s,a,manager}=setup(t,()=>new Fake());
+ const other=s.invite('12025550124','Other').account;s.update(other.id,'consent',1);
+ manager.live.set(other.id,{ready:true,client:{destroy:async()=>{}}});
+ const entry=await manager.start(a.id,true);await entry.initializing;
+ for(let n=0;n<5;n++)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(s.account(a.id).status,'error');assert.equal(manager.live.has(a.id),false);
+ assert.equal(manager.live.get(other.id).ready,true);
+ assert.equal(s.openIncidents().find(x=>x.account===a.id).code,'WA_PAIRING_CODE');
+});

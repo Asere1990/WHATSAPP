@@ -160,3 +160,29 @@ test('reload of a pending pairing starts at welcome without revealing previous p
  assert.equal(p.intervals.size,1);
  assert.equal(p.requests.some(r=>r.url==='/api/disconnect'),false);
 });
+
+test('temporary invalid status response preserves pairing screen, session and automatic polling',async()=>{
+ const p=await page({initialAccount:{status:'connecting',code:null}});
+ p.element('begin').onclick();p.element('country').value='US';p.element('phone').value='2025550123';p.element('consent').checked=true;
+ await p.element('connect').events.submit({preventDefault(){}});
+ const fetch=p.context.fetch;let fail=true;
+ p.context.fetch=async(...args)=>{if(fail&&args[0]==='/api/status')return {ok:false,status:502,json:async()=>{throw SyntaxError('html');}};return fetch(...args);};
+ await vm.runInContext('refresh()',p.context);
+ assert.equal(p.element('pairing').hidden,false);assert.equal(p.element('welcome').hidden,true);
+ assert.equal(p.intervals.size,1);assert.equal(vm.runInContext('session',p.context),true);
+ assert.match(p.element('expires').textContent,/no necesitas recargar/);assert.equal(p.element('error').hidden,true);
+ fail=false;p.account.code='NEW12345';await vm.runInContext('refresh()',p.context);
+ assert.equal(p.element('code').textContent,'NEW1 2345');
+ p.context.fetch=async()=>({ok:false,status:401,json:async()=>({error:'Conecta tu cuenta'})});
+ await vm.runInContext('refresh()',p.context);assert.equal(p.element('welcome').hidden,false);assert.equal(p.intervals.size,0);
+});
+
+test('three loading dots are visible only while waiting for a pairing code',async()=>{
+ const p=await page();p.account.status='connecting';p.account.code=null;
+ await vm.runInContext('refresh()',p.context);
+ assert.equal(p.element('code-loading').hidden,false);assert.equal(p.element('code').hidden,true);assert.equal(p.element('copy').disabled,true);
+ p.account.code='12345678';await vm.runInContext('refresh()',p.context);
+ assert.equal(p.element('code-loading').hidden,true);assert.equal(p.element('code').hidden,false);
+ p.account.code=null;p.account.status='error';await vm.runInContext('refresh()',p.context);
+ assert.equal(p.element('code-loading').hidden,true);assert.match(p.element('error').textContent,/Obtener código/);
+});

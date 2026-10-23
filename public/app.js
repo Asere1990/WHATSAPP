@@ -5,13 +5,13 @@ function updateDial(){const c=selectedCountry();$('dial-code').textContent=c?'+'
 $('country').addEventListener('change',()=>{updateDial();$('phone').focus();});
 function clearConnectionForm(){ $('country').value='';updateDial();$('phone').value='';$('consent').checked=false; }
 clearConnectionForm();
-let state=null,timer=null,session=false,guideData=null,guideDevice=null,guideStep=0,currentView=null,addingAccount=false,connectionEpoch=0,submitBusy=false,retryAfter=0,blockedNumber=null;
+let state=null,timer=null,session=false,guideData=null,guideDevice=null,guideStep=0,currentView=null,addingAccount=false,connectionEpoch=0,submitBusy=false,retryAfter=0,blockedNumber=null,statusRetryNotice=false;
 try{const saved=localStorage.getItem('guide-device');if(['android','iphone'].includes(saved))guideDevice=saved;}catch{}
 async function api(path,data){
   let r;try{r=await fetch(`/api/${path}`,{method:data?'POST':'GET',headers:data?{'Content-Type':'application/json'}:{},body:data?JSON.stringify(data):undefined});}
   catch{const e=new Error('No se pudo conectar con el servicio. Revisa tu conexión e inténtalo de nuevo.');e.code='NETWORK';throw e;}
   let j;try{j=await r.json();if(!j||typeof j!=='object')throw Error();}
-  catch{const e=new Error('No se pudo leer la respuesta del servicio. Recarga la página e inténtalo de nuevo.');e.code='API_RESPONSE';throw e;}
+  catch{const e=new Error('No se pudo leer la respuesta del servicio. Recarga la página e inténtalo de nuevo.');e.code='API_RESPONSE';e.status=r.status;throw e;}
   if(!r.ok){const e=new Error(typeof j.error==='string'?j.error:'No se pudo completar la operación. Inténtalo de nuevo.');e.status=r.status;throw e;}return j;
 }
 function userError(e){
@@ -23,13 +23,14 @@ function userError(e){
 function error(message,{attention=true}={}){const box=$('error'),changed=box.hidden||box.textContent!==message;box.textContent=message;box.hidden=!message;if(message&&changed&&attention){box.scrollIntoView?.({behavior:'smooth',block:'center'});box.focus({preventScroll:true});}}
 function resetNumberError(){error('');if(blockedNumber){blockedNumber=null;$('connect-button').disabled=Date.now()<retryAfter;$('connect-button').textContent=Date.now()<retryAfter?'Espera un minuto':'Obtener código';}}
 $('phone').addEventListener('input',resetNumberError);$('country').addEventListener('change',resetNumberError);
-function show(id){currentView=id;for(const x of ['loading','welcome','connect','pairing','connected'])$(x).hidden=x!==id;$('guide').hidden=!['connect','pairing'].includes(id);if(id==='connect'&&!guideDevice)$('connect').hidden=true;}
+function show(id){if(id!=='pairing')$('code-loading').hidden=true;currentView=id;for(const x of ['loading','welcome','connect','pairing','connected'])$(x).hidden=x!==id;$('guide').hidden=!['connect','pairing'].includes(id);if(id==='connect'&&!guideDevice)$('connect').hidden=true;}
 async function refresh({initial=false}={}){
   if(!session||addingAccount)return;
   const epoch=connectionEpoch;
   try{
     const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;state=next;
     if(initial&&state.status!=='connected'){clearConnectionForm();$('code').textContent='···· ····';$('copy').disabled=true;$('pairing-account').textContent='';$('owner-actions').hidden=true;show('welcome');error('');return;}
+    if(statusRetryNotice){error('');statusRetryNotice=false;}
     $('greeting').textContent='Conecta tu cuenta';
     $('owner-actions').hidden=!state.consent;
     $('connected-account').textContent=`${state.name} · ${state.phone}`;
@@ -37,12 +38,19 @@ async function refresh({initial=false}={}){
     if(state.status==='connected'){
       show('connected');$('activity').textContent=state.paused?'Atención pausada':'Atención activa';$('pause').textContent=state.paused?'Reanudar atención':'Pausar atención';error('');
     }else if(state.status==='connecting' || state.code){
-      show('pairing');$('code').textContent=state.code?state.code.slice(0,4)+' '+state.code.slice(4):'···· ····';$('copy').disabled=!state.code;
+      show('pairing');$('code-loading').hidden=!!state.code;$('code').hidden=!state.code;$('code').textContent=state.code?state.code.slice(0,4)+' '+state.code.slice(4):'···· ····';$('copy').disabled=!state.code;
       $('expires').textContent=state.code?'Copia el código e introdúcelo en WhatsApp. Se renueva automáticamente.':'Preparando el código. Esto puede tardar un momento…';$('retry').hidden=true;updateGuideNext();
     }else{
-      show('connect');
+      show('connect');if(['error','auth_failure','expired','needs_pairing'].includes(state.status))error('No se pudo completar la solicitud del código. Pulsa Obtener código para volver a intentarlo.',{attention:false});
     }
-  }catch(e){if(epoch!==connectionEpoch||addingAccount)return;session=false;clearInterval(timer);timer=null;show('welcome');$('owner-actions').hidden=true;if(e.status!==401)error(userError(e),{attention:false});}
+  }catch(e){
+    if(epoch!==connectionEpoch||addingAccount)return;
+    if(e.status===401){session=false;clearInterval(timer);timer=null;show('welcome');$('owner-actions').hidden=true;error('');return;}
+    // A network/proxy/JSON failure is not evidence that browser authorization ended.
+    statusRetryNotice=true;
+    if(currentView==='pairing')$('expires').textContent='La comunicación se interrumpió un momento. Seguimos esperando el código; no necesitas recargar.';
+    else error('La comunicación se interrumpió un momento. Vuelve a intentarlo.',{attention:false});
+  }
 }
 async function init(){
   try{
@@ -68,8 +76,10 @@ $('connect').addEventListener('submit',async event=>{
       await api('register',input);addingAccount=false;connectionEpoch++;state=null;session=true;
       $('cancel-new-account').hidden=true;clearInterval(timer);timer=setInterval(refresh,3000);
     }
+    show('pairing');$('pairing-account').textContent=`Número que estás vinculando: ${input.phone}`;$('code').hidden=true;$('code-loading').hidden=false;$('copy').disabled=true;$('expires').textContent='Preparando el código. Esto puede tardar un momento…';
     await api('connect',input);await refresh();if(session&&!timer)timer=setInterval(refresh,3000);
   }catch(e){
+    show('connect');
     if(e.status===409){blockedNumber=true;error('Este número ya está registrado. Para recuperar su acceso en este navegador, abre el enlace privado creado por el administrador. Administrador: en el bot usa /invitar +NÚMERO Nombre y abre el enlace que recibas. No necesitas desvincular la cuenta.');}
     else if(e.status===429){retryAfter=Date.now()+60000;error('Se hicieron varios intentos seguidos. Espera un minuto antes de volver a solicitar el código.');setTimeout(()=>{if(Date.now()>=retryAfter&&!blockedNumber){$('connect-button').disabled=false;$('connect-button').textContent='Obtener código';}},60000);}
     else error(userError(e));

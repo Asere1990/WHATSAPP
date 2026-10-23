@@ -17,3 +17,5 @@ button:not(:disabled):not(.secondary):not(.danger):hover{filter:brightness(.94)}
 .guide{margin-top:14px;padding:18px;border:2px solid #25d366;border-radius:18px;background:#fff}.guide-heading{margin-top:15px}.guide-visual{margin-top:12px}.guide #guide-title{margin-bottom:8px}#pairing .code{margin:16px 0}#pairing #expires{margin:10px 0 0}@media(max-width:800px){.guide{padding:14px;margin-top:12px}}
 
 .guide-visual img,.guide-visual video{box-sizing:border-box;border:1px solid #e53935;border-radius:14px}
+
+.code-loading{display:flex;align-items:center;justify-content:center;gap:12px;min-height:100px;margin:16px 0;background:#dcf8c6;border-radius:16px}.code-loading span{width:12px;height:12px;border-radius:50%;background:#128c7e;animation:code-dot 1.2s infinite ease-in-out}.code-loading span:nth-child(2){animation-delay:.15s}.code-loading span:nth-child(3){animation-delay:.3s}@keyframes code-dot{0%,80%,100%{opacity:.3;transform:translateY(0)}40%{opacity:1;transform:translateY(-7px)}}@media(prefers-reduced-motion:reduce){.code-loading span{animation:none}}
