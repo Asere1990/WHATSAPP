@@ -58,7 +58,7 @@ function renderCarousel(slides){
 async function loadCorporateContent(){
  try{
   const response=await fetch('/api/cubamax');if(!response.ok)return;const content=await response.json();
-  for(const el of document.querySelectorAll('[data-cubamax-text]')){const value=content.fields?.[el.dataset.cubamaxText];if(typeof value==='string')el.textContent=value;}
+  for(const el of document.querySelectorAll('[data-cubamax-text]')){const value=content.fields?.[el.dataset.cubamaxText];if(typeof value==='string')el.textContent=el.dataset.cubamaxText==='accent'&&value==='Uniendo a la familia cubana.'?'Uniendo a la\nfamilia\u00a0cubana.':value;}
   for(const service of ['money','combo','packages','topup']){const title=content.fields?.[service+'Title'];if(typeof title==='string')corporateServices[service]=title;}
   for(const service of ['money','combo','packages','topup']){for(const [property,suffix]of [['title','PopupTitle'],['description','PopupDescription']]){const value=content.fields?.[service+suffix];if(typeof value==='string')corporatePopups[service][property]=value;}}
   renderServicePopup();
