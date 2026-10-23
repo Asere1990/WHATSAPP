@@ -143,6 +143,8 @@ test('last tutorial button opens WhatsApp instead of checking connection',async(
  const count=p.requests.length;
  p.element('guide-next').onclick();
  assert.equal(p.context.location.href,'whatsapp://');
+ assert.match(p.element('guide-text').textContent,/Dispositivos vinculados/);
+ assert.match(p.element('guide-text').textContent,/manualmente/);
  assert.equal(p.requests.length,count);
 });
 
@@ -278,4 +280,12 @@ test('Cubamax uses isolated cookies, corporate registration and the same full re
  p.account.status='connected';p.account.code=null;await vm.runInContext('refresh()',p.context);assert.equal(p.context.location.replacedPath,'/cubamax');assert.equal(p.element('phone').value,'');assert.equal(p.element('consent').checked,false);assert.equal(p.intervals.size,0);assert.equal(p.requests.some(r=>r.url==='/api/disconnect'),false);
  const enrolled=await page({pathname:'/cubamax',completed:true,initialAccount:{status:'pending'}});enrolled.element('begin').onclick();enrolled.element('country').value='US';enrolled.element('phone').value='2025550124';enrolled.element('consent').checked=true;
  await enrolled.element('connect').events.submit({preventDefault(){}});assert.equal(enrolled.element('error').textContent,'Ya estás conectado al sistema.');assert.equal(enrolled.requests.some(r=>r.url==='/api/connect'),false);enrolled.element('phone').events.input();assert.equal(enrolled.element('error').hidden,true);
+});
+
+test('Android final guide button opens the app on the user click and retains manual directions',async()=>{const p=await page();p.element('device-android').onclick();const count=p.requests.length;p.element('guide-next').onclick();assert.equal(p.context.location.href,'whatsapp://');assert.match(p.element('guide-text').textContent,/tres puntos/);assert.equal(p.requests.length,count);});
+test('Android GIF assets render in the shared tutorial and unapproved paths stay hidden',async()=>{
+ const p=await page();
+ vm.runInContext("guideData={android:[{title:'Paso',text:'Instrucciones',asset:'/guides/android-2026/step-1.gif'}]};guideDevice='android';guideStep=0;renderGuide()",p.context);
+ assert.equal(p.element('guide-image').src,'/guides/android-2026/step-1.gif');assert.equal(p.element('guide-image').hidden,false);
+ vm.runInContext("guideData.android[0].asset='/guides/android-2026/step-6.gif';renderGuide()",p.context);assert.equal(p.element('guide-image').hidden,true);
 });

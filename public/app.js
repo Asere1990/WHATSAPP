@@ -142,14 +142,19 @@ function renderGuide(){
   $('guide-count').textContent=`PASO ${guideStep+1} DE ${steps.length}`;$('guide-device').textContent=guideDevice.toUpperCase();
   $('guide-title').textContent=step.title;$('guide-text').textContent=step.text;$('guide-text').hidden=guideDevice==='iphone'&&guideStep===0;
   const image=$('guide-image'),video=$('guide-video');video.pause();image.hidden=true;video.hidden=true;
-  const asset=step.asset,valid=typeof asset==='string'&&(/^\/guides\/(android|iphone)-(prepare|open|linked|number|approve)\.svg$/.test(asset)||/^\/guides\/iphone-2026\/step-[1-5]\.gif$/.test(asset)||/^\/guide-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/.test(asset));
+  const asset=step.asset,valid=typeof asset==='string'&&(/^\/guides\/(android|iphone)-(prepare|open|linked|number|approve)\.svg$/.test(asset)||/^\/guides\/(android|iphone)-2026\/step-[1-5]\.gif$/.test(asset)||/^\/guide-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/.test(asset));
   if(valid){if(asset.endsWith('.mp4')){video.src=asset;video.hidden=false;video.play().catch(()=>{});}else{image.src=asset;image.alt=step.title;image.hidden=false;}}
   $('guide-art-note').hidden=!valid||!asset.startsWith('/guides/');
   $('guide-back').disabled=guideStep===0;$('guide-next').textContent=guideStep===steps.length-1?'IR A LA APP':'SIGUIENTE →';updateGuideNext();
 }
 for(const device of ['android','iphone'])$('device-'+device).onclick=()=>{guideDevice=device;guideStep=0;try{localStorage.setItem('guide-device',device);}catch{}if(currentView==='connect')show('connect');renderGuide();};
 $('guide-back').onclick=()=>{guideStep--;renderGuide();};
-$('guide-next').onclick=()=>{if(guideStep<guideData[guideDevice].length-1){guideStep++;renderGuide();}else{location.href='whatsapp://';}};
+function openWhatsApp(){
+  $('guide-text').hidden=false;
+  $('guide-text').textContent=guideDevice==='android'?'En WhatsApp: menú de tres puntos → Dispositivos vinculados → Vincular un dispositivo → Vincular con número. Si no se abre, abre WhatsApp manualmente.':'En WhatsApp: Tú o Configuración → Dispositivos vinculados → Vincular un dispositivo. Si no se abre, abre WhatsApp manualmente.';
+  location.href='whatsapp://';
+}
+$('guide-next').onclick=()=>{if(guideStep<guideData[guideDevice].length-1){guideStep++;renderGuide();}else{openWhatsApp();}};
 globalThis.addEventListener?.('pageshow',event=>{if(event.persisted){if(session&&currentView==='pairing')refresh();else if(currentView==='welcome')clearConnectionForm();}});
 document.addEventListener?.('visibilitychange',()=>{if(document.visibilityState==='visible'&&session&&currentView==='pairing')refresh();});
 init();

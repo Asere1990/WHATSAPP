@@ -39,7 +39,7 @@ const server=http.createServer(async(req,res)=>{
     if(req.method==='GET'&&/^\/cubamax-slides\/(money|combo|packages|topup)\.svg$/.test(route)){res.writeHead(200,{...security,'Content-Type':'image/svg+xml'});return res.end(readFileSync(new URL('../public'+route,import.meta.url)));}
     if(req.method==='GET'&&portalMediaPath.test(route)){try{const data=readFileSync(path.join(dir,'portal-media',path.basename(route)));return res.writeHead(200,{...security,'Content-Type':{png:'image/png',jpg:'image/jpeg',gif:'image/gif',webp:'image/webp'}[route.split('.').at(-1)]}),res.end(data);}catch{return json(404,{error:'Imagen no encontrada.'});}}
     if(req.method==='GET'&&route==='/api/guides')return json(200,{android:guides(store,'android'),iphone:guides(store,'iphone')});
-    if(req.method==='GET'&&(/^\/guides\/(android|iphone)-(prepare|open|linked|number|approve)\.svg$/.test(route)||/^\/guides\/iphone-2026\/step-[1-5]\.gif$/.test(route)||mediaPath.test(route))){
+    if(req.method==='GET'&&(/^\/guides\/(android|iphone)-(prepare|open|linked|number|approve)\.svg$/.test(route)||/^\/guides\/(android|iphone)-2026\/step-[1-5]\.gif$/.test(route)||mediaPath.test(route))){
       const ext=route.split('.').at(-1),types={svg:'image/svg+xml',png:'image/png',jpg:'image/jpeg',gif:'image/gif',webp:'image/webp',mp4:'video/mp4'};
       try{const bytes=readFileSync(route.startsWith('/guides/')?new URL('../public'+route,import.meta.url):path.join(dir,'guide-media',path.basename(route)));
         res.writeHead(200,{...security,'Content-Type':types[ext],'Content-Length':bytes.length});return res.end(bytes);

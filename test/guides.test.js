@@ -44,3 +44,13 @@ test('validation rejects arbitrary asset URLs and oversized instructions',t=>{
   const {store}=setup(t),steps=guides(store,'android');steps[0].asset='https://attacker.example/a.svg';assert.throws(()=>saveGuide(store,'android',steps));
   steps[0].asset=null;steps[0].text='x'.repeat(1001);assert.throws(()=>saveGuide(store,'android',steps));
 });
+test('Android GIF template upgrades stock guides without overwriting custom content',t=>{
+ const {store}=setup(t),fresh=guides(store,'android');
+ assert.equal(new Set(fresh.map(s=>s.asset)).size,5);assert.ok(fresh.every(s=>/^\/guides\/android-2026\/step-[1-5]\.gif$/.test(s.asset)));
+ const titles=['Obtén tu código','Abre WhatsApp','Vincula un dispositivo','Elige vincular con número','Introduce el código en WhatsApp'];
+ const texts=['En esta página, elige el país de tu número, escribe tu número sin prefijo y acepta la autorización si estás de acuerdo. Pulsa Obtener código. No recibirás un SMS: el código aparecerá aquí.','Abre WhatsApp en tu teléfono principal. En la pantalla de chats, pulsa el menú de los tres puntos (⋮).','Entra a Dispositivos vinculados y pulsa Vincular un dispositivo. Si aparece una notificación de vinculación, también puedes abrirla para continuar.','Pulsa Vincular con número de teléfono en lugar de escanear el QR. Si WhatsApp pide desbloquear el teléfono, hazlo dentro de la aplicación.','Copia el código que aparece en esta página e introdúcelo dentro de WhatsApp. Revisa el dispositivo solicitado y confirma solo si corresponde al gestor que autorizas. Vuelve a esta página para comprobar la conexión.'];
+ const old=['prepare','open','linked','number','approve'].map((id,i)=>({id,title:titles[i],text:texts[i],asset:`/guides/android-${id}.svg`}));
+ store.setConfig('guide_android',JSON.stringify(old));assert.deepEqual(guides(store,'android'),fresh);
+ old[1].text='Instrucciones personalizadas';store.setConfig('guide_android',JSON.stringify(old));assert.deepEqual(guides(store,'android'),old);
+ saveGuide(store,'android',fresh);assert.deepEqual(guides(store,'android'),fresh);
+});

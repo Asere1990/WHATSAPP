@@ -13,6 +13,17 @@ export function defaultGuide(device){
     {id:'number',title:'Elige vincular con número',text:'Si aparece un aviso, toca OK. Luego toca Vincular con el número de teléfono, abajo en la pantalla del escáner. No necesitas escanear un QR.',asset:'/guides/iphone-2026/step-4.gif'},
     {id:'approve',title:'Introduce el código en WhatsApp',text:'Copia el código actual que aparece en nuestra página e introdúcelo en los ocho espacios dentro de WhatsApp. Confirma únicamente el dispositivo que autorizas. Vuelve a esta página para comprobar la conexión.',asset:'/guides/iphone-2026/step-5.gif'}
   ];
+  return [
+    {id:'prepare',title:'Abre WhatsApp y toca los tres puntos',text:'Primero obtén tu código en esta página. Abre WhatsApp en tu Android principal y toca el menú de los tres puntos (⋮), arriba a la derecha. El recuadro rojo indica dónde tocar.',asset:'/guides/android-2026/step-1.gif'},
+    {id:'open',title:'Toca Dispositivos vinculados',text:'En el menú de los tres puntos, toca Dispositivos vinculados, dentro del recuadro rojo.',asset:'/guides/android-2026/step-2.gif'},
+    {id:'linked',title:'Pulsa Vincular un dispositivo',text:'Toca el botón Vincular un dispositivo. Si WhatsApp solicita tu huella o desbloquear el teléfono, confírmalo dentro de la aplicación.',asset:'/guides/android-2026/step-3.gif'},
+    {id:'number',title:'Elige vincular con número',text:'En la pantalla del escáner, toca Vincular con el número de teléfono, abajo. No necesitas escanear un QR.',asset:'/guides/android-2026/step-4.gif'},
+    {id:'approve',title:'Introduce el código en WhatsApp',text:'Copia el código actual de esta página e introdúcelo en los ocho espacios dentro de WhatsApp. Confirma solo el dispositivo que tú autorizas y vuelve a esta página para comprobar la conexión.',asset:'/guides/android-2026/step-5.gif'}
+  ];
+}
+// Upgrade only the untouched old Android template, never an administrator's custom guide.
+function legacyAndroidGuide(){
+ const device='android';
   const titles=['Obtén tu código','Abre WhatsApp','Vincula un dispositivo','Elige vincular con número','Introduce el código en WhatsApp'];
   const texts=[
     'En esta página, elige el país de tu número, escribe tu número sin prefijo y acepta la autorización si estás de acuerdo. Pulsa Obtener código. No recibirás un SMS: el código aparecerá aquí.',
@@ -23,10 +34,11 @@ export function defaultGuide(device){
   ];
   return ids.map((id,i)=>({id,title:titles[i],text:texts[i],asset:`/guides/${device}-${id}.svg`}));
 }
+
 export function guides(store,device){
   if(!devices.includes(device))throw new Error('Dispositivo inválido.');
   const raw=store.config()[`guide_${device}`];
-  if(raw)try{const steps=JSON.parse(raw);validateSteps(steps);return steps;}catch{}
+  if(raw)try{const steps=JSON.parse(raw);validateSteps(steps);if(device==='android'&&steps.length===5&&steps.every((step,i)=>Object.entries(legacyAndroidGuide()[i]).every(([key,value])=>step[key]===value)))return defaultGuide(device);return steps;}catch{}
   return defaultGuide(device);
 }
 function validateSteps(steps){
@@ -35,7 +47,7 @@ function validateSteps(steps){
   for(const s of steps){
     if(!/^[a-z0-9]{1,16}$/.test(s.id)||seen.has(s.id))throw new Error('Paso inválido.');seen.add(s.id);
     if(typeof s.title!=='string'||!s.title.trim()||s.title.length>80||typeof s.text!=='string'||!s.text.trim()||s.text.length>1000)throw new Error('Título: hasta 80 caracteres. Instrucciones: hasta 1000.');
-    if(s.asset&&!mediaPath.test(s.asset)&&!/^\/guides\/iphone-2026\/step-[1-5]\.gif$/.test(s.asset)&&!/^\/guides\/(android|iphone)-(prepare|open|linked|number|approve)\.svg$/.test(s.asset))throw new Error('Imagen no válida.');
+    if(s.asset&&!mediaPath.test(s.asset)&&!/^\/guides\/(android|iphone)-2026\/step-[1-5]\.gif$/.test(s.asset)&&!/^\/guides\/(android|iphone)-(prepare|open|linked|number|approve)\.svg$/.test(s.asset))throw new Error('Imagen no válida.');
   }
 }
 export function saveGuide(store,device,steps){if(!devices.includes(device))throw new Error('Dispositivo inválido.');validateSteps(steps);store.setConfig(`guide_${device}`,JSON.stringify(steps));}
