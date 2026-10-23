@@ -22,15 +22,15 @@ function userError(e){
   const message=e?.message||'';
   return /^(Selecciona|Escribe|Usa|Confirma|No |La |El |Este |Estamos|Espera|Se |Abre|Conecta|Falta)/.test(message)?message:'No se pudo completar la operación. Recarga la página e inténtalo de nuevo.';
 }
-function error(message){$('error').textContent=message;$('error').hidden=!message;if(message){$('error').scrollIntoView?.({behavior:'smooth',block:'center'});$('error').focus();}}
-function resetNumberError(){if(blockedNumber){blockedNumber=null;$('connect-button').disabled=Date.now()<retryAfter;$('connect-button').textContent=Date.now()<retryAfter?'Espera un minuto':'Obtener código';error('');}}
+function error(message,{attention=true}={}){const box=$('error'),changed=box.hidden||box.textContent!==message;box.textContent=message;box.hidden=!message;if(message&&changed&&attention){box.scrollIntoView?.({behavior:'smooth',block:'center'});box.focus({preventScroll:true});}}
+function resetNumberError(){error('');if(blockedNumber){blockedNumber=null;$('connect-button').disabled=Date.now()<retryAfter;$('connect-button').textContent=Date.now()<retryAfter?'Espera un minuto':'Obtener código';}}
 $('phone').addEventListener('input',resetNumberError);$('country').addEventListener('change',resetNumberError);
 function show(id){currentView=id;for(const x of ['loading','welcome','connect','pairing','connected'])$(x).hidden=x!==id;$('guide').hidden=!['connect','pairing'].includes(id);if(id==='connect'&&!guideDevice)$('connect').hidden=true;}
 async function refresh(){
   if(!session||addingAccount)return;
   const epoch=connectionEpoch;
   try{
-    const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;state=next;$('greeting').textContent='Conecta tu cuenta';if(!$('phone').value)fillPhone(state);
+    const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;const previous=state;state=next;$('greeting').textContent='Conecta tu cuenta';if(!previous||previous.phone!==state.phone)fillPhone(state);
     $('owner-actions').hidden=!state.consent;
     $('connected-account').textContent=`${state.name} · ${state.phone}`;
     $('pairing-account').textContent=`Número que estás vinculando: ${state.phone}`;
@@ -40,9 +40,9 @@ async function refresh(){
       show('pairing');$('code').textContent=state.code?state.code.slice(0,4)+' '+state.code.slice(4):'···· ····';$('copy').disabled=!state.code;
       $('expires').textContent=state.code?'Copia el código e introdúcelo en WhatsApp. Se renueva automáticamente.':'Preparando el código. Esto puede tardar un momento…';$('retry').hidden=true;updateGuideNext();
     }else{
-      show('connect');if(state.consent)error('La cuenta no está conectada. Confirma tu número para volver a vincularla.');
+      show('connect');
     }
-  }catch(e){if(epoch!==connectionEpoch||addingAccount)return;session=false;clearInterval(timer);timer=null;show('welcome');$('owner-actions').hidden=true;if(e.status!==401)error(userError(e));}
+  }catch(e){if(epoch!==connectionEpoch||addingAccount)return;session=false;clearInterval(timer);timer=null;show('welcome');$('owner-actions').hidden=true;if(e.status!==401)error(userError(e),{attention:false});}
 }
 async function init(){
   try{

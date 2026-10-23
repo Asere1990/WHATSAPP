@@ -11,7 +11,7 @@ const source=countries+readFileSync(new URL('../public/app.js',import.meta.url),
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 async function page({registerStatus=201}={}){
   const elements=new Map(),requests=[],intervals=new Map();let sequence=0;
-  const element=id=>{if(!elements.has(id))elements.set(id,{id,hidden:false,value:'',checked:false,textContent:'',disabled:false,events:{},setAttribute(){},focus(){},pause(){},showModal(){this.open=true;},close(){this.open=false;},play:async()=>{},appendChild(){},addEventListener(type,fn){this.events[type]=fn;}});return elements.get(id);};
+  const element=id=>{if(!elements.has(id))elements.set(id,{id,hidden:false,value:'',checked:false,textContent:'',disabled:false,events:{},setAttribute(){},focus(){this.focusCount=(this.focusCount||0)+1;},scrollIntoView(){this.scrollCount=(this.scrollCount||0)+1;},pause(){},showModal(){this.open=true;},close(){this.open=false;},play:async()=>{},appendChild(){},addEventListener(type,fn){this.events[type]=fn;}});return elements.get(id);};
   let account={name:'Primera',phone:'+12025550123',country:'US',nationalNumber:'2025550123',status:'connected',consent:true,paused:false};
   let deferStatus=null;
   const fetch=async(url,options={})=>{
@@ -83,4 +83,31 @@ test('Safari pattern errors and network or invalid server responses are presente
  await assert.rejects(vm.runInContext("api('status')",p.context),/No se pudo conectar con el servicio/);
  p.context.fetch=async()=>({ok:false,status:503,json:async()=>{throw SyntaxError('The string did not match the expected pattern.');}});
  await assert.rejects(vm.runInContext("api('status')",p.context),/No se pudo leer la respuesta del servicio/);
+});
+
+test('background disconnected polling does not show an error, scroll or steal input focus',async()=>{
+ const p=await page();p.account.status='disconnected';
+ p.element('phone').value='321512';
+ for(let n=0;n<3;n++)await vm.runInContext('refresh()',p.context);
+ assert.equal(p.element('connect').hidden,false);
+ assert.equal(p.element('error').hidden,true);
+ assert.equal(p.element('error').focusCount||0,0);
+ assert.equal(p.element('error').scrollCount||0,0);
+ assert.equal(p.element('phone').value,'321512');
+ p.element('phone').value='';p.element('phone').events.input();
+ await vm.runInContext('refresh()',p.context);
+ assert.equal(p.element('phone').value,'');
+ p.element('country').value='CU';p.element('country').events.change();
+ await vm.runInContext('refresh()',p.context);
+ assert.equal(p.element('country').value,'CU');
+});
+test('validation alerts clear when editing and repeated alerts do not scroll or focus again',async()=>{
+ const p=await page();
+ vm.runInContext("error('Escribe tu número correctamente.')",p.context);
+ vm.runInContext("error('Escribe tu número correctamente.')",p.context);
+ assert.equal(p.element('error').focusCount,1);
+ assert.equal(p.element('error').scrollCount,1);
+ p.element('phone').events.input();
+ assert.equal(p.element('error').hidden,true);
+ assert.equal(p.element('error').textContent,'');
 });
