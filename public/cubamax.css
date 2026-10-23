@@ -150,3 +150,6 @@
 .corporate-portal #servicios .section-heading h2{color:#319798;font-size:clamp(25px,4vw,38px);letter-spacing:normal;max-width:none;text-align:center}
 
 .corporate-portal .hero-action{display:flex;width:fit-content;margin-left:auto;margin-right:auto}
+
+.corporate-portal .hero-action{position:relative;justify-content:center;gap:0;padding-inline:56px;text-align:center}
+.corporate-portal .hero-action>span[aria-hidden="true"]{position:absolute;right:22px;top:50%;transform:translateY(-50%)}
