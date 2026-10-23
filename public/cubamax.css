@@ -94,3 +94,21 @@
 .corporate-portal #copy-help{color:var(--navy)}
 .corporate-portal #copy-help::backdrop{background:#12284988}
 .corporate-portal .copy-help-content ol{color:var(--muted)}
+.corporate-portal .hero-carousel{min-width:0;position:relative;overflow:hidden;border:1px solid #dce5f3;border-radius:28px;background:#f4f7ff;box-shadow:0 16px 45px #193c7b10}
+.corporate-portal .carousel-stage{position:relative;aspect-ratio:600/420;overflow:hidden;isolation:isolate}
+.corporate-portal .carousel-slide{display:none;position:absolute;inset:0;margin:0;background:#eef3fc}
+.corporate-portal .carousel-slide.is-active{display:block;z-index:2;animation:cubamax-slide-in .65s cubic-bezier(.22,.61,.36,1) both}
+.corporate-portal .carousel-slide.is-leaving{display:block;z-index:1;animation:cubamax-slide-out .65s cubic-bezier(.22,.61,.36,1) both}
+.corporate-portal .carousel-slide img{display:block;width:100%;height:100%;object-fit:cover}
+.corporate-portal .carousel-slide h3{position:absolute;left:22px;right:22px;bottom:18px;margin:0;padding:14px 18px;border-radius:12px;background:#ffffffed;backdrop-filter:blur(8px);color:var(--navy);font-size:18px;line-height:1.3;box-shadow:0 6px 20px #193c7b12}
+.corporate-portal .carousel-controls{display:flex;align-items:center;gap:10px;padding:14px 18px;background:#fff;border-top:1px solid #dce5f3}
+.corporate-portal .carousel-controls button{width:34px;height:34px;flex-shrink:0;display:grid;place-items:center;padding:0;border-radius:50%;font-size:16px;box-shadow:none!important}
+.corporate-portal .carousel-dots{display:flex;align-items:center;gap:7px;flex:1;justify-content:center;flex-wrap:wrap}
+.corporate-portal .carousel-dots button{width:9px;height:9px;background:#cfdaee!important;min-width:9px}
+.corporate-portal .carousel-dots button[aria-pressed=true]{background:var(--red)!important;box-shadow:0 0 0 3px #dc304515!important}
+@keyframes cubamax-slide-in{from{transform:translateX(100%)}to{transform:translateX(0)}}
+@keyframes cubamax-slide-out{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+@media(prefers-reduced-motion:reduce){.corporate-portal .carousel-slide{animation:none!important}.corporate-portal .carousel-slide.is-leaving{display:none}}
+@media(max-width:800px){.corporate-portal .hero-carousel{width:100%;max-width:470px;margin:auto}.corporate-portal .carousel-slide h3{font-size:16px;left:15px;right:15px;bottom:14px;padding:12px 15px}}
+
+.corporate-portal [data-cubamax-text],.corporate-portal .carousel-slide h3{overflow-wrap:anywhere}

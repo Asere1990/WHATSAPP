@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { Control } from './control.js';
 import { GuideEditor } from './guides.js';
+import {PortalEditor} from './portal.js';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 export class Telegram {
-  constructor(store,config) {this.store=store;this.config=config;this.pending=new Map();this.running=false;this.offset=Number(store.config().telegram_offset||0);this.control=new Control(this);this.guideEditor=new GuideEditor(this);}
+  constructor(store,config) {this.store=store;this.config=config;this.pending=new Map();this.running=false;this.offset=Number(store.config().telegram_offset||0);this.control=new Control(this);this.guideEditor=new GuideEditor(this);this.portalEditor=new PortalEditor(this);}
   admins() {
     let file='';try{file=readFileSync('admins.txt','utf8');}catch{}
     return new Set(`${this.config.admins||''}\n${file}`.split(/[\s,]+/).filter(x=>/^\d+$/.test(x)));
@@ -53,7 +54,7 @@ export class Telegram {
     if(!r.ok)throw new Error('No se pudo descargar');
     const data=Buffer.from(await r.arrayBuffer());if(data.length>20*1024*1024)throw new Error('Archivo demasiado grande');return data;
   }
-  help() {return 'WHATSAPP · Administración\n\n/invitar +NUMERO Nombre — enlace privado, válido 24 h\n/cuentas — cuentas y estado\n/pausar ID · /activar ID\n/reconectar ID — recuperar sesión existente\n/baileys [ID] — vincular con el motor ligero\n/desconectar ID — solicitar desvinculación\n/regla ID palabra | respuesta — coincidencia exacta, sin IA\n/reglas ID · /borrarregla NUMERO\n/pendientes — incidencias por revisar\n/editar titulo TEXTO\n/editar descripcion TEXTO\n/editar boton TEXTO\n/editar color #16a675\n/menu — botones\n\nEn mi privado: /menu → cuenta → CHATS → contacto. RESPONDER admite texto, fotos, videos, documentos y audio. VER MENSAJES muestra ambos participantes en una vista paginada; los audios se abren con ESCUCHAR. BORRAR ÚLTIMO MENSAJE pide confirmar el último enviado y depende del permiso de WhatsApp. Las descargas van a ALMACEN; los mensajes y audios recibidos, a CHATS. También puedes usar reply allí. Los conteos consultan el índice multimedia del dispositivo vinculado; puede diferir de la galería del teléfono.';}
+  help() {return 'WHATSAPP · Administración\n\n/invitar +NUMERO Nombre — enlace privado, válido 24 h\n/cuentas — cuentas y estado\n/pausar ID · /activar ID\n/reconectar ID — recuperar sesión existente\n/baileys [ID] — vincular con el motor ligero\n/desconectar ID — solicitar desvinculación\n/regla ID palabra | respuesta — coincidencia exacta, sin IA\n/reglas ID · /borrarregla NUMERO\n/pendientes — incidencias por revisar\n/cubamax — editar textos e imágenes de Cubamax\n/editar titulo TEXTO\n/editar descripcion TEXTO\n/editar boton TEXTO\n/editar color #16a675\n/menu — botones\n\nEn mi privado: /menu → cuenta → CHATS → contacto. RESPONDER admite texto, fotos, videos, documentos y audio. VER MENSAJES muestra ambos participantes en una vista paginada; los audios se abren con ESCUCHAR. BORRAR ÚLTIMO MENSAJE pide confirmar el último enviado y depende del permiso de WhatsApp. Las descargas van a ALMACEN; los mensajes y audios recibidos, a CHATS. También puedes usar reply allí. Los conteos consultan el índice multimedia del dispositivo vinculado; puede diferir de la galería del teléfono.';}
   async accountsList(chat) {
     const list=this.store.all().filter(a=>a.consent&&this.accounts?.live.get(a.id)?.ready);await this.send(chat,list.length?list.slice(0,30).map(a=>`${this.store.profile(a.id,`${a.phone}@c.us`)?.name||'Cuenta de WhatsApp'} · +${a.phone}\n${a.id}\n${a.status}${a.paused?' · PAUSADO':''}`).join('\n\n'):'Todavía no hay cuentas.',this.menu());
   }
@@ -73,7 +74,8 @@ export class Telegram {
       if(cb.data==='accounts')return this.control.home(chat,actor.id);
       if(cb.data==='help')return reply(this.help());
       if(cb.data==='invite'){this.pending.set(key,{kind:'invite'});return reply('Envía el número con código de país y el nombre. Ejemplo: +12025550123 María');}
-      if(cb.data==='design'){this.pending.delete(key);return this.send(chat,'¿Qué quieres cambiar?',{inline_keyboard:[[{text:'Logo',callback_data:'edit:logo'},{text:'Título',callback_data:'edit:title'}],[{text:'Texto',callback_data:'edit:description'},{text:'Color',callback_data:'edit:color'}],[{text:'Texto del botón',callback_data:'edit:button'},{text:'Ver página',url:this.config.url}],[{text:'📱 GUÍAS ANDROID / IPHONE',callback_data:'guide'}]]});}
+      if(cb.data==='cm'||cb.data?.startsWith('cm:')){this.pending.delete(key);return this.portalEditor.callback(chat,key,cb.data);}
+      if(cb.data==='design'){this.pending.delete(key);return this.send(chat,'¿Qué quieres cambiar?',{inline_keyboard:[[{text:'Logo',callback_data:'edit:logo'},{text:'Título',callback_data:'edit:title'}],[{text:'Texto',callback_data:'edit:description'},{text:'Color',callback_data:'edit:color'}],[{text:'Texto del botón',callback_data:'edit:button'},{text:'Ver página',url:this.config.url}],[{text:'🇨🇺 EDITAR CUBAMAX',callback_data:'cm'}],[{text:'📱 GUÍAS ANDROID / IPHONE',callback_data:'guide'}]]});}
       if(cb.data?.startsWith('edit:')) {this.pending.set(key,{kind:cb.data.slice(5)});return reply(cb.data==='edit:logo'?'Envía el nuevo logo como foto.':'Envía el nuevo valor. /cancelar para salir.');}
       if(cb.data?.startsWith('disconnect:')){await this.accounts.disconnect(cb.data.split(':')[1]);return reply('Cuenta desvinculada.');}
       return;
@@ -83,6 +85,7 @@ export class Telegram {
     if(m.chat.type==='private'&&!this.pending.has(key)&&await this.control.input(m,actor.id))return;
     const pending=this.pending.get(key);
     if(pending&&!raw.startsWith('/')&&!m.reply_to_message) {
+      if(pending.kind==='cubamax'){await this.portalEditor.input(chat,pending,m);this.pending.delete(key);return;}
       if(pending.kind==='guide'){await this.guideEditor.input(chat,pending,m);this.pending.delete(key);return;}
       if(pending.kind==='invite'){await this.invite(chat,...raw.split(/\s+/));this.pending.delete(key);return;}
       if(pending.kind==='logo'){
@@ -97,6 +100,7 @@ export class Telegram {
       if(m.chat.type!=='private')return reply('Abre el privado de este bot y escribe /menu para administrar las cuentas. Aquí puedes responder con reply a los mensajes recibidos.');
       return this.control.home(chat,actor.id);
     }
+    if(cmd==='/cubamax'){if(m.chat.type!=='private')return reply('Abre el privado del bot y escribe /cubamax.');this.pending.delete(key);return this.portalEditor.menu(chat);}
     if(cmd==='/comandos')return reply(this.help());
     if(cmd==='/baileys'){
       const items=args[0]?[this.store.account(args[0])]:this.store.all().filter(a=>a.consent);

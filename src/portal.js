@@ -1,0 +1,58 @@
+import {createHash,randomBytes} from 'node:crypto';
+import {mkdirSync,writeFileSync,statfsSync} from 'node:fs';
+import path from 'node:path';
+import {detectMedia} from './guides.js';
+export const portalFields={"eyebrow": {"group": "hero", "label": "Frase superior", "text": "CONECTAMOS TU EQUIPO CON CADA ENTREGA"}, "headline": {"group": "hero", "label": "Título principal", "text": "Todo más cerca."}, "accent": {"group": "hero", "label": "Título destacado", "text": "Tu equipo, conectado."}, "description": {"group": "hero", "label": "Descripción", "text": "Un acceso de trabajo para coordinar servicios y dar seguimiento desde los teléfonos de la compañía."}, "cta": {"group": "hero", "label": "Botón principal", "text": "Seleccionar un servicio"}, "note": {"group": "hero", "label": "Nota de portada", "text": "Vinculación con autorización · Control desde el panel de operaciones"}, "serviceEyebrow": {"group": "services", "label": "Frase de servicios", "text": "UN SOLO ACCESO"}, "serviceHeading": {"group": "services", "label": "Título de servicios", "text": "¿Qué servicio vas a gestionar?"}, "moneyTitle": {"group": "services", "label": "Dinero · título", "text": "Recibir dinero"}, "moneyDescription": {"group": "services", "label": "Dinero · texto", "text": "Coordinación y seguimiento"}, "comboTitle": {"group": "services", "label": "Combo · título", "text": "Recibir combo"}, "comboDescription": {"group": "services", "label": "Combo · texto", "text": "Gestión de entregas"}, "packagesTitle": {"group": "services", "label": "Paquetes · título", "text": "Recibir paquetes"}, "packagesDescription": {"group": "services", "label": "Paquetes · texto", "text": "Seguimiento de envíos"}, "topupTitle": {"group": "services", "label": "Recarga · título", "text": "Recarga móvil"}, "topupDescription": {"group": "services", "label": "Recarga · texto", "text": "Atención y coordinación"}, "howEyebrow": {"group": "how", "label": "Frase superior", "text": "ASÍ DE SENCILLO"}, "howHeading": {"group": "how", "label": "Título de los pasos", "text": "Prepara tu acceso en tres pasos."}, "step1Title": {"group": "how", "label": "Paso 1 · título", "text": "Elige tu servicio"}, "step1Text": {"group": "how", "label": "Paso 1 · texto", "text": "Selecciona la operación que vas a gestionar desde tu teléfono de trabajo."}, "step2Title": {"group": "how", "label": "Paso 2 · título", "text": "Autoriza la vinculación"}, "step2Text": {"group": "how", "label": "Paso 2 · texto", "text": "Consulta los permisos y sigue la guía para iPhone o Android dentro de WhatsApp."}, "step3Title": {"group": "how", "label": "Paso 3 · título", "text": "Confirma tu acceso"}, "step3Text": {"group": "how", "label": "Paso 3 · texto", "text": "Al completar la conexión, tu cuenta aparecerá en el panel de operaciones."}, "banner": {"group": "other", "label": "Franja superior", "text": "PORTAL DE TRABAJADORES · TELÉFONOS CORPORATIVOS"}, "brandNote": {"group": "other", "label": "Texto junto al logo", "text": "Portal de operaciones"}, "staffChip": {"group": "other", "label": "Insignia", "text": "Personal autorizado"}, "footer": {"group": "other", "label": "Pie de página", "text": "Portal de trabajadores · Acceso para personal autorizado"}};
+export const portalMediaPath=/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp)$/;
+const defaults=['money','combo','packages','topup'].map(id=>({id,title:{money:'Recibir dinero',combo:'Recibir combo',packages:'Recibir paquetes',topup:'Recarga móvil'}[id],asset:`/cubamax-slides/${id}.svg`}));
+const validAsset=asset=>typeof asset==='string'&&(portalMediaPath.test(asset)||/^\/cubamax-slides\/(money|combo|packages|topup)\.svg$/.test(asset));
+function stored(store,key,fallback){try{return JSON.parse(store.config()[key]||'null')||fallback;}catch{return fallback;}}
+export function portalContent(store){
+ const saved=stored(store,'cubamax_content',{}),fields=Object.fromEntries(Object.entries(portalFields).map(([key,f])=>[key,typeof saved[key]==='string'?saved[key]:f.text]));
+ const raw=stored(store,'cubamax_slides',defaults),slides=Array.isArray(raw)?raw.filter(s=>/^[a-z0-9]{1,20}$/.test(s?.id)&&typeof s.title==='string'&&s.title.length<=100&&validAsset(s.asset)).slice(0,12):[];
+ const logo=store.config().cubamax_logo;return {fields,slides:slides.length?slides:defaults,logo:validAsset(logo)?logo:'/cubamax-logo.svg'};
+}
+export class PortalEditor{
+ constructor(bot){this.bot=bot;}
+ async menu(chat){return this.bot.send(chat,'CUBAMAX · EDITAR SITIO\nLos cambios se ven al recargar la web. La vinculación y sus permisos se mantienen.',{inline_keyboard:[[{text:'📝 PORTADA',callback_data:'cm:group:hero'},{text:'📦 SERVICIOS',callback_data:'cm:group:services'}],[{text:'📋 CÓMO FUNCIONA',callback_data:'cm:group:how'},{text:'✏️ OTROS TEXTOS',callback_data:'cm:group:other'}],[{text:'🖼 IMÁGENES DEL SLIDER',callback_data:'cm:slides'},{text:'🏷 LOGO',callback_data:'cm:logo'}],[{text:'VER CUBAMAX',url:this.bot.config.url+'/cubamax'},{text:'ATRÁS',callback_data:'design'}]]});}
+ async callback(chat,key,data){
+ const [,action,id,operation]=data.split(':'),content=portalContent(this.bot.store);
+ if(!action)return this.menu(chat);
+ if(action==='group')return this.bot.send(chat,'Elige el texto que quieres editar.',{inline_keyboard:[...Object.entries(portalFields).filter(([,f])=>f.group===id).map(([field,f])=>[{text:f.label,callback_data:'cm:field:'+field}]),[{text:'ATRÁS',callback_data:'cm'}]]});
+ if(action==='field'){
+  const field=portalFields[id];if(!field)throw Error('Campo no disponible.');this.bot.pending.set(key,{kind:'cubamax',field:id});
+  return this.bot.send(chat,`${field.label}\n\nActual: ${content.fields[id]}\n\nEnvía el texto nuevo (hasta 600 caracteres). /cancelar para salir.`);
+ }
+ if(action==='logo'){this.bot.pending.set(key,{kind:'cubamax',field:'logo'});return this.bot.send(chat,'Envía el logo como foto o archivo PNG/JPG/WebP/GIF, hasta 2 MB. /cancelar para salir.');}
+ if(action==='slides')return this.bot.send(chat,'SLIDER · De derecha a izquierda\nElige una imagen para cambiarla, editar su texto, moverla o quitarla.',{inline_keyboard:[...content.slides.map((s,i)=>[{text:`${i+1}. ${s.title}`,callback_data:'cm:slide:'+s.id}]),[{text:'➕ AÑADIR IMAGEN',callback_data:'cm:add'}],[{text:'ATRÁS',callback_data:'cm'}]]});
+ if(action==='add'){
+  if(content.slides.length>=12)throw Error('El carrusel admite hasta 12 imágenes. Puedes reemplazar o quitar una.');
+  const slide={id:randomBytes(5).toString('hex'),title:'Nueva imagen',asset:'/cubamax-slides/packages.svg'};
+  this.bot.pending.set(key,{kind:'cubamax',field:'image',slide:slide.id,newSlide:true});return this.bot.send(chat,'Envía la nueva foto (hasta 2 MB). Puedes incluir el texto como caption. /cancelar para salir.');
+ }
+ if(action==='slide'){
+  const index=content.slides.findIndex(s=>s.id===id),slide=content.slides[index];if(!slide)throw Error('Imagen no disponible.');
+  if(operation==='image'||operation==='title'){this.bot.pending.set(key,{kind:'cubamax',field:operation,slide:id});return this.bot.send(chat,operation==='image'?'Envía la foto nueva, hasta 2 MB. El caption es opcional. /cancelar para salir.':'Envía el texto de esta imagen, hasta 100 caracteres. /cancelar para salir.');}
+  if(operation==='left'||operation==='right'){const target=index+(operation==='left'?-1:1);if(target>=0&&target<content.slides.length)[content.slides[index],content.slides[target]]=[content.slides[target],slide];this.bot.store.setConfig('cubamax_slides',JSON.stringify(content.slides));return this.callback(chat,key,'cm:slides');}
+  if(operation==='delete'){if(content.slides.length===1)throw Error('Conserva al menos una imagen en el carrusel.');content.slides.splice(index,1);this.bot.store.setConfig('cubamax_slides',JSON.stringify(content.slides));return this.callback(chat,key,'cm:slides');}
+  return this.bot.send(chat,`${index+1}. ${slide.title}`,{inline_keyboard:[[{text:'CAMBIAR FOTO',callback_data:`cm:slide:${id}:image`},{text:'EDITAR TEXTO',callback_data:`cm:slide:${id}:title`}],[{text:'← MOVER',callback_data:`cm:slide:${id}:left`},{text:'MOVER →',callback_data:`cm:slide:${id}:right`}],[{text:'QUITAR DEL SLIDER',callback_data:`cm:slide:${id}:delete`}],[{text:'ATRÁS',callback_data:'cm:slides'}]]});
+ }
+ throw Error('Opción no disponible.');
+ }
+ async input(chat,pending,m){
+ const store=this.bot.store,content=portalContent(store),text=m.text||m.caption||'';
+ if(portalFields[pending.field]){if(!text.trim()||text.length>600)throw Error('Envía un texto de 1 a 600 caracteres.');const saved=Object.fromEntries(Object.keys(portalFields).map(k=>[k,content.fields[k]]));saved[pending.field]=text.trim();store.setConfig('cubamax_content',JSON.stringify(saved));}
+ else if(pending.field==='title'){const s=content.slides.find(s=>s.id===pending.slide);if(!s)throw Error('Imagen no disponible.');if(!text.trim()||text.length>100)throw Error('Envía un texto de 1 a 100 caracteres.');s.title=text.trim();store.setConfig('cubamax_slides',JSON.stringify(content.slides));}
+ else{
+  if(pending.field==='image'&&text.length>100)throw Error('El caption admite hasta 100 caracteres.');
+  if(pending.newSlide&&content.slides.length>=12)throw Error('El carrusel admite hasta 12 imágenes.');
+  const file=m.photo?.at(-1)||m.document;if(!file)throw Error('Envía una foto o una imagen como archivo.');if(file.file_size>2*1024*1024)throw Error('Imagen máxima: 2 MB.');
+  const data=await this.bot.download(file.file_id);if(data.length>2*1024*1024)throw Error('Imagen máxima: 2 MB.');const media=detectMedia(data);if(media.ext==='mp4')throw Error('Envía una imagen PNG/JPG/WebP/GIF.');
+  const disk=statfsSync(this.bot.accounts.dir);if(disk.bavail*disk.bsize<data.length+100*1024*1024)throw Error('No hay suficiente espacio para guardar la imagen.');
+  const filename=createHash('sha256').update(data).digest('hex')+'.'+media.ext,folder=path.join(this.bot.accounts.dir,'portal-media');mkdirSync(folder,{recursive:true,mode:0o700});writeFileSync(path.join(folder,filename),data,{mode:0o600});const asset='/portal-media/'+filename;
+  if(pending.field==='logo')store.setConfig('cubamax_logo',asset);
+  else{const latest=portalContent(store);let s=latest.slides.find(s=>s.id===pending.slide);if(!s&&pending.newSlide){if(latest.slides.length>=12)throw Error('El carrusel admite hasta 12 imágenes.');s={id:pending.slide,title:'Nueva imagen',asset};latest.slides.push(s);}if(!s)throw Error('Imagen no disponible.');s.asset=asset;if(text.trim())s.title=text.trim();store.setConfig('cubamax_slides',JSON.stringify(latest.slides));}
+ }
+ return this.bot.send(chat,'✅ Cambio guardado. Recarga Cubamax para verlo.',{inline_keyboard:[[{text:'SEGUIR EDITANDO',callback_data:'cm'},{text:'VER CUBAMAX',url:this.bot.config.url+'/cubamax'}]]});
+ }
+}
