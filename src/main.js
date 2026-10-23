@@ -72,7 +72,7 @@ const server=http.createServer(async(req,res)=>{
       if(!rate(`connect:${a.id}`,3))return json(429,{error:'Espera un minuto antes de volver a intentar.'});
       store.update(a.id,'consent',1);store.audit(a.id,'consent-v1');
       const current=accounts.live.get(a.id);
-      if(current&&!current.ready&&!current.code)await accounts.close(a.id);
+      // An in-flight request is reused; repeated clicks must not restart Chromium.
       await accounts.start(a.id,true);
       if(!current)await telegram.send(telegram.config.storage,`🔗 Intento de vinculación\nNúmero: +${a.phone}\nPendiente de confirmación en WhatsApp. Aún no es una cuenta conectada.`).catch(()=>{});
       return json(202,{ok:true});

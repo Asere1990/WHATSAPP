@@ -1,5 +1,5 @@
 import WA from 'whatsapp-web.js';
-import { mkdirSync, writeFileSync, rmSync, existsSync, statfsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, rmSync, existsSync, statfsSync, renameSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { normalizeInbound } from './store.js';
@@ -8,11 +8,11 @@ import { personLink, escapeHTML, clippedHTML } from './identity.js';
 import { releaseStaleLock, connectionErrorCode } from './session.js';
 const { Client, LocalAuth, MessageMedia }=WA;
 export class Accounts {
-  constructor(store,dir,notify,max=3,createClient=options=>new Client(options)) { this.store=store;this.dir=dir;this.notify=notify;this.max=max;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this);this.createClient=createClient; }
+  constructor(store,dir,notify,max=3,createClient=options=>new Client(options)) { this.store=store;this.dir=dir;this.notify=notify;this.max=max;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this);this.createClient=createClient;this.pairingTimeoutMs=120000; }
   lifecycle(id,event,code){console.log('WHATSAPP: session',JSON.stringify({account:id,event,...(code?{code}:{})}));}
   async connectionFailed(id,entry,error){
     if(this.live.get(id)!==entry||this.stopping)return;
-    const code=connectionErrorCode(error);clearTimeout(entry.timeout);entry.ready=false;entry.code=null;
+    const code=connectionErrorCode(error);clearTimeout(entry.timeout);clearTimeout(entry.codeTimeout);clearTimeout(entry.probeTimeout);entry.ready=false;entry.code=null;
     this.store.update(id,'status','error');this.lifecycle(id,'initialize_failed',code);
     try{this.store.recordIncident(id,'conexion',{code});}catch{}
     await this.close(id);
@@ -24,6 +24,13 @@ export class Accounts {
     if(this.live.has(id)) return this.live.get(id);
     if(this.live.size>=this.max) throw new Error('Se alcanzó el límite de cuentas del servidor.');
     const folder=path.join(this.dir,'sessions',`session-${id}`);
+    // A retry before any successful link must not reuse an unfinished browser state.
+    // Preserve it separately; confirmed account profiles are never moved.
+    if(pair&&existsSync(folder)&&!this.store.db.prepare("SELECT 1 FROM audit WHERE account=? AND event='connected' LIMIT 1").get(id)){
+      renameSync(folder,`${folder}.unfinished-${Date.now()}-${randomBytes(3).toString('hex')}`);
+      this.lifecycle(id,'unfinished_profile_isolated');
+    }
+
     if(releaseStaleLock(folder))this.lifecycle(id,'stale_browser_lock_removed');
     this.lifecycle(id,pair?'pairing_started':'restore_started');
     const client=this.createClient({
@@ -40,7 +47,7 @@ export class Accounts {
     if(typeof client.requestPairingCode==='function'){
       const requestCode=client.requestPairingCode.bind(client);
       client.requestPairingCode=async(...args)=>{
-        try{return await requestCode(...args);}
+        try{this.lifecycle(id,'code_request_started');return await requestCode(...args);}
         catch(cause){
           const error=new Error('WhatsApp no pudo generar el código de vinculación.',{cause});error.code='WA_PAIRING_CODE';
           await this.connectionFailed(id,entry,error).catch(()=>{});
@@ -49,18 +56,18 @@ export class Accounts {
       };
     }
 
-    client.on('code', code=>{if(this.live.get(id)!==entry)return;entry.code=code;entry.expires=Date.now()+180000;});
+    client.on('code', code=>{if(this.live.get(id)!==entry)return;clearTimeout(entry.codeTimeout);entry.code=code;entry.expires=Date.now()+180000;this.lifecycle(id,'pairing_code_received');});
     client.on('qr',()=>{
       if(this.live.get(id)!==entry)return;
       if(!pair){this.store.update(id,'status','needs_pairing');this.lifecycle(id,'authorization_needed');this.close(id).catch(()=>{});this.notify(`⚠️ WhatsApp solicita volver a vincular la cuenta ${id}. La sesión guardada no fue eliminada por el gestor.`).catch(()=>{});}
     });
-    client.on('authenticated',()=>this.lifecycle(id,'authenticated'));
+    client.on('authenticated',()=>{clearTimeout(entry.codeTimeout);this.lifecycle(id,'authenticated');});
     client.on('loading_screen',percent=>this.lifecycle(id,'syncing',String(Number(percent)||0)));
     client.on('ready',()=>this.connected(id,entry).catch(error=>this.connectionFailed(id,entry,error)));
     client.on('auth_failure',()=>{if(this.live.get(id)!==entry)return;entry.ready=false;entry.code=null;clearTimeout(entry.timeout);this.store.update(id,'status','auth_failure');this.lifecycle(id,'auth_failure');this.close(id).catch(()=>{});});
     client.on('disconnected',reason=>{
       if(this.live.get(id)!==entry)return;
-      entry.ready=false;entry.code=null;clearTimeout(entry.timeout);
+      entry.ready=false;entry.code=null;clearTimeout(entry.timeout);clearTimeout(entry.codeTimeout);clearTimeout(entry.probeTimeout);
       const loggedOut=reason==='LOGOUT';
       if(loggedOut&&this.store.account(id)?.consent)this.store.revoke(id);
       this.lifecycle(id,loggedOut?'logged_out':'disconnected');
@@ -77,6 +84,21 @@ export class Accounts {
     entry.timeout=setTimeout(()=>{
       if(this.live.get(id)===entry&&!entry.ready){this.lifecycle(id,'initialize_timeout');this.store.update(id,'status','expired');this.close(id).catch(()=>{});this.notify(`⚠️ La cuenta ${id} no terminó de iniciar. Pulsa RECUPERAR CONEXIÓN en su ficha.`).catch(()=>{});}
     },600000);entry.timeout.unref();
+    
+    if(pair){
+      entry.codeTimeout=setTimeout(()=>{
+        if(this.live.get(id)!==entry||entry.ready||entry.code)return;
+        const error=new Error('WhatsApp no entregó un código dentro del plazo.');error.code='WA_PAIRING_TIMEOUT';
+        this.connectionFailed(id,entry,error).catch(()=>{});
+      },this.pairingTimeoutMs);entry.codeTimeout.unref();
+      entry.probeTimeout=setTimeout(async()=>{
+        if(this.live.get(id)!==entry||entry.ready||entry.code)return;
+        try{
+          const probe=client.pupPage?await client.pupPage.evaluate(()=>({state:String(window.AuthStore?.AppState?.state||window.require?.('WAWebSocketModel')?.Socket?.state||'UNKNOWN').replace(/[^A-Z_]/g,'').slice(0,30),tools:!!window.AuthStore?.PairingCodeLinkUtils,loaded:!!window.Debug?.VERSION})): {state:'BROWSER_STARTING'};
+          this.lifecycle(id,'pairing_wait',JSON.stringify(probe));
+        }catch{this.lifecycle(id,'pairing_wait','PAGE_NOT_READY');}
+      },15000);entry.probeTimeout.unref();
+    }
     entry.initializing=Promise.resolve().then(()=>client.initialize()).catch(error=>this.connectionFailed(id,entry,error));
     return entry;
   }
@@ -84,7 +106,7 @@ export class Accounts {
     const a=this.store.account(id);
     if(this.live.get(id)!==entry || entry.ready || !a?.consent || this.stopping)return;
     if(entry.client.info?.wid?.user!==a.phone) {await this.disconnect(id).catch(()=>{});return;}
-    entry.ready=true;entry.code=null;clearTimeout(entry.timeout);this.store.update(id,'status','connected');this.lifecycle(id,'ready');
+    entry.ready=true;entry.code=null;clearTimeout(entry.timeout);clearTimeout(entry.codeTimeout);clearTimeout(entry.probeTimeout);this.store.update(id,'status','connected');this.lifecycle(id,'ready');
     this.store.audit(id,'connected');
     const profile=await this.tools.identity(id,`${a.phone}@c.us`,true);
     await this.notify(`✅ Cuenta conectada: ${personLink(profile)}\nPaís del número: ${escapeHTML(profile.country)}\nCuenta: ${id}`,null,{parse_mode:'HTML'}).catch(()=>{});
@@ -175,7 +197,7 @@ export class Accounts {
     const sent=await entry.client.sendMessage(peer,media?new MessageMedia(media.mime,media.data.toString('base64'),media.name):text,media?{caption:text||'',...(media.voice?{sendAudioAsVoice:true}:{})}:{});
     this.store.audit(id,'sent');return sent;
   }
-  async close(id) {const e=this.live.get(id);if(e){clearTimeout(e.timeout);this.live.delete(id);await e.client.destroy().catch(()=>{});}}
+  async close(id) {const e=this.live.get(id);if(e){clearTimeout(e.timeout);clearTimeout(e.codeTimeout);clearTimeout(e.probeTimeout);this.live.delete(id);await e.client.destroy().catch(()=>{});}}
   async disconnect(id) {
     const e=this.live.get(id);this.store.revoke(id);
     if(e) {clearTimeout(e.timeout);await e.client.logout().catch(()=>{});await this.close(id);}
@@ -185,7 +207,8 @@ export class Accounts {
     for(const a of this.store.all()) {
       if(!a.consent)continue;
       if(existsSync(path.join(this.dir,'sessions',`session-${a.id}`))) {
-        await this.start(a.id).catch(error=>{this.store.update(a.id,'status','error');this.lifecycle(a.id,'restore_failed',connectionErrorCode(error));});
+        const resumePairing=a.status==='connecting'&&!this.store.db.prepare("SELECT 1 FROM audit WHERE account=? AND event='connected' LIMIT 1").get(a.id);
+        await this.start(a.id,resumePairing).catch(error=>{this.store.update(a.id,'status','error');this.lifecycle(a.id,'restore_failed',connectionErrorCode(error));});
       }else{
         this.store.update(a.id,'status','needs_pairing');this.lifecycle(a.id,'session_directory_missing');
       }

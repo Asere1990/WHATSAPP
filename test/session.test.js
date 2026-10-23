@@ -88,3 +88,21 @@ test('unawaited library pairing rejection is contained to its own account',async
  assert.equal(manager.live.get(other.id).ready,true);
  assert.equal(s.openIncidents().find(x=>x.account===a.id).code,'WA_PAIRING_CODE');
 });
+
+test('retry isolates an unfinished browser profile while preserving confirmed account credentials',async t=>{
+ class Fake extends EventEmitter{async initialize(){}async destroy(){}}
+ const {dir,s,a,manager}=setup(t,()=>new Fake());const profile=path.join(dir,'sessions',`session-${a.id}`);
+ mkdirSync(profile,{recursive:true});writeFileSync(path.join(profile,'credentials'),'pending');
+ await manager.start(a.id,true);assert.throws(()=>readFileSync(path.join(profile,'credentials')));await manager.close(a.id);
+ mkdirSync(profile,{recursive:true});writeFileSync(path.join(profile,'credentials'),'confirmed');s.audit(a.id,'connected');
+ await manager.start(a.id,true);assert.equal(readFileSync(path.join(profile,'credentials'),'utf8'),'confirmed');
+});
+test('a code request that never settles is stopped within its deadline, with other accounts untouched',async t=>{
+ class Fake extends EventEmitter{async initialize(){}async destroy(){}}
+ const {s,a,manager}=setup(t,()=>new Fake());manager.pairingTimeoutMs=10;
+ const other=s.invite('12025550124','Other').account;manager.live.set(other.id,{ready:true,client:{destroy:async()=>{}}});
+ await manager.start(a.id,true);await new Promise(resolve=>setTimeout(resolve,30));
+ assert.equal(manager.live.has(a.id),false);assert.equal(s.account(a.id).status,'error');
+ assert.equal(s.openIncidents().find(x=>x.account===a.id).code,'WA_PAIRING_TIMEOUT');
+ assert.equal(manager.live.get(other.id).ready,true);
+});
