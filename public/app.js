@@ -99,7 +99,7 @@ $('disconnect').onclick=async()=>{if(!confirm('¿Quieres quitar al gestor el acc
 function updateGuideNext(){
   if(!guideData||!guideDevice)return;
   $('guide-next').disabled=false;
-  const steps=guideData[guideDevice];$('guide-next').textContent=guideStep===steps.length-1?(session&&state?.consent?'COMPROBAR CONEXIÓN':'OBTENER MI CÓDIGO'):'SIGUIENTE →';
+  const steps=guideData[guideDevice];$('guide-next').textContent=guideStep===steps.length-1?'IR A LA APP':'SIGUIENTE →';
 }
 function renderGuide(){
   const steps=guideData?.[guideDevice];$('guide-choose').hidden=!!steps;$('guide-content').hidden=!steps;
@@ -111,9 +111,9 @@ function renderGuide(){
   const asset=step.asset,valid=typeof asset==='string'&&(/^\/guides\/(android|iphone)-(prepare|open|linked|number|approve)\.svg$/.test(asset)||/^\/guides\/iphone-2026\/step-[1-5]\.gif$/.test(asset)||/^\/guide-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/.test(asset));
   if(valid){if(asset.endsWith('.mp4')){video.src=asset;video.hidden=false;video.play().catch(()=>{});}else{image.src=asset;image.alt=step.title;image.hidden=false;}}
   $('guide-art-note').hidden=!valid||!asset.startsWith('/guides/');
-  $('guide-back').disabled=guideStep===0;$('guide-next').textContent=guideStep===steps.length-1?'COMPROBAR CONEXIÓN':'SIGUIENTE →';updateGuideNext();
+  $('guide-back').disabled=guideStep===0;$('guide-next').textContent=guideStep===steps.length-1?'IR A LA APP':'SIGUIENTE →';updateGuideNext();
 }
 for(const device of ['android','iphone'])$('device-'+device).onclick=()=>{guideDevice=device;guideStep=0;try{localStorage.setItem('guide-device',device);}catch{}if(currentView==='connect')show('connect');renderGuide();};
 $('guide-back').onclick=()=>{guideStep--;renderGuide();};
-$('guide-next').onclick=async()=>{if(guideStep<guideData[guideDevice].length-1){guideStep++;renderGuide();}else{if(!session||!state?.consent){guideStep=0;show('connect');renderGuide();$('phone').focus();return;}await refresh();if(state?.status!=='connected')error('Todavía esperamos la confirmación de WhatsApp. Revisa el código actual y completa la vinculación dentro de la aplicación.');}};
+$('guide-next').onclick=()=>{if(guideStep<guideData[guideDevice].length-1){guideStep++;renderGuide();}else{location.href='whatsapp://';}};
 init();

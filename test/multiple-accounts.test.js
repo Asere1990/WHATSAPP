@@ -135,3 +135,12 @@ test('ENTENDIDO closes popup and centers the visible tutorial image without focu
  assert.equal(p.element('guide-image').scrollOptions.behavior,'smooth');
  assert.equal(p.element('phone').focusCount||0,inputFocus);
 });
+
+test('last tutorial button opens WhatsApp instead of checking connection',async()=>{
+ const p=await page();
+ assert.equal(p.element('guide-next').textContent,'IR A LA APP');
+ const count=p.requests.length;
+ p.element('guide-next').onclick();
+ assert.equal(p.context.location.href,'whatsapp://');
+ assert.equal(p.requests.length,count);
+});
