@@ -31,7 +31,7 @@ async function refresh({initial=false}={}){
   const epoch=connectionEpoch;
   try{
     const next=await api('status');if(epoch!==connectionEpoch||addingAccount)return;state=next;browserPhone=String(next.phone||'').replace(/\D/g,'');
-    if(initial&&state.status!=='connected'){clearConnectionForm();$('code').textContent='···· ····';$('copy').disabled=true;$('pairing-account').textContent='';$('owner-actions').hidden=true;show('welcome');error('');return;}
+    if(initial){clearConnectionForm();$('code').textContent='···· ····';$('copy').disabled=true;$('pairing-account').textContent='';$('owner-actions').hidden=true;show('welcome');error('');return;}
     if(statusRetryNotice){error('');statusRetryNotice=false;}
     $('greeting').textContent='Conecta tu cuenta';
     $('owner-actions').hidden=!state.consent;
@@ -65,7 +65,7 @@ async function init(){
     try{guideData=await api('guides');renderGuide();}catch{}
     const invitation=location.hash.slice(1);history.replaceState(null,'',location.pathname);
     if(invitation)await api('access',{token:invitation});
-    session=true;await refresh({initial:true});if(session&&state?.status==='connected')timer=setInterval(refresh,3000);
+    session=true;await refresh({initial:!invitation});if(session&&invitation&&state?.status==='connected')timer=setInterval(refresh,3000);
   }catch(e){show('welcome');error(userError(e));}
 }
 $('connect').addEventListener('submit',async event=>{

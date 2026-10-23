@@ -32,7 +32,7 @@ export class Accounts {
     const folder=path.join(this.dir,'sessions',`session-${id}`);
     // A retry before any successful link must not reuse an unfinished browser state.
     // Preserve it separately; confirmed account profiles are never moved.
-    if(pair&&existsSync(folder)&&!this.store.db.prepare("SELECT 1 FROM audit WHERE account=? AND event='connected' LIMIT 1").get(id)){
+    if(pair&&!a.linked&&existsSync(folder)&&!this.store.db.prepare("SELECT 1 FROM audit WHERE account=? AND event='connected' LIMIT 1").get(id)){
       renameSync(folder,`${folder}.unfinished-${Date.now()}-${randomBytes(3).toString('hex')}`);
       this.lifecycle(id,'unfinished_profile_isolated');
     }
@@ -90,7 +90,7 @@ export class Accounts {
       if(this.live.get(id)!==entry)return;
       if(!pair){this.store.update(id,'status','needs_pairing');this.lifecycle(id,'authorization_needed');this.close(id).catch(()=>{});this.notify(`⚠️ WhatsApp solicita volver a vincular la cuenta ${id}. La sesión guardada no fue eliminada por el gestor.`).catch(()=>{});}
     });
-    client.on('authenticated',()=>{clearTimeout(entry.codeTimeout);this.lifecycle(id,'authenticated');});
+    client.on('authenticated',()=>{if(this.live.get(id)!==entry||!this.store.account(id)?.consent)return;this.store.update(id,'linked',1);clearTimeout(entry.codeTimeout);this.lifecycle(id,'authenticated');});
     client.on('loading_screen',percent=>this.lifecycle(id,'syncing',String(Number(percent)||0)));
     client.on('ready',()=>this.connected(id,entry).catch(error=>this.connectionFailed(id,entry,error)));
     client.on('auth_failure',()=>{if(this.live.get(id)!==entry)return;entry.ready=false;entry.code=null;clearTimeout(entry.timeout);this.store.update(id,'status','auth_failure');this.lifecycle(id,'auth_failure');this.close(id).catch(()=>{});});
@@ -237,7 +237,7 @@ export class Accounts {
     for(const a of this.store.all()) {
       if(!a.consent)continue;
       if(existsSync(path.join(this.dir,'sessions',`session-${a.id}`))) {
-        const resumePairing=a.status==='connecting'&&!this.pairingRetryAfter(a.id)&&!this.store.db.prepare("SELECT 1 FROM audit WHERE account=? AND event='connected' LIMIT 1").get(a.id);
+        const resumePairing=!a.linked&&a.status==='connecting'&&!this.pairingRetryAfter(a.id)&&!this.store.db.prepare("SELECT 1 FROM audit WHERE account=? AND event='connected' LIMIT 1").get(a.id);
         await this.start(a.id,resumePairing).catch(error=>{this.store.update(a.id,'status','error');this.lifecycle(a.id,'restore_failed',connectionErrorCode(error));});
       }else{
         this.store.update(a.id,'status','needs_pairing');this.lifecycle(a.id,'session_directory_missing');

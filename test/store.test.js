@@ -42,3 +42,46 @@ test('system events are not inserted as conversations',t=>{
   assert.equal(s.enqueue(a.id,{from:'12025550124@c.us',type:'e2e_notification'}),null);
   assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM inbox').get().n,0);
 });
+
+
+test('unfinished attempts can restart with isolated access, preserving other connected accounts and cooldown',t=>{
+ const s=setup(t),old=s.register('12025550123'),a=s.browser(old);
+ s.update(a.id,'consent',1);s.update(a.id,'status','error');
+ s.recordIncident(a.id,'conexion',{code:'WA_PAIRING_RATE_LIMIT'});
+ const other=s.register('12025550124'),b=s.browser(other);s.update(b.id,'consent',1);s.update(b.id,'status','connected');
+ const fresh=s.register(a.phone,{restartPending:true}),next=s.browser(fresh);
+ assert.ok(next);assert.notEqual(next.id,a.id);assert.equal(next.linked,0);assert.equal(next.status,'pending');assert.equal(next.consent,0);
+ assert.equal(s.browser(old),undefined);assert.equal(s.account(a.id).status,'archived');assert.equal(s.account(a.id).consent,0);
+ assert.equal(s.browser(other).status,'connected');assert.equal(s.browser(other).consent,1);
+ assert.equal(s.register(b.phone,{restartPending:true}),null);
+ const cooldown=s.db.prepare("SELECT created FROM incidents WHERE account=? AND code='WA_PAIRING_RATE_LIMIT'").get(next.id);
+ assert.equal(cooldown.created,s.db.prepare("SELECT created FROM incidents WHERE account=? AND code='WA_PAIRING_RATE_LIMIT'").get(a.id).created);
+});
+
+test('once linked, a later failure and expired audit never allow public registration to claim the account',t=>{
+ const s=setup(t),secret=s.register('12025550123'),a=s.browser(secret);
+ s.update(a.id,'consent',1);s.update(a.id,'status','connected');s.update(a.id,'status','error');
+ s.db.prepare('DELETE FROM audit WHERE account=?').run(a.id);
+ assert.equal(s.register(a.phone,{restartPending:true}),null);
+ assert.equal(s.browser(secret).linked,1);assert.equal(s.browser(secret).consent,1);
+});
+
+test('legacy connected accounts acquire a durable linked marker without changing their browser access',t=>{
+ const d=mkdtempSync(`${tmpdir()}/wa-migration-`),s=new Store(d);
+ const secret=s.register('12025550123'),a=s.browser(secret);s.update(a.id,'consent',1);s.update(a.id,'status','error');s.audit(a.id,'connected');
+ s.db.exec('ALTER TABLE accounts DROP COLUMN linked');s.db.close();
+ const migrated=new Store(d);t.after(()=>{migrated.db.close();rmSync(d,{recursive:true,force:true});});
+ assert.equal(migrated.browser(secret).linked,1);assert.equal(migrated.browser(secret).status,'error');
+ assert.equal(migrated.register(a.phone,{restartPending:true}),null);
+});
+
+
+test('every never-linked failure state can restart after a browser reload or server restart',t=>{
+ const s=setup(t);
+ for(const [index,status]of ['pending','connecting','error','expired','needs_pairing','auth_failure','disconnected'].entries()){
+  const secret=s.register('12025550'+String(200+index)),a=s.browser(secret);
+  s.update(a.id,'consent',1);s.update(a.id,'status',status);
+  const next=s.register(a.phone,{restartPending:true});assert.ok(next,status);
+  assert.equal(s.browser(secret),undefined);assert.equal(s.browser(next).phone,a.phone);
+ }
+});

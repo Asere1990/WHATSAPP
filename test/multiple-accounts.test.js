@@ -29,7 +29,7 @@ async function page({registerStatus=201,initialAccount={}}={}){
   return {element,requests,intervals,context,defer(promise){deferStatus=promise;},get account(){return account;}};
 }
 test('same browser connects a different phone with a new registration and code, never disconnecting first WhatsApp',async()=>{
-  const p=await page();assert.match(p.element('connected-account').textContent,/12025550123/);
+  const p=await page();assert.equal(p.element('welcome').hidden,false);assert.equal(p.account.status,'connected');
   p.element('another-account').onclick();assert.equal(p.element('phone').value,'');assert.equal(p.element('consent').checked,false);assert.equal(p.intervals.size,0);
   p.element('country').value='US';p.element('phone').value='2025550124';p.element('consent').checked=true;
   await p.element('connect').events.submit({preventDefault(){}});
@@ -215,4 +215,14 @@ test('unchecked authorization never registers or connects a changed phone',async
  await p.element('connect').events.submit({preventDefault(){}});
  assert.equal(p.requests.some(r=>['/api/register','/api/connect'].includes(r.url)),false);
  assert.match(p.element('error').textContent,/autorización/);
+});
+
+
+test('reload of a connected account shows an empty landing without polling or disconnecting it',async()=>{
+ const p=await page();
+ assert.equal(p.element('welcome').hidden,false);assert.equal(p.element('connected').hidden,true);
+ assert.equal(p.element('country').value,'');assert.equal(p.element('phone').value,'');assert.equal(p.element('consent').checked,false);
+ assert.equal(p.intervals.size,0);assert.equal(p.account.status,'connected');
+ assert.equal(p.requests.some(r=>r.url==='/api/disconnect'),false);
+ p.element('begin').onclick();assert.equal(p.element('connect').hidden,false);
 });

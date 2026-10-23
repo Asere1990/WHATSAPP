@@ -38,6 +38,18 @@ export class Store {
       CREATE TABLE IF NOT EXISTS profiles(account TEXT, peer TEXT, name TEXT, phone TEXT, PRIMARY KEY(account,peer));
       CREATE TABLE IF NOT EXISTS export_receipts(account TEXT, message TEXT, tg_chat TEXT, tg_message INTEGER, PRIMARY KEY(account,message));
       CREATE TABLE IF NOT EXISTS media_exports(account TEXT, message TEXT, state TEXT, created INTEGER, PRIMARY KEY(account,message));`);
+    // A durable marker survives audit cleanup and later connection failures.
+    const columns=this.db.prepare('PRAGMA table_info(accounts)').all();
+    if(!columns.some(c=>c.name==='linked')){
+      this.db.exec(`BEGIN IMMEDIATE;
+        ALTER TABLE accounts ADD COLUMN linked INTEGER NOT NULL DEFAULT 0;
+        UPDATE accounts SET linked=1 WHERE status='connected'
+          OR EXISTS(SELECT 1 FROM audit WHERE account=accounts.id AND event='connected')
+          OR EXISTS(SELECT 1 FROM profiles WHERE account=accounts.id)
+          OR EXISTS(SELECT 1 FROM inbox WHERE account=accounts.id)
+          OR EXISTS(SELECT 1 FROM routes WHERE account=accounts.id);
+        COMMIT;`);
+    }
   }
   all() { return this.db.prepare("SELECT * FROM accounts WHERE status!='archived' ORDER BY created DESC").all(); }
   account(id) { return this.db.prepare('SELECT * FROM accounts WHERE id=?').get(id); }
@@ -50,8 +62,9 @@ export class Store {
   exportReceipt(account,message,chat,tgMessage) {this.db.prepare('INSERT OR REPLACE INTO export_receipts VALUES(?,?,?,?)').run(account,message,String(chat),tgMessage);}
   finishExport(account,message,state) {this.db.prepare('UPDATE media_exports SET state=? WHERE account=? AND message=?').run(state,account,message);}
   update(id, key, value) {
-    if (!['consent','paused','status'].includes(key)) throw new Error('Campo inválido');
+    if (!['consent','paused','status','linked'].includes(key)) throw new Error('Campo inválido');
     this.db.prepare(`UPDATE accounts SET ${key}=? WHERE id=?`).run(value,id);
+    if(key==='status'&&value==='connected')this.db.prepare('UPDATE accounts SET linked=1 WHERE id=?').run(id);
   }
   invite(phone, name) {
     phone = phoneNumber(phone);
@@ -74,21 +87,27 @@ export class Store {
     this.db.prepare('INSERT INTO access VALUES(?,?,?,?)').run(digest(session),row.account,'browser',Date.now()+86400000*30);
     return session;
   }
-  register(phone) {
+  register(phone,{restartPending=false}={}) {
     phone=phoneNumber(phone);
     const existing=this.db.prepare('SELECT * FROM accounts WHERE phone=?').get(phone);
     // A revoked account may start again with fresh credentials and a fresh account ID.
-    // An active account can never be claimed by merely entering its phone number.
-    if(existing&&(existing.consent||existing.status!=='revoked'))return null;
+    // A previously linked account can never be claimed by merely entering its phone number.
+    const unfinished=existing&&!existing.linked&&['pending','connecting','error','expired','needs_pairing','auth_failure','disconnected'].includes(existing.status);
+    if(existing&&!(existing.status==='revoked'&&!existing.consent)&&!(restartPending&&unfinished))return null;
     this.db.exec('BEGIN IMMEDIATE');
     try{
       if(existing){
         this.db.prepare('INSERT OR REPLACE INTO account_archives VALUES(?,?,?)').run(existing.id,JSON.stringify(existing),Date.now());
         this.db.prepare('DELETE FROM access WHERE account=?').run(existing.id);
         this.db.prepare("UPDATE accounts SET phone=NULL,status='archived',consent=0 WHERE id=?").run(existing.id);
-        this.audit(existing.id,'archived_after_revocation');
+        this.audit(existing.id,unfinished?'unfinished_attempt_replaced':'archived_after_revocation');
       }
       const invite=this.invite(phone,'Cuenta de WhatsApp'),secret=this.exchange(invite.secret);
+      if(existing&&unfinished){
+        // Keep WhatsApp's cooldown when a temporary attempt is replaced.
+        const limited=this.db.prepare("SELECT * FROM incidents WHERE account=? AND code='WA_PAIRING_RATE_LIMIT' ORDER BY created DESC LIMIT 1").get(existing.id);
+        if(limited)this.db.prepare('INSERT INTO incidents(account,reference,stage,code,state,created) VALUES(?,?,?,?,?,?)').run(invite.account.id,null,limited.stage,limited.code,limited.state,limited.created);
+      }
       this.db.exec('COMMIT');return secret;
     }catch(error){this.db.exec('ROLLBACK');throw error;}
   }

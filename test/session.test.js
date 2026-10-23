@@ -116,3 +116,26 @@ test('confirmed WhatsApp 429 pauses new pairing requests without affecting live 
  s.db.prepare("UPDATE incidents SET created=? WHERE account=?").run(Date.now()-1800001,a.id);
  assert.equal(manager.pairingRetryAfter(a.id),0);await manager.start(a.id,true);assert.equal(launched,1);
 });
+
+
+test('authentication protects a linked account even before synchronization finishes',async t=>{
+ class Fake extends EventEmitter{async initialize(){}async destroy(){}}
+ const {s,a,manager}=setup(t,()=>new Fake());
+ const entry=await manager.start(a.id,true);entry.client.emit('authenticated');
+ assert.equal(s.account(a.id).linked,1);assert.equal(s.register(a.phone,{restartPending:true}),null);
+ await manager.close(a.id);s.update(a.id,'status','error');
+ assert.equal(s.register(a.phone,{restartPending:true}),null);
+});
+
+test('replacing an unfinished attempt closes only its browser and rejects stale ready events',async t=>{
+ class Fake extends EventEmitter{async initialize(){}async destroy(){this.destroyed=true;}}
+ const {s,a,manager}=setup(t,()=>new Fake());
+ const other=s.register('12025550124'),b=s.browser(other);s.update(b.id,'consent',1);
+ const active=await manager.start(b.id);active.client.info={wid:{user:b.phone}};await manager.connected(b.id,active);
+ const unfinished=await manager.start(a.id,true);
+ const fresh=s.register(a.phone,{restartPending:true});await manager.close(a.id);
+ unfinished.client.emit('authenticated');await manager.connected(a.id,unfinished);
+ assert.equal(unfinished.client.destroyed,true);assert.equal(s.account(a.id).status,'archived');assert.equal(s.account(a.id).linked,0);
+ assert.equal(manager.live.get(b.id),active);assert.equal(active.ready,true);assert.equal(s.browser(other).status,'connected');
+ assert.equal(s.browser(fresh).status,'pending');
+});
