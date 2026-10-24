@@ -35,14 +35,14 @@
 .corporate-portal .section-heading .eyebrow{margin-bottom:12px;color:var(--red)}
 .corporate-portal .section-heading>p{margin:0 0 12px;font-size:12px;line-height:1.7}
 .corporate-portal .service-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:17px}
-.corporate-portal .service-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:0;min-height:211px;padding:27px 22px;text-align:left;border:1px solid #d6e7e1;border-radius:18px;background:linear-gradient(145deg,#fff 55%,#eef8f5);color:var(--navy);box-shadow:0 6px 15px #276d5d10;transition:transform .2s,box-shadow .2s,border-color .2s}
+.corporate-portal .service-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:0;min-height:211px;padding:27px 22px;text-align:left;border:1px solid #d6e7e1;border-radius:18px;background:linear-gradient(145deg,#fff 55%,#eef8f5);color:var(--navy);box-shadow:0 6px 15px #276d5d10;transition:transform .2s,box-shadow .2s,border-color .2s}
 .corporate-portal .service-card:nth-child(even){background:linear-gradient(145deg,#fff 55%,#fff5e9)}
 .corporate-portal .service-card:hover{transform:translateY(-5px);border-color:#80bbb1;box-shadow:0 15px 30px #276d5d19;filter:none}
 .corporate-portal .service-card>span{margin-left:0}
 .corporate-portal .service-icon{display:grid;place-items:center;width:49px;height:49px;margin-bottom:27px;border-radius:14px;background:linear-gradient(135deg,#dcefeb,#f1f9f6);color:var(--blue);font-size:29px}
 .corporate-portal .service-card:nth-child(even) .service-icon{color:var(--red);background:linear-gradient(135deg,#ffe7ce,#fff4e6)}
-.corporate-portal .service-name{font-size:18px;font-weight:700}
-.corporate-portal .service-description{font-size:11px;color:var(--muted);font-weight:400;margin-top:9px;line-height:1.6}
+.corporate-portal .service-name{font-size:18px;font-weight:800}
+.corporate-portal .service-description{font-size:11px;color:var(--muted);font-weight:600;margin-top:9px;line-height:1.6}
 .corporate-portal .service-arrow{position:absolute;right:22px;top:27px;font-size:22px;color:#70a59a}
 .corporate-portal .how-section{position:relative;overflow:hidden;margin:64px 0;padding:38px 36px;border:1px solid #dce9e3;border-radius:24px;background:radial-gradient(ellipse at 100% 100%,#ffecd7,transparent 55%),linear-gradient(130deg,#eef8f5,#fff)}
 .corporate-portal .how-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:38px;margin-top:30px}
@@ -156,3 +156,5 @@
 
 .corporate-portal .hero-action{position:relative;justify-content:center;gap:0;padding-inline:56px;text-align:center}
 .corporate-portal .hero-action>span[aria-hidden="true"]{position:absolute;right:22px;top:50%;transform:translateY(-50%)}
+
+.corporate-portal .service-card{padding-bottom:16px}
