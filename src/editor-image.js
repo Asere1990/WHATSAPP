@@ -5,7 +5,7 @@ import path from 'node:path';
 export async function sendEditorImage(bot,chat,asset,caption,markup){
   let filename;
   if(/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp)$/.test(asset))filename=path.join(bot.accounts.dir,asset.slice(1));
-  else if(/^\/(cubamax-promos|cubamax-services|cubamax-slides|guides)\/[a-zA-Z0-9_/-]+\.(webp|png|jpg|gif|svg)$/.test(asset)&&!asset.includes('..'))filename=new URL('../public'+asset,import.meta.url);
+  else if((asset==='/cubamax-logo.svg'||/^\/(cubamax-promos|cubamax-services|cubamax-slides|guides)\/[a-zA-Z0-9_/-]+\.(webp|png|jpg|gif|svg)$/.test(asset))&&!asset.includes('..'))filename=new URL('../public'+asset,import.meta.url);
   else throw Error('Imagen actual no disponible.');
   const {default:sharp}=await import('sharp');
   const data=await sharp(readFileSync(filename),{limitInputPixels:40000000}).rotate().resize({width:1600,height:1600,fit:'inside',withoutEnlargement:true}).jpeg({quality:90}).toBuffer();
