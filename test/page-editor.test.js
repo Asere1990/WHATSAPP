@@ -53,3 +53,18 @@ test('Cubamax pre-code tutorial menu edits confirmation and links shared guide m
  assert.equal(pageContent(store,'cm').find(e=>e.source==='¿ENTENDISTE?').value,'SÍ, ENTENDÍ');
  assert.deepEqual(pageContent(store,'wa'),[]);
 });
+test('first slider uses current labels and previews saved replacements without changing website values',async t=>{
+ const {bot,store,sent,dir}=setup(t),previews=[];bot.sendFile=async(...args)=>previews.push(args);
+ await bot.handle(callback('pg:cm:slider'));const buttons=sent.at(-1)[2].inline_keyboard.flat();
+ assert.match(buttons[0].text,/Pareja/);assert.equal(buttons.some(b=>/ECOFLOW/i.test(b.text)),false);
+ for(const asset of ['/cubamax-promos/ecoflow.webp','/cubamax-promos/contacto.webp','/cubamax-promos/grupo.webp','/cubamax-services/shein.webp']){
+  const id=Object.keys(pageCatalog.cm).find(k=>pageCatalog.cm[k].text===asset);assert.ok(buttons.some(b=>b.callback_data==='pg:cm:field:'+id));
+  await bot.handle(callback('pg:cm:field:'+id));assert.equal(previews.at(-1)[1].mime,'image/jpeg');assert.equal(previews.at(-1)[1].data[0],255);assert.match(previews.at(-1)[1].caption,/FOTO ACTUAL/);
+ }
+ const {default:sharp}=await import('sharp');bot.download=async()=>sharp({create:{width:1,height:1,channels:3,background:'#ff0000'}}).png().toBuffer();
+ const id=Object.keys(pageCatalog.cm).find(k=>pageCatalog.cm[k].text==='/cubamax-promos/contacto.webp');
+ await bot.handle(callback('pg:cm:field:'+id));await bot.handle({message:{from:{id:123},chat:{id:123,type:'private'},photo:[{file_id:'replacement'}]}});
+ const before=JSON.stringify(store.config());await bot.handle(callback('pg:cm:field:'+id));assert.equal(JSON.stringify(store.config()),before);
+ assert.equal((await sharp(previews.at(-1)[1].data).metadata()).width,1);assert.equal(previews.at(-1)[2].inline_keyboard.at(-1)[0].callback_data,'pg:cm:slider');
+ assert.ok(bot.pending.get('123:123'));
+});
