@@ -114,11 +114,11 @@
 .corporate-portal [data-cubamax-text]{overflow-wrap:anywhere}
 
 /* Uploaded card designs cover the complete service button; names remain accessible. */
-.corporate-portal .service-card.has-image{overflow:hidden}
+.corporate-portal .service-card.has-image{overflow:hidden;color:#fff}
 .corporate-portal .service-card-photo{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;pointer-events:none}
 .corporate-portal .service-card.has-image>span{z-index:1}
 .corporate-portal .service-card.has-image>span:not(.service-arrow){position:relative}
-.corporate-portal .service-card.has-image:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(255,255,255,.95),rgba(255,255,255,.35));pointer-events:none}
+.corporate-portal .service-card.has-image:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(7,37,39,.94) 0%,rgba(7,37,39,.72) 30%,rgba(7,37,39,.14) 70%,rgba(7,37,39,.08) 100%);pointer-events:none}
 .corporate-portal .service-icon img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
 #service-dialog-photo{width:100%;max-height:320px;object-fit:contain;border-radius:16px;margin-bottom:16px}
 .corporate-portal .service-card.has-image:focus-visible{outline:3px solid #319798;outline-offset:4px}
@@ -159,3 +159,6 @@
 .corporate-portal .hero-action>span[aria-hidden="true"]{position:absolute;right:22px;top:50%;transform:translateY(-50%)}
 
 .corporate-portal .service-card{padding-bottom:16px}
+
+.corporate-portal .service-card.has-image .service-description{color:#e0edeb}
+.corporate-portal .service-card.has-image .service-arrow{color:#fff;text-shadow:0 1px 4px #072527}
