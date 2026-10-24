@@ -22,7 +22,8 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   for(const host of ['cubamaxcom.online','www.cubamaxcom.online']){
     const domainLanding=await new Promise((resolve,reject)=>get(url,{headers:{Host:host}},res=>{let text='';res.on('data',chunk=>text+=chunk);res.on('end',()=>resolve(text));}).on('error',reject));
     assert.match(domainLanding,/<body class="corporate-portal">/);
-    assert.equal(domainLanding,await(await fetch(`${url}/cubamax`)).text());
+    const existingPortal=await(await fetch(`${url}/cubamax`)).text();
+    assert.equal(domainLanding.slice(domainLanding.indexOf('<body')),existingPortal.slice(existingPortal.indexOf('<body')));
     assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Host:host,Origin:`https://${host}`},body:JSON.stringify({consent:false})})).status,400);
   }
   assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:'https://cubamaxcom.online.evil.example'},body:'{}'})).status,403);

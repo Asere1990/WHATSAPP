@@ -65,3 +65,22 @@ test('swapping the four service slides migrates the previous configured set once
  const {store}=setup(t);store.setConfig('cubamax_slides',JSON.stringify(['shein','remesas','recargas','supercombo'].map((id,i)=>({id:['packages','money','topup','combo'][i],title:id,asset:`/cubamax-services/${id}.webp`}))));
  assert.deepEqual(portalContent(store).slides.map(s=>s.asset),['/cubamax-promos/bicicleta.webp','/cubamax-promos/moto.webp','/cubamax-promos/remesas.webp','/cubamax-promos/carga.webp']);
 });
+
+test('link preview text and photo edit through Telegram, remain independent from logo and render safely without JavaScript',async t=>{
+ const {bot,store,sent}=setup(t);
+ await bot.portalEditor.menu(123);assert.ok(sent.at(-1)[2].inline_keyboard.flat().some(b=>b.callback_data==='cm:group:preview'));
+ await bot.portalEditor.callback(123,'123:123','cm:group:preview');assert.ok(sent.at(-1)[2].inline_keyboard.flat().some(b=>b.callback_data==='cm:previewImage'));
+ await bot.portalEditor.input(123,{field:'previewTitle'},{text:'Cubamax & "Equipo" <test>'});
+ await bot.portalEditor.input(123,{field:'previewDescription'},{text:'Descripción del enlace'});
+ await bot.portalEditor.callback(123,'123:123','cm:previewImage');assert.equal(bot.pending.get('123:123').field,'previewImage');
+ await bot.portalEditor.input(123,{field:'previewImage'},{photo:[{file_id:'photo'}]});
+ const {renderCubamaxPreview}=await import('../src/link-preview.js');
+ const source='<html><head><title>Original</title></head><body>Sin cambios</body></html>';
+ const html=renderCubamaxPreview(source,store,'https://cubamaxcom.online','/');
+ assert.ok(html.includes('<title>Cubamax &amp; &quot;Equipo&quot; &lt;test&gt;</title>'));
+ assert.match(html,/property="og:description" content="Descripción del enlace"/);
+ assert.match(html,/property="og:image" content="https:\/\/cubamaxcom.online\/portal-media\/[a-f0-9]{64}\.png"/);
+ assert.ok(html.endsWith('<body>Sin cambios</body></html>'));assert.equal(store.config().cubamax_logo,undefined);
+ await bot.portalEditor.callback(123,'123:123','cm:previewRemove');assert.ok(!renderCubamaxPreview(source,store,'https://cubamaxcom.online','/').includes('og:image'));
+ store.setConfig('cubamax_preview_image','https://evil.test/image.png');assert.ok(!renderCubamaxPreview(source,store,'https://cubamaxcom.online','/').includes('og:image'));
+});

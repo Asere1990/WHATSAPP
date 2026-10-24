@@ -1,3 +1,4 @@
+import {renderCubamaxPreview} from './link-preview.js';
 import {pageContent} from './page-editor.js';
 import {portalContent,portalMediaPath} from './portal.js';
 import {webPhone,phoneParts} from './identity.js';
@@ -36,7 +37,8 @@ const server=http.createServer(async(req,res)=>{
   try{
     if(req.method==='GET'&&publicFiles[route]){
       const host=(req.headers.host||'').toLowerCase().split(':')[0];
-      const [file,type]=publicFiles[route==='/'&&cubamaxHosts.has(host)?'/cubamax':route];res.writeHead(200,{...security,'Content-Type':type});return res.end(readFileSync(new URL(`../public/${file}`,import.meta.url)));
+      const [file,type]=publicFiles[route==='/'&&cubamaxHosts.has(host)?'/cubamax':route];res.writeHead(200,{...security,'Content-Type':type});const bytes=readFileSync(new URL(`../public/${file}`,import.meta.url));
+      return res.end(file==='cubamax.html'?renderCubamaxPreview(bytes.toString(),store,cubamaxHosts.has(host)?'https://cubamaxcom.online':url,route):bytes);
     }
     if(req.method==='GET'&&route==='/api/page-content')return json(200,pageContent(store,new URL(req.url,'http://local').searchParams.get('site')));
     if(req.method==='GET'&&route==='/health')return json(200,{ok:true,service:'WHATSAPP',transport:process.env.WA_ENGINE||'baileys'});
