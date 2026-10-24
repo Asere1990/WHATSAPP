@@ -43,3 +43,13 @@ test('browser overrides preserve button identity and handle later dynamic text, 
  assert.equal(title.nodeValue,'COPIAR $&');assert.equal(button.onclick(),42);assert.equal(status.nodeValue,'Etapa 2/5');assert.equal(dynamic.nodeValue,'Cuenta: +12025550123');assert.equal(attrs.placeholder,'Número nuevo');assert.match(attrs.src,/portal-media/);
  status.nodeValue='PASO 3 DE 5';changed([{type:'characterData',target:status}]);assert.equal(status.nodeValue,'Etapa 3/5');
 });
+test('Cubamax pre-code tutorial menu edits confirmation and links shared guide media',async t=>{
+ const {bot,store,sent}=setup(t);await bot.handle(callback('cm'));
+ assert.ok(sent.at(-1)[2].inline_keyboard.flat().some(b=>b.callback_data==='pg:cm:group:tutorial:0'));
+ await bot.handle(callback('pg:cm:group:tutorial:0'));
+ assert.ok(sent.at(-1)[2].inline_keyboard.flat().some(b=>b.callback_data==='guide'));
+ const field=Object.keys(pageCatalog.cm).find(k=>pageCatalog.cm[k].text==='¿ENTENDISTE?');
+ await bot.handle(callback('pg:cm:field:'+field));await bot.handle({message:{from:{id:123},chat:{id:123,type:'private'},text:'SÍ, ENTENDÍ'}});
+ assert.equal(pageContent(store,'cm').find(e=>e.source==='¿ENTENDISTE?').value,'SÍ, ENTENDÍ');
+ assert.deepEqual(pageContent(store,'wa'),[]);
+});

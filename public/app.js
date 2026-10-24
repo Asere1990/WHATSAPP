@@ -92,6 +92,7 @@ $('connect').addEventListener('submit',async event=>{
     const national=$('phone').value.replace(/[\s().-]/g,'');if(!/^[0-9]{4,15}$/.test(national))throw Error('Escribe tu número sin el prefijo internacional.');
     const input={phone:'+'+country.dial+national,country:country.code,nationalNumber:national,consent:$('consent').checked,...(corporatePortal?{portal:'cubamax-corporate',service:typeof corporateSelection==='function'?corporateSelection():null}:{})};
     if(!input.consent)throw Error('Confirma tu número y la autorización.');
+    if(corporatePortal&&typeof prelinkTutorial==='function'){if(!guideData)guideData=await api('guides');if(!prelinkTutorial(input))return;}
     const differentPhone=browserPhone!==input.phone.replace(/\D/g,'');
     if(addingAccount||!session||differentPhone){
       const registration=await api('register',input);if(registration.completed){await finishConnection({alreadyConnected:true});return;}browserPhone=input.phone.replace(/\D/g,'');addingAccount=false;connectionEpoch++;state=null;session=true;

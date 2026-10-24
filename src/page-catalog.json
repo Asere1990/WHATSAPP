@@ -4519,6 +4519,36 @@
       "group": "countries",
       "kind": "text",
       "label": "Zimbabue"
+    },
+    "9c44e5e466cd": {
+      "text": "Antes de obtener tu código",
+      "group": "tutorial",
+      "kind": "text",
+      "label": "Antes de obtener tu código"
+    },
+    "321dfb62f160": {
+      "text": "Repasa cómo vincular tu cuenta antes de continuar.",
+      "group": "tutorial",
+      "kind": "text",
+      "label": "Repasa cómo vincular tu cuenta antes de continuar."
+    },
+    "798e2c2cb092": {
+      "text": "Escoge tu dispositivo para comenzar el tutorial.",
+      "group": "tutorial",
+      "kind": "text",
+      "label": "Escoge tu dispositivo para comenzar el tutorial."
+    },
+    "cae7d8f5a8a7": {
+      "text": "¿ENTENDISTE?",
+      "group": "tutorial",
+      "kind": "text",
+      "label": "¿ENTENDISTE?"
+    },
+    "ad981e41e9ac": {
+      "text": "Cerrar tutorial",
+      "group": "tutorial",
+      "kind": "text",
+      "label": "Cerrar tutorial"
     }
   }
 }

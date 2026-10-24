@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {detectMedia} from './guides.js';
 export const pageCatalog=JSON.parse(readFileSync(new URL('./page-catalog.json',import.meta.url),'utf8'));
-const groups={countries:'🌎 MENÚ DE PAÍSES',texts:'📝 TEXTOS GENERALES',buttons:'🔘 BOTONES Y MENÚS',connection:'📱 CONEXIÓN Y GUÍAS',messages:'💬 AVISOS Y MENSAJES',labels:'🏷 RECUADROS Y ETIQUETAS',images:'🖼 FOTOS Y SLIDERS'};
+const groups={tutorial:'📖 TUTORIAL ANTES DEL CÓDIGO',countries:'🌎 MENÚ DE PAÍSES',texts:'📝 TEXTOS GENERALES',buttons:'🔘 BOTONES Y MENÚS',connection:'📱 CONEXIÓN Y GUÍAS',messages:'💬 AVISOS Y MENSAJES',labels:'🏷 RECUADROS Y ETIQUETAS',images:'🖼 FOTOS Y SLIDERS'};
 export function pageValues(store,site){if(!pageCatalog[site])throw Error('Página no disponible.');try{return JSON.parse(store.config()['page_'+site]||'{}');}catch{return {};}}
 export function pageContent(store,site){const values=pageValues(store,site);return Object.entries(pageCatalog[site]).filter(([key])=>typeof values[key]==='string').map(([key,item])=>({source:item.text,value:values[key],kind:item.kind}));}
 export async function savePageImage(bot,m){
@@ -22,6 +22,7 @@ export class PageEditor{
   if(action==='group'){
    if(!groups[id])throw Error('Categoría no disponible.');const entries=Object.entries(pageCatalog[site]).filter(([,f])=>f.group===id),page=Math.max(0,Math.min(Number(pageRaw)||0,Math.max(0,Math.ceil(entries.length/10)-1)));
    const rows=entries.slice(page*10,page*10+10).map(([field,f],i)=>[{text:`${page*10+i+1}. ${f.label}`,callback_data:`pg:${site}:field:${field}`}]);
+   if(site==='cm'&&id==='tutorial')rows.push([{text:'📱 PASOS Y FOTOS ANDROID / IPHONE',callback_data:'guide'},{text:'📱 TEXTOS DE NAVEGACIÓN',callback_data:'pg:cm:group:connection:0'}]);
    const nav=[];if(page)nav.push({text:'← ANTERIOR',callback_data:`pg:${site}:group:${id}:${page-1}`});if((page+1)*10<entries.length)nav.push({text:'SIGUIENTE →',callback_data:`pg:${site}:group:${id}:${page+1}`});if(nav.length)rows.push(nav);
    rows.push([{text:'ATRÁS',callback_data:site==='cm'?'cm':'pg:wa'}]);return this.bot.send(chat,`${groups[id]} · ${page+1}/${Math.max(1,Math.ceil(entries.length/10))}\nSelecciona un elemento.`,{inline_keyboard:rows});
   }
