@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-const corporatePortal=/^\/cubamax(?:\/|$)/.test(location.pathname);
+const corporatePortal=(document.body?.classList.contains('corporate-portal')||/^\/cubamax(?:\/|$)/.test(location.pathname));
 for(const c of countryList){const option=document.createElement('option');option.value=c.code;option.textContent=`${c.flag} ${c.name} (+${c.dial})`;$('country').appendChild(option);}
 function selectedCountry(){return countryList.find(c=>c.code===$('country').value);}
 function updateDial(){const c=selectedCountry();$('dial-code').textContent=c?'+'+c.dial:'—';}

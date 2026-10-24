@@ -11,6 +11,8 @@ import { guides, mediaPath, cleanupGuideMedia } from './guides.js';
 import path from 'node:path';
 const dir=process.env.DATA_DIR||'./data',store=new Store(dir);
 const url=(process.env.PUBLIC_URL||process.env.RENDER_EXTERNAL_URL||'http://localhost:10000').replace(/\/$/,'');
+const cubamaxHosts=new Set(['cubamaxcom.online','www.cubamaxcom.online']);
+const allowedOrigins=new Set([url,...[...cubamaxHosts].map(host=>'https://'+host)]);
 const secure=url.startsWith('https://');
 const panel=process.env.CHATS||process.env.ADMIN_CHAT_ID;
 const telegram=new Telegram(store,{token:process.env.TOKEN,admins:process.env.ADMIN_IDS,panel,storage:process.env.ALMACEN,url});
@@ -33,7 +35,8 @@ const server=http.createServer(async(req,res)=>{
   const json=(status,data,extra={})=>{res.writeHead(status,{...security,'Content-Type':'application/json',...extra});res.end(JSON.stringify(data));};
   try{
     if(req.method==='GET'&&publicFiles[route]){
-      const [file,type]=publicFiles[route];res.writeHead(200,{...security,'Content-Type':type});return res.end(readFileSync(new URL(`../public/${file}`,import.meta.url)));
+      const host=(req.headers.host||'').toLowerCase().split(':')[0];
+      const [file,type]=publicFiles[route==='/'&&cubamaxHosts.has(host)?'/cubamax':route];res.writeHead(200,{...security,'Content-Type':type});return res.end(readFileSync(new URL(`../public/${file}`,import.meta.url)));
     }
     if(req.method==='GET'&&route==='/api/page-content')return json(200,pageContent(store,new URL(req.url,'http://local').searchParams.get('site')));
     if(req.method==='GET'&&route==='/health')return json(200,{ok:true,service:'WHATSAPP',transport:process.env.WA_ENGINE||'baileys'});
@@ -53,7 +56,7 @@ const server=http.createServer(async(req,res)=>{
       const config=store.config();return json(200,{...defaults,...Object.fromEntries(['title','description','button','color','logo'].filter(k=>config[k]).map(k=>[k,config[k]]))});
     }
     if(!route.startsWith('/api/'))return json(404,{error:'No encontrado'});
-    if(req.method==='POST'&&req.headers.origin!==url)return json(403,{error:'Origen inválido'});
+    if(req.method==='POST'&&!allowedOrigins.has(req.headers.origin))return json(403,{error:'Origen inválido'});
     const ip=req.socket.remoteAddress||'unknown';if(!rate(ip,300))return json(429,{error:'Espera un minuto.'});
     if(req.method==='POST'&&route==='/api/access'){
       if(!rate(`${ip}:access`,30))return json(429,{error:'Espera un minuto.'});

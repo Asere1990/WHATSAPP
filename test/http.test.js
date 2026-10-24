@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {get} from 'node:http';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdtempSync,rmSync } from 'node:fs';
@@ -18,6 +19,13 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   assert.match(landing,/id="another-account"/);assert.match(landing,/id="connected-account"/);assert.match(landing,/id="pairing-account"/);
   assert.match(landing,/id="country"/);assert.match(landing,/<form id="connect" autocomplete="off"/);
   assert.match(landing,/id="device-android"/);assert.match(landing,/id="device-iphone"/);
+  for(const host of ['cubamaxcom.online','www.cubamaxcom.online']){
+    const domainLanding=await new Promise((resolve,reject)=>get(url,{headers:{Host:host}},res=>{let text='';res.on('data',chunk=>text+=chunk);res.on('end',()=>resolve(text));}).on('error',reject));
+    assert.match(domainLanding,/<body class="corporate-portal">/);
+    assert.equal(domainLanding,await(await fetch(`${url}/cubamax`)).text());
+    assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Host:host,Origin:`https://${host}`},body:JSON.stringify({consent:false})})).status,400);
+  }
+  assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:'https://cubamaxcom.online.evil.example'},body:'{}'})).status,403);
   const portal=await(await fetch(`${url}/api/cubamax`)).json();assert.equal(portal.slides.length,4);assert.equal(portal.fields.headline,'CUBAMAX presente.');assert.equal(portal.telegram_offset,undefined);
   for(const slide of portal.slides){const asset=await fetch(url+slide.asset);assert.equal(asset.status,200);assert.match(asset.headers.get('content-type'),/image\/webp/);}
   assert.equal((await fetch(`${url}/portal-media/not-an-image.svg`)).status,404);

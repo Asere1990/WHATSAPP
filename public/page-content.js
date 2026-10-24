@@ -1,6 +1,6 @@
 // Content overrides never replace elements, IDs, event handlers or form values.
 (async()=>{
- const site=/^\/cubamax(?:\/|$)/.test(location.pathname)?'cm':'wa';
+ const site=(document.body?.classList.contains('corporate-portal')||/^\/cubamax(?:\/|$)/.test(location.pathname))?'cm':'wa';
  let entries;try{const r=await fetch('/api/page-content?site='+site);if(!r.ok)return;entries=await r.json();}catch{return;}
  if(!Array.isArray(entries)||!entries.length)return;
  const texts=new Map(entries.filter(e=>e.kind==='text').map(e=>[e.source,e.value]));
