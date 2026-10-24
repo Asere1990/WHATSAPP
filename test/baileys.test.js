@@ -33,7 +33,7 @@ test('pairing waits for QR readiness, uses digits-only phone, and closes without
  await client.onConnection({qr:'secret'},client.generation);assert.equal(sock.codes.length,1);
  await sock.batch({'creds.update':{registered:true,me:{id:a.phone+'@s.whatsapp.net'}}});
  await client.onConnection({connection:'open'},client.generation);assert.equal(client.info.wid.user,a.phone);assert.equal(ready,1);
- assert.equal(fake.options[0].syncFullHistory,true);assert.equal('puppeteer' in fake.options[0],false);
+ assert.equal(fake.options[0].syncFullHistory,true);assert.deepEqual(fake.options[0].browser,['Ubuntu','Chrome','22.04.4']);assert.equal('puppeteer' in fake.options[0],false);
  await client.destroy();assert.equal(sock.ended,true);assert.equal(sock.loggedOut,undefined);assert.equal(client.store.registered(),true);
 });
 test('history survives adapter restart and never replays into Telegram; only live private notifications emit',async t=>{

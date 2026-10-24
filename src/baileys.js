@@ -29,7 +29,7 @@ export class BaileysClient extends EventEmitter {
     if(this.closed)return;
     this.stopHistory();
     const epoch=++this.generation,{state,saveCreds}=this.store.auth();
-    const sock=this.socketFactory({auth:state,logger,browser:Browsers.macOS('Desktop'),markOnlineOnConnect:false,syncFullHistory:true,
+    const sock=this.socketFactory({auth:state,logger,browser:Browsers.ubuntu('Chrome'),markOnlineOnConnect:false,syncFullHistory:true,
       getMessage:async key=>this.store.get('message',this.store.messageKey(key))?.message,
       shouldSyncHistoryMessage:()=>true,generateHighQualityLinkPreview:false});
     this.socket=sock;this.codeRequested=false;this.lastCodeAt=0;
@@ -84,6 +84,7 @@ export class BaileysClient extends EventEmitter {
       this.stopHistory();
       clearTimeout(this.codeTimer);
       const status=Number(update.lastDisconnect?.error?.output?.statusCode);
+      console.log('WHATSAPP: transport_closed',JSON.stringify({account:this.account,status:Number.isFinite(status)?status:null,attempt:this.retries}));
       if(status===DisconnectReason.loggedOut){this.store.clearCredentials();this.emit('disconnected','LOGOUT');return;}
       if(status===DisconnectReason.connectionReplaced){this.emit('disconnected','CONFLICT');return;}
       // Restart after pairing and transient network failures; never retry sends.
