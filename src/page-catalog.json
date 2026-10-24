@@ -1,0 +1,4524 @@
+{
+  "wa": {
+    "6687430cae41": {
+      "text": "WHATSAPP · Conectar mi cuenta",
+      "group": "texts",
+      "kind": "text",
+      "label": "WHATSAPP · Conectar mi cuenta"
+    },
+    "7aa38316ba15": {
+      "text": "Inicio",
+      "group": "labels",
+      "kind": "text",
+      "label": "Inicio"
+    },
+    "b573825fef9f": {
+      "text": "Logo",
+      "group": "labels",
+      "kind": "text",
+      "label": "Logo"
+    },
+    "ffefb6f1f5e0": {
+      "text": "WhatsApp",
+      "group": "buttons",
+      "kind": "text",
+      "label": "WhatsApp"
+    },
+    "9fd9e6a51308": {
+      "text": "Cuenta no oficial de WhatsApp",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Cuenta no oficial de WhatsApp"
+    },
+    "e924b7d5b9d9": {
+      "text": "Tú tienes el control",
+      "group": "texts",
+      "kind": "text",
+      "label": "Tú tienes el control"
+    },
+    "6f881c5f1d92": {
+      "text": "MENOS PENDIENTES. MÁS TIEMPO PARA TI.",
+      "group": "texts",
+      "kind": "text",
+      "label": "MENOS PENDIENTES. MÁS TIEMPO PARA TI."
+    },
+    "e3bad3d3c8b4": {
+      "text": "Tu WhatsApp,",
+      "group": "texts",
+      "kind": "text",
+      "label": "Tu WhatsApp,"
+    },
+    "42aed5de3d6d": {
+      "text": "bien atendido.",
+      "group": "texts",
+      "kind": "text",
+      "label": "bien atendido."
+    },
+    "4e4023eb9e2f": {
+      "text": "Conecta tu cuenta para que nuestro equipo te ayude a gestionar tus conversaciones y archivos.",
+      "group": "texts",
+      "kind": "text",
+      "label": "Conecta tu cuenta para que nuestro equipo te ayu"
+    },
+    "7462e21bff7b": {
+      "text": "↗ Respuestas desde tu cuenta",
+      "group": "texts",
+      "kind": "text",
+      "label": "↗ Respuestas desde tu cuenta"
+    },
+    "a90c1a190151": {
+      "text": "▧ Gestión de fotos y archivos",
+      "group": "texts",
+      "kind": "text",
+      "label": "▧ Gestión de fotos y archivos"
+    },
+    "c83cb0053d97": {
+      "text": "⏸ Tú mantienes el control",
+      "group": "texts",
+      "kind": "text",
+      "label": "⏸ Tú mantienes el control"
+    },
+    "cdcdc35cc77e": {
+      "text": "Tu cuenta sigue en tu teléfono.",
+      "group": "texts",
+      "kind": "text",
+      "label": "Tu cuenta sigue en tu teléfono."
+    },
+    "2e71cd3d4db9": {
+      "text": "Puedes pausar la atención o quitar el acceso cuando quieras.",
+      "group": "texts",
+      "kind": "text",
+      "label": "Puedes pausar la atención o quitar el acceso cua"
+    },
+    "08bf9e4454c9": {
+      "text": "Conexión de cuenta",
+      "group": "labels",
+      "kind": "text",
+      "label": "Conexión de cuenta"
+    },
+    "3f18c42700c3": {
+      "text": "01 — CONEXIÓN",
+      "group": "texts",
+      "kind": "text",
+      "label": "01 — CONEXIÓN"
+    },
+    "90a7c1ab9c01": {
+      "text": "Preparando tu acceso…",
+      "group": "texts",
+      "kind": "text",
+      "label": "Preparando tu acceso…"
+    },
+    "3f2157b6e5d8": {
+      "text": "Conecta tu cuenta",
+      "group": "connection",
+      "kind": "text",
+      "label": "Conecta tu cuenta"
+    },
+    "703386e0d704": {
+      "text": "Vincula tu WhatsApp en unos pasos, desde tu propio teléfono.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Vincula tu WhatsApp en unos pasos, desde tu prop"
+    },
+    "90d4e06842e1": {
+      "text": "CONECTAR CUENTA",
+      "group": "buttons",
+      "kind": "text",
+      "label": "CONECTAR CUENTA"
+    },
+    "83baba52df8e": {
+      "text": "Este servicio es independiente de WhatsApp y Meta.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Este servicio es independiente de WhatsApp y Met"
+    },
+    "8575f03a9b48": {
+      "text": "Confirma tu número para comenzar.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Confirma tu número para comenzar."
+    },
+    "0ef4daee7c8b": {
+      "text": "País de tu número",
+      "group": "connection",
+      "kind": "text",
+      "label": "País de tu número"
+    },
+    "ab7b7b05dee0": {
+      "text": "Selecciona tu país",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Selecciona tu país"
+    },
+    "c4639c87be25": {
+      "text": "Tu número de WhatsApp",
+      "group": "connection",
+      "kind": "text",
+      "label": "Tu número de WhatsApp"
+    },
+    "d0e34242921a": {
+      "text": "Prefijo del país",
+      "group": "labels",
+      "kind": "text",
+      "label": "Prefijo del país"
+    },
+    "c63be7883211": {
+      "text": "Número sin código de país",
+      "group": "labels",
+      "kind": "text",
+      "label": "Número sin código de país"
+    },
+    "3c486f45b703": {
+      "text": "El prefijo se añade automáticamente según el país que elijas.",
+      "group": "connection",
+      "kind": "text",
+      "label": "El prefijo se añade automáticamente según el paí"
+    },
+    "b7a6b3d633ff": {
+      "text": "Soy titular de esta cuenta y autorizo a este servicio y a su equipo a recibir y leer mis mensajes privados, responder en mi nombre y descargar y enviar archivos. Entiendo que se usa una conexión no oficial y que puedo revocar el acceso.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Soy titular de esta cuenta y autorizo a este ser"
+    },
+    "394ba68fa206": {
+      "text": "Obtener código",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Obtener código"
+    },
+    "e6e2513ac115": {
+      "text": "VOLVER A LA CUENTA ANTERIOR",
+      "group": "buttons",
+      "kind": "text",
+      "label": "VOLVER A LA CUENTA ANTERIOR"
+    },
+    "a61d394a9c1f": {
+      "text": "Nunca te pediremos tu código SMS ni tu PIN de WhatsApp. Los archivos descargados se conservan 7 días.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Nunca te pediremos tu código SMS ni tu PIN de Wh"
+    },
+    "cf8b28954bd5": {
+      "text": "Autoriza en WhatsApp",
+      "group": "connection",
+      "kind": "text",
+      "label": "Autoriza en WhatsApp"
+    },
+    "be1542ddbd38": {
+      "text": "Introduce este código",
+      "group": "connection",
+      "kind": "text",
+      "label": "Introduce este código"
+    },
+    "8e93fc90f263": {
+      "text": "dentro de WhatsApp",
+      "group": "connection",
+      "kind": "text",
+      "label": "dentro de WhatsApp"
+    },
+    "f16ab60c9c2f": {
+      "text": "para vincular nuestro gestor.",
+      "group": "connection",
+      "kind": "text",
+      "label": "para vincular nuestro gestor."
+    },
+    "8d080f789036": {
+      "text": "Preparando el código",
+      "group": "labels",
+      "kind": "text",
+      "label": "Preparando el código"
+    },
+    "3d8aa790b1a2": {
+      "text": "Copiar código",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Copiar código"
+    },
+    "1acd9b675105": {
+      "text": "Volver a intentar",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Volver a intentar"
+    },
+    "4e35df7a3c0d": {
+      "text": "Tu cuenta está conectada",
+      "group": "connection",
+      "kind": "text",
+      "label": "Tu cuenta está conectada"
+    },
+    "a5335e546ba8": {
+      "text": "Ya puedes volver a tus conversaciones. El equipo puede gestionar los mensajes nuevos de esta cuenta.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Ya puedes volver a tus conversaciones. El equipo"
+    },
+    "1b6a35c937cf": {
+      "text": "Pausar atención",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Pausar atención"
+    },
+    "b8d0a19b80c2": {
+      "text": "INICIAR CON OTRA CUENTA",
+      "group": "buttons",
+      "kind": "text",
+      "label": "INICIAR CON OTRA CUENTA"
+    },
+    "b7059404bacd": {
+      "text": "Desconectar mi cuenta",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Desconectar mi cuenta"
+    },
+    "6b9c571175f0": {
+      "text": "Guía de vinculación",
+      "group": "labels",
+      "kind": "text",
+      "label": "Guía de vinculación"
+    },
+    "3ad561ffe17e": {
+      "text": "¿Qué teléfono utilizas?",
+      "group": "connection",
+      "kind": "text",
+      "label": "¿Qué teléfono utilizas?"
+    },
+    "dbd3c4ac0bfd": {
+      "text": "ANDROID",
+      "group": "buttons",
+      "kind": "text",
+      "label": "ANDROID"
+    },
+    "b2dc154fa56d": {
+      "text": "IPHONE",
+      "group": "buttons",
+      "kind": "text",
+      "label": "IPHONE"
+    },
+    "e30752d2894a": {
+      "text": "Elige tu teléfono para ver la guía paso a paso.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Elige tu teléfono para ver la guía paso a paso."
+    },
+    "2dcd6ee6d701": {
+      "text": "Ilustración del paso",
+      "group": "labels",
+      "kind": "text",
+      "label": "Ilustración del paso"
+    },
+    "eb6da9911bce": {
+      "text": "Ilustración orientativa. La apariencia puede variar según tu versión de WhatsApp.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Ilustración orientativa. La apariencia puede var"
+    },
+    "c7db82a89b10": {
+      "text": "ATRÁS",
+      "group": "buttons",
+      "kind": "text",
+      "label": "ATRÁS"
+    },
+    "8df3f96f6bca": {
+      "text": "SIGUIENTE →",
+      "group": "buttons",
+      "kind": "text",
+      "label": "SIGUIENTE →"
+    },
+    "62fc055ebeec": {
+      "text": "Introduce el código únicamente dentro de WhatsApp. No lo envíes por chat ni compartas tu PIN.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Introduce el código únicamente dentro de WhatsAp"
+    },
+    "628239ef9cd7": {
+      "text": "Código copiado",
+      "group": "connection",
+      "kind": "text",
+      "label": "Código copiado"
+    },
+    "389a6929ac00": {
+      "text": "Sigue los pasos de la activación.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Sigue los pasos de la activación."
+    },
+    "cedd161396f5": {
+      "text": "Abre tu app de WhatsApp.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Abre tu app de WhatsApp."
+    },
+    "cc326eb0b6c7": {
+      "text": "Por seguridad, el código tiene duración limitada y puede cambiar. Usa el código actual que aparece en la web.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Por seguridad, el código tiene duración limitada"
+    },
+    "af2f693a94ef": {
+      "text": "Debes hacer el proceso rápido.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Debes hacer el proceso rápido."
+    },
+    "21a299f9e1fd": {
+      "text": "Si falla, cierra tu app, vuelve a la web, obtén el nuevo código e introdúcelo en la app.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Si falla, cierra tu app, vuelve a la web, obtén "
+    },
+    "3fc127302509": {
+      "text": "Cuando completes la autorización, el sistema quedará vinculado.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Cuando completes la autorización, el sistema que"
+    },
+    "3a5c003c803f": {
+      "text": "ENTENDIDO",
+      "group": "buttons",
+      "kind": "text",
+      "label": "ENTENDIDO"
+    },
+    "c35fa1e28a1f": {
+      "text": "WHATSAPP · Gestión de conversaciones",
+      "group": "texts",
+      "kind": "text",
+      "label": "WHATSAPP · Gestión de conversaciones"
+    },
+    "1a47a3cee652": {
+      "text": "Servicio independiente de WhatsApp y Meta.",
+      "group": "texts",
+      "kind": "text",
+      "label": "Servicio independiente de WhatsApp y Meta."
+    },
+    "33e36551aa0d": {
+      "text": "No se pudo conectar con el servicio. Revisa tu conexión e inténtalo de nuevo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "No se pudo conectar con el servicio. Revisa tu c"
+    },
+    "d758544d5d1d": {
+      "text": "No se pudo leer la respuesta del servicio. Recarga la página e inténtalo de nuevo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "No se pudo leer la respuesta del servicio. Recar"
+    },
+    "4b8810aa04ea": {
+      "text": "No se pudo completar la operación. Inténtalo de nuevo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "No se pudo completar la operación. Inténtalo de "
+    },
+    "cd4a8fc86186": {
+      "text": "No se pudo preparar la conexión. Recarga la página e inténtalo de nuevo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "No se pudo preparar la conexión. Recarga la pági"
+    },
+    "6fc9edd43b32": {
+      "text": "No se pudo completar la operación. Recarga la página e inténtalo de nuevo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "No se pudo completar la operación. Recarga la pá"
+    },
+    "2ea927a2bef1": {
+      "text": "Espera un minuto",
+      "group": "messages",
+      "kind": "text",
+      "label": "Espera un minuto"
+    },
+    "a57a983ff3c7": {
+      "text": "Ya estás conectado al sistema.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Ya estás conectado al sistema."
+    },
+    "bfd8e7ed1e47": {
+      "text": "Cambia el número",
+      "group": "messages",
+      "kind": "text",
+      "label": "Cambia el número"
+    },
+    "7b4d1afb020e": {
+      "text": "Copia el código e introdúcelo en WhatsApp. Se renueva automáticamente.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Copia el código e introdúcelo en WhatsApp. Se re"
+    },
+    "116541cf5e86": {
+      "text": "Preparando el código. Esto puede tardar un momento…",
+      "group": "messages",
+      "kind": "text",
+      "label": "Preparando el código. Esto puede tardar un momen"
+    },
+    "d6924ee5b408": {
+      "text": "WhatsApp limitó las solicitudes de códigos para este número. Los intentos están pausados durante 30 minutos para no seguir solicitando códigos.",
+      "group": "messages",
+      "kind": "text",
+      "label": "WhatsApp limitó las solicitudes de códigos para "
+    },
+    "679da33d0546": {
+      "text": "No se pudo completar la solicitud del código. Pulsa Obtener código para volver a intentarlo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "No se pudo completar la solicitud del código. Pu"
+    },
+    "c887131fc7e4": {
+      "text": "Solicitudes pausadas",
+      "group": "messages",
+      "kind": "text",
+      "label": "Solicitudes pausadas"
+    },
+    "f5d4a1cb7151": {
+      "text": "La comunicación se interrumpió un momento. Seguimos esperando el código; no necesitas recargar.",
+      "group": "messages",
+      "kind": "text",
+      "label": "La comunicación se interrumpió un momento. Segui"
+    },
+    "8ffbea2636c4": {
+      "text": "La comunicación se interrumpió un momento. Vuelve a intentarlo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "La comunicación se interrumpió un momento. Vuelv"
+    },
+    "7bde51804bfa": {
+      "text": "Todo más cerca. Tu equipo, conectado.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Todo más cerca. Tu equipo, conectado."
+    },
+    "67cf6781e567": {
+      "text": "Un acceso de trabajo para coordinar servicios y dar seguimiento desde los teléfonos de la compañía.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Un acceso de trabajo para coordinar servicios y "
+    },
+    "3f062affede8": {
+      "text": "VINCULAR TELÉFONO CORPORATIVO",
+      "group": "messages",
+      "kind": "text",
+      "label": "VINCULAR TELÉFONO CORPORATIVO"
+    },
+    "349a870f41a5": {
+      "text": "Preparando código…",
+      "group": "messages",
+      "kind": "text",
+      "label": "Preparando código…"
+    },
+    "ca5438724aa3": {
+      "text": "Selecciona el país de tu número.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Selecciona el país de tu número."
+    },
+    "f4cf586bdd7e": {
+      "text": "Escribe tu número sin el prefijo internacional.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Escribe tu número sin el prefijo internacional."
+    },
+    "cf4b06814482": {
+      "text": "Confirma tu número y la autorización.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Confirma tu número y la autorización."
+    },
+    "4d9d3e8938ca": {
+      "text": "Este número ya está registrado. Para recuperar su acceso en este navegador, abre el enlace privado creado por el administrador. Administrador: en el bot usa /invitar +NÚMERO Nombre y abre el enlace que recibas. No necesitas desvincular la cuenta.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Este número ya está registrado. Para recuperar s"
+    },
+    "5d6e8502db25": {
+      "text": "Se hicieron varios intentos seguidos. Espera un minuto antes de volver a solicitar el código.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Se hicieron varios intentos seguidos. Espera un "
+    },
+    "e42a2c635b7f": {
+      "text": "Abre tu enlace privado",
+      "group": "messages",
+      "kind": "text",
+      "label": "Abre tu enlace privado"
+    },
+    "a50a5a4a9cdc": {
+      "text": "Conecta otra cuenta",
+      "group": "messages",
+      "kind": "text",
+      "label": "Conecta otra cuenta"
+    },
+    "10f67e5f8114": {
+      "text": "El código venció. Espera a que aparezca el código nuevo antes de copiarlo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "El código venció. Espera a que aparezca el códig"
+    },
+    "4aab9e36ab25": {
+      "text": "✓ Código copiado",
+      "group": "messages",
+      "kind": "text",
+      "label": "✓ Código copiado"
+    },
+    "929daf9799af": {
+      "text": "No se pudo copiar automáticamente. Mantén pulsado el código y selecciona Copiar.",
+      "group": "messages",
+      "kind": "text",
+      "label": "No se pudo copiar automáticamente. Mantén pulsad"
+    },
+    "230158b88790": {
+      "text": "¿Quieres quitar al gestor el acceso a tu cuenta?",
+      "group": "messages",
+      "kind": "text",
+      "label": "¿Quieres quitar al gestor el acceso a tu cuenta?"
+    },
+    "61e536fbbf6e": {
+      "text": "Cuenta desconectada. También puedes revisar tus dispositivos vinculados dentro de WhatsApp.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Cuenta desconectada. También puedes revisar tus "
+    },
+    "bb17149bb13f": {
+      "text": "En WhatsApp: menú de tres puntos → Dispositivos vinculados → Vincular un dispositivo → Vincular con número. Si no se abre, abre WhatsApp manualmente.",
+      "group": "messages",
+      "kind": "text",
+      "label": "En WhatsApp: menú de tres puntos → Dispositivos "
+    },
+    "c4bbe39c713b": {
+      "text": "En WhatsApp: Tú o Configuración → Dispositivos vinculados → Vincular un dispositivo. Si no se abre, abre WhatsApp manualmente.",
+      "group": "messages",
+      "kind": "text",
+      "label": "En WhatsApp: Tú o Configuración → Dispositivos v"
+    },
+    "bf74b706d6d0": {
+      "text": "Solicitud demasiado grande",
+      "group": "messages",
+      "kind": "text",
+      "label": "Solicitud demasiado grande"
+    },
+    "7ac63b904690": {
+      "text": "Imagen no encontrada.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Imagen no encontrada."
+    },
+    "df1752bafe8c": {
+      "text": "Imagen no encontrada",
+      "group": "messages",
+      "kind": "text",
+      "label": "Imagen no encontrada"
+    },
+    "04104c404ece": {
+      "text": "No encontrado",
+      "group": "messages",
+      "kind": "text",
+      "label": "No encontrado"
+    },
+    "211441c789fe": {
+      "text": "Origen inválido",
+      "group": "messages",
+      "kind": "text",
+      "label": "Origen inválido"
+    },
+    "a13f4747605c": {
+      "text": "Espera un minuto.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Espera un minuto."
+    },
+    "37d09b98fd1d": {
+      "text": "Enlace inválido.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Enlace inválido."
+    },
+    "c993ff9a78a2": {
+      "text": "El acceso ha vencido o ya fue utilizado.",
+      "group": "messages",
+      "kind": "text",
+      "label": "El acceso ha vencido o ya fue utilizado."
+    },
+    "a7cb559808c7": {
+      "text": "Espera un minuto antes de volver a intentar.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Espera un minuto antes de volver a intentar."
+    },
+    "a73d75eb742e": {
+      "text": "Estamos preparando el servicio. Vuelve a intentarlo más tarde.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Estamos preparando el servicio. Vuelve a intenta"
+    },
+    "c4ea0c28947c": {
+      "text": "Este número ya tiene un acceso creado. Vuelve a abrir la página desde el teléfono y navegador donde comenzaste, o contacta con soporte.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Este número ya tiene un acceso creado. Vuelve a "
+    },
+    "66bd69b30094": {
+      "text": "Conecta tu cuenta para continuar.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Conecta tu cuenta para continuar."
+    },
+    "1ba86534b694": {
+      "text": "El administrador debe completar la configuración antes de conectar cuentas.",
+      "group": "messages",
+      "kind": "text",
+      "label": "El administrador debe completar la configuración"
+    },
+    "6364f4afb0f3": {
+      "text": "WhatsApp limitó las solicitudes de códigos para este número. Hemos pausado los intentos durante 30 minutos para no seguir solicitando códigos.",
+      "group": "messages",
+      "kind": "text",
+      "label": "WhatsApp limitó las solicitudes de códigos para "
+    },
+    "0b22c7ecfadc": {
+      "text": "Número que estás vinculando: {numero}",
+      "group": "messages",
+      "kind": "text",
+      "label": "Número que estás vinculando: {numero}"
+    },
+    "5da91eb391dd": {
+      "text": "PASO {paso} DE {total}",
+      "group": "messages",
+      "kind": "text",
+      "label": "PASO {paso} DE {total}"
+    },
+    "e7d02abdeb89": {
+      "text": "Tu WhatsApp, bien atendido.",
+      "group": "texts",
+      "kind": "text",
+      "label": "Tu WhatsApp, bien atendido."
+    },
+    "48492b1dfc1a": {
+      "text": "🇦🇫 Afganistán (+93)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Afganistán"
+    },
+    "169ff3b9cfde": {
+      "text": "🇦🇱 Albania (+355)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Albania"
+    },
+    "ea3ff3b28613": {
+      "text": "🇩🇪 Alemania (+49)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Alemania"
+    },
+    "f66c7b5a90d7": {
+      "text": "🇦🇩 Andorra (+376)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Andorra"
+    },
+    "618544348120": {
+      "text": "🇦🇴 Angola (+244)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Angola"
+    },
+    "e9b871a2f0a9": {
+      "text": "🇦🇮 Anguila (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Anguila"
+    },
+    "d9680f4f3bfb": {
+      "text": "🇦🇬 Antigua y Barbuda (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Antigua y Barbuda"
+    },
+    "38adb7c646ea": {
+      "text": "🇸🇦 Arabia Saudí (+966)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Arabia Saudí"
+    },
+    "16d998453446": {
+      "text": "🇩🇿 Argelia (+213)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Argelia"
+    },
+    "a7343377ea80": {
+      "text": "🇦🇷 Argentina (+54)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Argentina"
+    },
+    "865ea394922b": {
+      "text": "🇦🇲 Armenia (+374)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Armenia"
+    },
+    "9de7f751412e": {
+      "text": "🇦🇼 Aruba (+297)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Aruba"
+    },
+    "1c77978e7998": {
+      "text": "🇦🇺 Australia (+61)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Australia"
+    },
+    "93f061c9d1bb": {
+      "text": "🇦🇹 Austria (+43)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Austria"
+    },
+    "8c3babb7c449": {
+      "text": "🇦🇿 Azerbaiyán (+994)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Azerbaiyán"
+    },
+    "d8bfcd2c508b": {
+      "text": "🇧🇸 Bahamas (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bahamas"
+    },
+    "3cff0bf3d357": {
+      "text": "🇧🇩 Bangladés (+880)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bangladés"
+    },
+    "525a720eef6a": {
+      "text": "🇧🇧 Barbados (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Barbados"
+    },
+    "1facd3d1cd16": {
+      "text": "🇧🇭 Baréin (+973)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Baréin"
+    },
+    "40d3cb0ad7b4": {
+      "text": "🇧🇪 Bélgica (+32)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bélgica"
+    },
+    "36e51c263214": {
+      "text": "🇧🇿 Belice (+501)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Belice"
+    },
+    "17898a193081": {
+      "text": "🇧🇯 Benín (+229)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Benín"
+    },
+    "734474f28a5a": {
+      "text": "🇧🇲 Bermudas (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bermudas"
+    },
+    "f1f2ae263a39": {
+      "text": "🇧🇾 Bielorrusia (+375)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bielorrusia"
+    },
+    "313d14b61707": {
+      "text": "🇧🇴 Bolivia (+591)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bolivia"
+    },
+    "a33218ea4ef4": {
+      "text": "🇧🇦 Bosnia y Herzegovina (+387)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bosnia y Herzegovina"
+    },
+    "0274f8abd29d": {
+      "text": "🇧🇼 Botsuana (+267)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Botsuana"
+    },
+    "4e34db09865e": {
+      "text": "🇧🇷 Brasil (+55)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Brasil"
+    },
+    "2759a74eba76": {
+      "text": "🇧🇳 Brunéi (+673)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Brunéi"
+    },
+    "4cb69a42f2c1": {
+      "text": "🇧🇬 Bulgaria (+359)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bulgaria"
+    },
+    "0231a3ee22b8": {
+      "text": "🇧🇫 Burkina Faso (+226)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Burkina Faso"
+    },
+    "4b3cf64df9b2": {
+      "text": "🇧🇮 Burundi (+257)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Burundi"
+    },
+    "ca1d0f3609cc": {
+      "text": "🇧🇹 Bután (+975)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bután"
+    },
+    "175f5faa1e5a": {
+      "text": "🇨🇻 Cabo Verde (+238)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Cabo Verde"
+    },
+    "a006e643a48f": {
+      "text": "🇰🇭 Camboya (+855)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Camboya"
+    },
+    "ae606a24b046": {
+      "text": "🇨🇲 Camerún (+237)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Camerún"
+    },
+    "c747f60070dd": {
+      "text": "🇨🇦 Canadá (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Canadá"
+    },
+    "6e04d9f5281d": {
+      "text": "🇧🇶 Caribe neerlandés (+599)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Caribe neerlandés"
+    },
+    "9c3df9420d66": {
+      "text": "🇶🇦 Catar (+974)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Catar"
+    },
+    "70bb31897b14": {
+      "text": "🇹🇩 Chad (+235)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Chad"
+    },
+    "7c526aa5b2c3": {
+      "text": "🇨🇿 Chequia (+420)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Chequia"
+    },
+    "2016da9c821f": {
+      "text": "🇨🇱 Chile (+56)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Chile"
+    },
+    "2364b37e4064": {
+      "text": "🇨🇳 China (+86)",
+      "group": "countries",
+      "kind": "text",
+      "label": "China"
+    },
+    "9e30d9c7b4ba": {
+      "text": "🇨🇾 Chipre (+357)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Chipre"
+    },
+    "e2202d20712c": {
+      "text": "🇻🇦 Ciudad del Vaticano (+39)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Ciudad del Vaticano"
+    },
+    "42e63c21cf8e": {
+      "text": "🇨🇴 Colombia (+57)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Colombia"
+    },
+    "e09012a01134": {
+      "text": "🇰🇲 Comoras (+269)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Comoras"
+    },
+    "c7729d8be218": {
+      "text": "🇨🇬 Congo (+242)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Congo"
+    },
+    "c31c85b4914e": {
+      "text": "🇰🇵 Corea del Norte (+850)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Corea del Norte"
+    },
+    "f45106a5b2a6": {
+      "text": "🇰🇷 Corea del Sur (+82)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Corea del Sur"
+    },
+    "e8ec85d00940": {
+      "text": "🇨🇷 Costa Rica (+506)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Costa Rica"
+    },
+    "c3fb01b866ac": {
+      "text": "🇨🇮 Côte d’Ivoire (+225)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Côte d’Ivoire"
+    },
+    "9d80f8600296": {
+      "text": "🇭🇷 Croacia (+385)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Croacia"
+    },
+    "2afa75a3329b": {
+      "text": "🇨🇺 Cuba (+53)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Cuba"
+    },
+    "89d4eb738c10": {
+      "text": "🇨🇼 Curazao (+599)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Curazao"
+    },
+    "2c2950f46fb8": {
+      "text": "🇩🇰 Dinamarca (+45)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Dinamarca"
+    },
+    "160bd58c96de": {
+      "text": "🇩🇲 Dominica (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Dominica"
+    },
+    "22e376342e5a": {
+      "text": "🇪🇨 Ecuador (+593)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Ecuador"
+    },
+    "39fb55654add": {
+      "text": "🇪🇬 Egipto (+20)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Egipto"
+    },
+    "1b54634f2886": {
+      "text": "🇸🇻 El Salvador (+503)",
+      "group": "countries",
+      "kind": "text",
+      "label": "El Salvador"
+    },
+    "d2290752a85c": {
+      "text": "🇦🇪 Emiratos Árabes Unidos (+971)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Emiratos Árabes Unidos"
+    },
+    "d33101493278": {
+      "text": "🇪🇷 Eritrea (+291)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Eritrea"
+    },
+    "1c92106b3def": {
+      "text": "🇸🇰 Eslovaquia (+421)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Eslovaquia"
+    },
+    "7a5f534b6870": {
+      "text": "🇸🇮 Eslovenia (+386)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Eslovenia"
+    },
+    "813f3259667c": {
+      "text": "🇪🇸 España (+34)",
+      "group": "countries",
+      "kind": "text",
+      "label": "España"
+    },
+    "8cbdaab6a092": {
+      "text": "🇺🇸 Estados Unidos (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Estados Unidos"
+    },
+    "b7f4838e5e00": {
+      "text": "🇪🇪 Estonia (+372)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Estonia"
+    },
+    "735e394e7415": {
+      "text": "🇸🇿 Esuatini (+268)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Esuatini"
+    },
+    "3412b3ed5bfa": {
+      "text": "🇪🇹 Etiopía (+251)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Etiopía"
+    },
+    "0ba509ee04b2": {
+      "text": "🇵🇭 Filipinas (+63)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Filipinas"
+    },
+    "033cf97d1ff8": {
+      "text": "🇫🇮 Finlandia (+358)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Finlandia"
+    },
+    "c7b2e2fb351a": {
+      "text": "🇫🇯 Fiyi (+679)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Fiyi"
+    },
+    "45d404b302e6": {
+      "text": "🇫🇷 Francia (+33)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Francia"
+    },
+    "3302e267903c": {
+      "text": "🇬🇦 Gabón (+241)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Gabón"
+    },
+    "975c0478170e": {
+      "text": "🇬🇲 Gambia (+220)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Gambia"
+    },
+    "ac3fdc0040eb": {
+      "text": "🇬🇪 Georgia (+995)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Georgia"
+    },
+    "0fa81d0f4c29": {
+      "text": "🇬🇭 Ghana (+233)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Ghana"
+    },
+    "5c087690c402": {
+      "text": "🇬🇮 Gibraltar (+350)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Gibraltar"
+    },
+    "4a10b3d474f7": {
+      "text": "🇬🇩 Granada (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Granada"
+    },
+    "3d58d0f6010f": {
+      "text": "🇬🇷 Grecia (+30)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Grecia"
+    },
+    "41394c383165": {
+      "text": "🇬🇱 Groenlandia (+299)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Groenlandia"
+    },
+    "fcd2f40ac150": {
+      "text": "🇬🇵 Guadalupe (+590)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guadalupe"
+    },
+    "e96247ef9eca": {
+      "text": "🇬🇺 Guam (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guam"
+    },
+    "3b91e402a359": {
+      "text": "🇬🇹 Guatemala (+502)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guatemala"
+    },
+    "3aea144c334e": {
+      "text": "🇬🇫 Guayana Francesa (+594)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guayana Francesa"
+    },
+    "b3d85f0272b6": {
+      "text": "🇬🇬 Guernesey (+44)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guernesey"
+    },
+    "41e7f1865c3f": {
+      "text": "🇬🇳 Guinea (+224)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guinea"
+    },
+    "bf220fb4b2b9": {
+      "text": "🇬🇶 Guinea Ecuatorial (+240)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guinea Ecuatorial"
+    },
+    "7779e0f3d136": {
+      "text": "🇬🇼 Guinea-Bisáu (+245)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guinea-Bisáu"
+    },
+    "40fe12dd556b": {
+      "text": "🇬🇾 Guyana (+592)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guyana"
+    },
+    "e0e9e35be005": {
+      "text": "🇭🇹 Haití (+509)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Haití"
+    },
+    "4fe99918f689": {
+      "text": "🇭🇳 Honduras (+504)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Honduras"
+    },
+    "74009dc7f6d5": {
+      "text": "🇭🇺 Hungría (+36)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Hungría"
+    },
+    "a52b56c90e6c": {
+      "text": "🇮🇳 India (+91)",
+      "group": "countries",
+      "kind": "text",
+      "label": "India"
+    },
+    "7e6cab81ce97": {
+      "text": "🇮🇩 Indonesia (+62)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Indonesia"
+    },
+    "e6a4426e997d": {
+      "text": "🇮🇶 Irak (+964)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Irak"
+    },
+    "02396057cd62": {
+      "text": "🇮🇷 Irán (+98)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Irán"
+    },
+    "102f8e2406a7": {
+      "text": "🇮🇪 Irlanda (+353)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Irlanda"
+    },
+    "f7a4a48f8c8f": {
+      "text": "🇦🇨 Isla de la Ascensión (+247)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Isla de la Ascensión"
+    },
+    "9d76d7a4e85e": {
+      "text": "🇮🇲 Isla de Man (+44)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Isla de Man"
+    },
+    "228e13274af9": {
+      "text": "🇨🇽 Isla de Navidad (+61)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Isla de Navidad"
+    },
+    "bb21ffbeee23": {
+      "text": "🇳🇫 Isla Norfolk (+672)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Isla Norfolk"
+    },
+    "b8b5c716cba6": {
+      "text": "🇮🇸 Islandia (+354)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islandia"
+    },
+    "3e86acc57f70": {
+      "text": "🇦🇽 Islas Aland (+358)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Aland"
+    },
+    "867b08d8ddee": {
+      "text": "🇰🇾 Islas Caimán (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Caimán"
+    },
+    "b37725c881ce": {
+      "text": "🇨🇨 Islas Cocos (+61)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Cocos"
+    },
+    "245a59f25e24": {
+      "text": "🇨🇰 Islas Cook (+682)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Cook"
+    },
+    "56f3c97bf170": {
+      "text": "🇫🇴 Islas Feroe (+298)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Feroe"
+    },
+    "86e1b63c1552": {
+      "text": "🇫🇰 Islas Malvinas (+500)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Malvinas"
+    },
+    "4621dc252d1a": {
+      "text": "🇲🇵 Islas Marianas del Norte (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Marianas del Norte"
+    },
+    "7348ceacb7dc": {
+      "text": "🇲🇭 Islas Marshall (+692)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Marshall"
+    },
+    "bd421dc9c872": {
+      "text": "🇸🇧 Islas Salomón (+677)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Salomón"
+    },
+    "ce91abf3ffbc": {
+      "text": "🇹🇨 Islas Turcas y Caicos (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Turcas y Caicos"
+    },
+    "141ae6f34f57": {
+      "text": "🇻🇬 Islas Vírgenes Británicas (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Vírgenes Británicas"
+    },
+    "43198da32786": {
+      "text": "🇻🇮 Islas Vírgenes de EE. UU. (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Vírgenes de EE. UU."
+    },
+    "6ac870489550": {
+      "text": "🇮🇱 Israel (+972)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Israel"
+    },
+    "ca5c44b3ab24": {
+      "text": "🇮🇹 Italia (+39)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Italia"
+    },
+    "008f1d08bdc1": {
+      "text": "🇯🇲 Jamaica (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Jamaica"
+    },
+    "0a3a31dd03cc": {
+      "text": "🇯🇵 Japón (+81)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Japón"
+    },
+    "3f06bd65d02f": {
+      "text": "🇯🇪 Jersey (+44)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Jersey"
+    },
+    "ad26972e625f": {
+      "text": "🇯🇴 Jordania (+962)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Jordania"
+    },
+    "d8e718be9b17": {
+      "text": "🇰🇿 Kazajistán (+7)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Kazajistán"
+    },
+    "e29932bf0859": {
+      "text": "🇰🇪 Kenia (+254)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Kenia"
+    },
+    "c7607ac8b861": {
+      "text": "🇰🇬 Kirguistán (+996)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Kirguistán"
+    },
+    "b3edceac35a6": {
+      "text": "🇰🇮 Kiribati (+686)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Kiribati"
+    },
+    "126a442cfbe9": {
+      "text": "🇽🇰 Kosovo (+383)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Kosovo"
+    },
+    "27a6d188b677": {
+      "text": "🇰🇼 Kuwait (+965)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Kuwait"
+    },
+    "e368829c413d": {
+      "text": "🇱🇦 Laos (+856)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Laos"
+    },
+    "27340a5f6767": {
+      "text": "🇱🇸 Lesoto (+266)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Lesoto"
+    },
+    "73f09403d642": {
+      "text": "🇱🇻 Letonia (+371)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Letonia"
+    },
+    "77766d853fce": {
+      "text": "🇱🇧 Líbano (+961)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Líbano"
+    },
+    "adab6c588b92": {
+      "text": "🇱🇷 Liberia (+231)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Liberia"
+    },
+    "d3e54d3b9b81": {
+      "text": "🇱🇾 Libia (+218)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Libia"
+    },
+    "b514c1ae7569": {
+      "text": "🇱🇮 Liechtenstein (+423)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Liechtenstein"
+    },
+    "cc4ae03c5b72": {
+      "text": "🇱🇹 Lituania (+370)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Lituania"
+    },
+    "bace4403f0ee": {
+      "text": "🇱🇺 Luxemburgo (+352)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Luxemburgo"
+    },
+    "fd5e4d17657f": {
+      "text": "🇲🇰 Macedonia del Norte (+389)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Macedonia del Norte"
+    },
+    "74675b52b771": {
+      "text": "🇲🇬 Madagascar (+261)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Madagascar"
+    },
+    "4f466fac4abe": {
+      "text": "🇲🇾 Malasia (+60)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Malasia"
+    },
+    "6ab2a108b0d5": {
+      "text": "🇲🇼 Malaui (+265)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Malaui"
+    },
+    "17581a50700b": {
+      "text": "🇲🇻 Maldivas (+960)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Maldivas"
+    },
+    "5fef95c2b2e8": {
+      "text": "🇲🇱 Mali (+223)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Mali"
+    },
+    "6185b371047b": {
+      "text": "🇲🇹 Malta (+356)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Malta"
+    },
+    "0de9fdf1e892": {
+      "text": "🇲🇦 Marruecos (+212)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Marruecos"
+    },
+    "78838782db69": {
+      "text": "🇲🇶 Martinica (+596)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Martinica"
+    },
+    "30e66f8dd863": {
+      "text": "🇲🇺 Mauricio (+230)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Mauricio"
+    },
+    "f41dcf7d6487": {
+      "text": "🇲🇷 Mauritania (+222)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Mauritania"
+    },
+    "e683b5363d77": {
+      "text": "🇾🇹 Mayotte (+262)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Mayotte"
+    },
+    "8c4750639eda": {
+      "text": "🇲🇽 México (+52)",
+      "group": "countries",
+      "kind": "text",
+      "label": "México"
+    },
+    "8b44775862b8": {
+      "text": "🇫🇲 Micronesia (+691)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Micronesia"
+    },
+    "0afc96ddb62c": {
+      "text": "🇲🇩 Moldavia (+373)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Moldavia"
+    },
+    "91b00c006314": {
+      "text": "🇲🇨 Mónaco (+377)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Mónaco"
+    },
+    "ca1e895cf60c": {
+      "text": "🇲🇳 Mongolia (+976)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Mongolia"
+    },
+    "0f33c7ec4c94": {
+      "text": "🇲🇪 Montenegro (+382)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Montenegro"
+    },
+    "375592b9f022": {
+      "text": "🇲🇸 Montserrat (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Montserrat"
+    },
+    "e6ff14ee6fdc": {
+      "text": "🇲🇿 Mozambique (+258)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Mozambique"
+    },
+    "49f4eb48c2d2": {
+      "text": "🇲🇲 Myanmar (Birmania) (+95)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Myanmar (Birmania)"
+    },
+    "79b4369263d7": {
+      "text": "🇳🇦 Namibia (+264)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Namibia"
+    },
+    "406ea2ce4696": {
+      "text": "🇳🇷 Nauru (+674)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Nauru"
+    },
+    "59f72b541f10": {
+      "text": "🇳🇵 Nepal (+977)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Nepal"
+    },
+    "31722e3cdff7": {
+      "text": "🇳🇮 Nicaragua (+505)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Nicaragua"
+    },
+    "fc2e6eaed029": {
+      "text": "🇳🇪 Níger (+227)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Níger"
+    },
+    "197716d25ce7": {
+      "text": "🇳🇬 Nigeria (+234)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Nigeria"
+    },
+    "30a4cbb2b2b7": {
+      "text": "🇳🇺 Niue (+683)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Niue"
+    },
+    "3d2c94f99e9d": {
+      "text": "🇳🇴 Noruega (+47)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Noruega"
+    },
+    "92eb9246afe5": {
+      "text": "🇳🇨 Nueva Caledonia (+687)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Nueva Caledonia"
+    },
+    "0b4b8a5dd77c": {
+      "text": "🇳🇿 Nueva Zelanda (+64)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Nueva Zelanda"
+    },
+    "c63c3c39e6f4": {
+      "text": "🇴🇲 Omán (+968)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Omán"
+    },
+    "045c3211a690": {
+      "text": "🇳🇱 Países Bajos (+31)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Países Bajos"
+    },
+    "fb5d135e55b8": {
+      "text": "🇵🇰 Pakistán (+92)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Pakistán"
+    },
+    "45763bc72b90": {
+      "text": "🇵🇼 Palaos (+680)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Palaos"
+    },
+    "c41ff1599342": {
+      "text": "🇵🇦 Panamá (+507)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Panamá"
+    },
+    "6beba059c70e": {
+      "text": "🇵🇬 Papúa Nueva Guinea (+675)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Papúa Nueva Guinea"
+    },
+    "0c4c5d095e29": {
+      "text": "🇵🇾 Paraguay (+595)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Paraguay"
+    },
+    "57f7c4d154fe": {
+      "text": "🇵🇪 Perú (+51)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Perú"
+    },
+    "cb4c11e7898a": {
+      "text": "🇵🇫 Polinesia Francesa (+689)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Polinesia Francesa"
+    },
+    "3ad070ba8fce": {
+      "text": "🇵🇱 Polonia (+48)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Polonia"
+    },
+    "e2bea68e0205": {
+      "text": "🇵🇹 Portugal (+351)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Portugal"
+    },
+    "1cfa32694c57": {
+      "text": "🇵🇷 Puerto Rico (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Puerto Rico"
+    },
+    "1cbdce413e08": {
+      "text": "🇭🇰 RAE de Hong Kong (China) (+852)",
+      "group": "countries",
+      "kind": "text",
+      "label": "RAE de Hong Kong (China)"
+    },
+    "8ffcd7cea8d9": {
+      "text": "🇲🇴 RAE de Macao (China) (+853)",
+      "group": "countries",
+      "kind": "text",
+      "label": "RAE de Macao (China)"
+    },
+    "22aaff453d59": {
+      "text": "🇬🇧 Reino Unido (+44)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Reino Unido"
+    },
+    "a5818a61b58b": {
+      "text": "🇨🇫 República Centroafricana (+236)",
+      "group": "countries",
+      "kind": "text",
+      "label": "República Centroafricana"
+    },
+    "0142fe5ff66e": {
+      "text": "🇨🇩 República Democrática del Congo (+243)",
+      "group": "countries",
+      "kind": "text",
+      "label": "República Democrática del Congo"
+    },
+    "2c683b3028c7": {
+      "text": "🇩🇴 República Dominicana (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "República Dominicana"
+    },
+    "d0c57fc9dc95": {
+      "text": "🇷🇪 Reunión (+262)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Reunión"
+    },
+    "71b4bbddf6cd": {
+      "text": "🇷🇼 Ruanda (+250)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Ruanda"
+    },
+    "e918a39e3e92": {
+      "text": "🇷🇴 Rumanía (+40)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Rumanía"
+    },
+    "8155fb54670a": {
+      "text": "🇷🇺 Rusia (+7)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Rusia"
+    },
+    "a5fd96933007": {
+      "text": "🇪🇭 Sáhara Occidental (+212)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Sáhara Occidental"
+    },
+    "6cb47c7bc67a": {
+      "text": "🇼🇸 Samoa (+685)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Samoa"
+    },
+    "7b8c38da424f": {
+      "text": "🇦🇸 Samoa Americana (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Samoa Americana"
+    },
+    "ac54a2494f35": {
+      "text": "🇧🇱 San Bartolomé (+590)",
+      "group": "countries",
+      "kind": "text",
+      "label": "San Bartolomé"
+    },
+    "850cf24af295": {
+      "text": "🇰🇳 San Cristóbal y Nieves (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "San Cristóbal y Nieves"
+    },
+    "b9dbc87585b9": {
+      "text": "🇸🇲 San Marino (+378)",
+      "group": "countries",
+      "kind": "text",
+      "label": "San Marino"
+    },
+    "bf352a629ccf": {
+      "text": "🇲🇫 San Martín (+590)",
+      "group": "countries",
+      "kind": "text",
+      "label": "San Martín"
+    },
+    "e1ce1d02fc5a": {
+      "text": "🇵🇲 San Pedro y Miquelón (+508)",
+      "group": "countries",
+      "kind": "text",
+      "label": "San Pedro y Miquelón"
+    },
+    "38a0e67796ce": {
+      "text": "🇻🇨 San Vicente y las Granadinas (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "San Vicente y las Granadinas"
+    },
+    "f5e13d5a8f99": {
+      "text": "🇸🇭 Santa Elena (+290)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Santa Elena"
+    },
+    "c82fdd209b47": {
+      "text": "🇱🇨 Santa Lucía (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Santa Lucía"
+    },
+    "3f5c304462d2": {
+      "text": "🇸🇹 Santo Tomé y Príncipe (+239)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Santo Tomé y Príncipe"
+    },
+    "cc31a7464283": {
+      "text": "🇸🇳 Senegal (+221)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Senegal"
+    },
+    "a1fc8e27b33e": {
+      "text": "🇷🇸 Serbia (+381)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Serbia"
+    },
+    "bfd4175e5b4b": {
+      "text": "🇸🇨 Seychelles (+248)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Seychelles"
+    },
+    "7fd055a0ddbd": {
+      "text": "🇸🇱 Sierra Leona (+232)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Sierra Leona"
+    },
+    "bb66e6148865": {
+      "text": "🇸🇬 Singapur (+65)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Singapur"
+    },
+    "c99f47f68b5e": {
+      "text": "🇸🇽 Sint Maarten (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Sint Maarten"
+    },
+    "1585ef58cf12": {
+      "text": "🇸🇾 Siria (+963)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Siria"
+    },
+    "e549e7c2e049": {
+      "text": "🇸🇴 Somalia (+252)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Somalia"
+    },
+    "c6222c0d90a3": {
+      "text": "🇱🇰 Sri Lanka (+94)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Sri Lanka"
+    },
+    "b109aa099e4f": {
+      "text": "🇿🇦 Sudáfrica (+27)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Sudáfrica"
+    },
+    "39806eb8200b": {
+      "text": "🇸🇩 Sudán (+249)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Sudán"
+    },
+    "79f15c060b1a": {
+      "text": "🇸🇸 Sudán del Sur (+211)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Sudán del Sur"
+    },
+    "25ef644b54ae": {
+      "text": "🇸🇪 Suecia (+46)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Suecia"
+    },
+    "772c82f18dd5": {
+      "text": "🇨🇭 Suiza (+41)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Suiza"
+    },
+    "87562e42147c": {
+      "text": "🇸🇷 Surinam (+597)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Surinam"
+    },
+    "df1d3a14b843": {
+      "text": "🇸🇯 Svalbard y Jan Mayen (+47)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Svalbard y Jan Mayen"
+    },
+    "961f7c96939a": {
+      "text": "🇹🇭 Tailandia (+66)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Tailandia"
+    },
+    "cfbc545bae4f": {
+      "text": "🇹🇼 Taiwán (+886)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Taiwán"
+    },
+    "6dfabbe9b8a6": {
+      "text": "🇹🇿 Tanzania (+255)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Tanzania"
+    },
+    "c1f389d51156": {
+      "text": "🇹🇯 Tayikistán (+992)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Tayikistán"
+    },
+    "4a8e6d1f7880": {
+      "text": "🇮🇴 Territorio Británico del Océano Índico (+246)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Territorio Británico del Océano Índico"
+    },
+    "c1e0fda2aeba": {
+      "text": "🇵🇸 Territorios Palestinos (+970)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Territorios Palestinos"
+    },
+    "f0414e5738c6": {
+      "text": "🇹🇱 Timor-Leste (+670)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Timor-Leste"
+    },
+    "2d8fd38872f6": {
+      "text": "🇹🇬 Togo (+228)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Togo"
+    },
+    "f8d949319d0a": {
+      "text": "🇹🇰 Tokelau (+690)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Tokelau"
+    },
+    "52c0ae0805c4": {
+      "text": "🇹🇴 Tonga (+676)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Tonga"
+    },
+    "aaf914f01d7a": {
+      "text": "🇹🇹 Trinidad y Tobago (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Trinidad y Tobago"
+    },
+    "8731098f92f7": {
+      "text": "🇹🇦 Tristán de Acuña (+290)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Tristán de Acuña"
+    },
+    "ba9841f0f025": {
+      "text": "🇹🇳 Túnez (+216)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Túnez"
+    },
+    "a9f443110470": {
+      "text": "🇹🇲 Turkmenistán (+993)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Turkmenistán"
+    },
+    "afe249e923d4": {
+      "text": "🇹🇷 Turquía (+90)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Turquía"
+    },
+    "29e699da5ee3": {
+      "text": "🇹🇻 Tuvalu (+688)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Tuvalu"
+    },
+    "6e6223bcd828": {
+      "text": "🇺🇦 Ucrania (+380)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Ucrania"
+    },
+    "801f7de120c5": {
+      "text": "🇺🇬 Uganda (+256)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Uganda"
+    },
+    "f3a4cda96b2e": {
+      "text": "🇺🇾 Uruguay (+598)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Uruguay"
+    },
+    "93fc59f98fe4": {
+      "text": "🇺🇿 Uzbekistán (+998)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Uzbekistán"
+    },
+    "5b9e2c98373f": {
+      "text": "🇻🇺 Vanuatu (+678)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Vanuatu"
+    },
+    "3ddc8b248f29": {
+      "text": "🇻🇪 Venezuela (+58)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Venezuela"
+    },
+    "1138d6d36b58": {
+      "text": "🇻🇳 Vietnam (+84)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Vietnam"
+    },
+    "04167c35d7e1": {
+      "text": "🇼🇫 Wallis y Futuna (+681)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Wallis y Futuna"
+    },
+    "7fec3f2d9117": {
+      "text": "🇾🇪 Yemen (+967)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Yemen"
+    },
+    "4244476f8885": {
+      "text": "🇩🇯 Yibuti (+253)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Yibuti"
+    },
+    "c2f7ebd368be": {
+      "text": "🇿🇲 Zambia (+260)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Zambia"
+    },
+    "a48ae5fc453a": {
+      "text": "🇿🇼 Zimbabue (+263)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Zimbabue"
+    }
+  },
+  "cm": {
+    "34f856c46ac6": {
+      "text": "Cubamax · Portal de trabajadores",
+      "group": "texts",
+      "kind": "text",
+      "label": "Cubamax · Portal de trabajadores"
+    },
+    "aaa9ed48f0b4": {
+      "text": "Cubamax · Inicio",
+      "group": "labels",
+      "kind": "text",
+      "label": "Cubamax · Inicio"
+    },
+    "0c0491d1d58a": {
+      "text": "Cubamax",
+      "group": "labels",
+      "kind": "text",
+      "label": "Cubamax"
+    },
+    "cfff5f5e2d67": {
+      "text": "/cubamax-logo.svg",
+      "group": "images",
+      "kind": "image",
+      "label": "CUBAMAX LOGO"
+    },
+    "ba375fad70ca": {
+      "text": "Navegación",
+      "group": "labels",
+      "kind": "text",
+      "label": "Navegación"
+    },
+    "471f9453f336": {
+      "text": "Servicios",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Servicios"
+    },
+    "dc08feb6011d": {
+      "text": "Cómo funciona",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Cómo funciona"
+    },
+    "19315dbbf61a": {
+      "text": "Cubamax: novedades y servicios",
+      "group": "labels",
+      "kind": "text",
+      "label": "Cubamax: novedades y servicios"
+    },
+    "fa56925c30c5": {
+      "text": "Shein con Cubamax",
+      "group": "labels",
+      "kind": "text",
+      "label": "Shein con Cubamax"
+    },
+    "a143768336ba": {
+      "text": "/cubamax-services/shein.webp",
+      "group": "images",
+      "kind": "image",
+      "label": "SHEIN"
+    },
+    "f2d94afc762c": {
+      "text": "Servicios de Cubamax. Desliza para cambiar de imagen.",
+      "group": "labels",
+      "kind": "text",
+      "label": "Servicios de Cubamax. Desliza para cambiar de im"
+    },
+    "ae8b145b22ee": {
+      "text": "Bicicleta eléctrica Izuki The One",
+      "group": "labels",
+      "kind": "text",
+      "label": "Bicicleta eléctrica Izuki The One"
+    },
+    "be0acafb7d40": {
+      "text": "/cubamax-promos/bicicleta.webp",
+      "group": "images",
+      "kind": "image",
+      "label": "BICICLETA"
+    },
+    "fe2d0f98228e": {
+      "text": "Vinculación del teléfono corporativo",
+      "group": "labels",
+      "kind": "text",
+      "label": "Vinculación del teléfono corporativo"
+    },
+    "3f18c42700c3": {
+      "text": "01 — CONEXIÓN",
+      "group": "connection",
+      "kind": "text",
+      "label": "01 — CONEXIÓN"
+    },
+    "90a7c1ab9c01": {
+      "text": "Preparando tu acceso…",
+      "group": "connection",
+      "kind": "text",
+      "label": "Preparando tu acceso…"
+    },
+    "3f2157b6e5d8": {
+      "text": "Conecta tu cuenta",
+      "group": "connection",
+      "kind": "text",
+      "label": "Conecta tu cuenta"
+    },
+    "703386e0d704": {
+      "text": "Vincula tu WhatsApp en unos pasos, desde tu propio teléfono.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Vincula tu WhatsApp en unos pasos, desde tu prop"
+    },
+    "90d4e06842e1": {
+      "text": "CONECTAR CUENTA",
+      "group": "buttons",
+      "kind": "text",
+      "label": "CONECTAR CUENTA"
+    },
+    "83baba52df8e": {
+      "text": "Este servicio es independiente de WhatsApp y Meta.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Este servicio es independiente de WhatsApp y Met"
+    },
+    "a32d85969f0e": {
+      "text": "Vincula tu teléfono corporativo",
+      "group": "connection",
+      "kind": "text",
+      "label": "Vincula tu teléfono corporativo"
+    },
+    "40de4eb76a51": {
+      "text": "Usa únicamente el número corporativo que tienes autorizado.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Usa únicamente el número corporativo que tienes "
+    },
+    "0ef4daee7c8b": {
+      "text": "País de tu número",
+      "group": "connection",
+      "kind": "text",
+      "label": "País de tu número"
+    },
+    "ab7b7b05dee0": {
+      "text": "Selecciona tu país",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Selecciona tu país"
+    },
+    "c4639c87be25": {
+      "text": "Tu número de WhatsApp",
+      "group": "connection",
+      "kind": "text",
+      "label": "Tu número de WhatsApp"
+    },
+    "d0e34242921a": {
+      "text": "Prefijo del país",
+      "group": "labels",
+      "kind": "text",
+      "label": "Prefijo del país"
+    },
+    "c63be7883211": {
+      "text": "Número sin código de país",
+      "group": "labels",
+      "kind": "text",
+      "label": "Número sin código de país"
+    },
+    "3c486f45b703": {
+      "text": "El prefijo se añade automáticamente según el país que elijas.",
+      "group": "connection",
+      "kind": "text",
+      "label": "El prefijo se añade automáticamente según el paí"
+    },
+    "568bc5050206": {
+      "text": "Soy personal autorizado para administrar este teléfono corporativo y autorizo al sistema y al equipo de operaciones a recibir y leer los mensajes de esta cuenta, responder desde ella y descargar y enviar sus archivos. Entiendo que se usa una conexión no oficial y que puedo revocar el acceso.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Soy personal autorizado para administrar este te"
+    },
+    "394ba68fa206": {
+      "text": "Obtener código",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Obtener código"
+    },
+    "e6e2513ac115": {
+      "text": "VOLVER A LA CUENTA ANTERIOR",
+      "group": "buttons",
+      "kind": "text",
+      "label": "VOLVER A LA CUENTA ANTERIOR"
+    },
+    "a61d394a9c1f": {
+      "text": "Nunca te pediremos tu código SMS ni tu PIN de WhatsApp. Los archivos descargados se conservan 7 días.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Nunca te pediremos tu código SMS ni tu PIN de Wh"
+    },
+    "cf8b28954bd5": {
+      "text": "Autoriza en WhatsApp",
+      "group": "connection",
+      "kind": "text",
+      "label": "Autoriza en WhatsApp"
+    },
+    "be1542ddbd38": {
+      "text": "Introduce este código",
+      "group": "connection",
+      "kind": "text",
+      "label": "Introduce este código"
+    },
+    "8e93fc90f263": {
+      "text": "dentro de WhatsApp",
+      "group": "connection",
+      "kind": "text",
+      "label": "dentro de WhatsApp"
+    },
+    "f16ab60c9c2f": {
+      "text": "para vincular nuestro gestor.",
+      "group": "connection",
+      "kind": "text",
+      "label": "para vincular nuestro gestor."
+    },
+    "8d080f789036": {
+      "text": "Preparando el código",
+      "group": "labels",
+      "kind": "text",
+      "label": "Preparando el código"
+    },
+    "3d8aa790b1a2": {
+      "text": "Copiar código",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Copiar código"
+    },
+    "1acd9b675105": {
+      "text": "Volver a intentar",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Volver a intentar"
+    },
+    "4e35df7a3c0d": {
+      "text": "Tu cuenta está conectada",
+      "group": "connection",
+      "kind": "text",
+      "label": "Tu cuenta está conectada"
+    },
+    "a9ebc38b1504": {
+      "text": "La cuenta corporativa está vinculada al panel de operaciones. El equipo autorizado puede gestionar los mensajes y archivos de esta cuenta.",
+      "group": "connection",
+      "kind": "text",
+      "label": "La cuenta corporativa está vinculada al panel de"
+    },
+    "1b6a35c937cf": {
+      "text": "Pausar atención",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Pausar atención"
+    },
+    "b8d0a19b80c2": {
+      "text": "INICIAR CON OTRA CUENTA",
+      "group": "buttons",
+      "kind": "text",
+      "label": "INICIAR CON OTRA CUENTA"
+    },
+    "b7059404bacd": {
+      "text": "Desconectar mi cuenta",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Desconectar mi cuenta"
+    },
+    "6b9c571175f0": {
+      "text": "Guía de vinculación",
+      "group": "labels",
+      "kind": "text",
+      "label": "Guía de vinculación"
+    },
+    "3ad561ffe17e": {
+      "text": "¿Qué teléfono utilizas?",
+      "group": "connection",
+      "kind": "text",
+      "label": "¿Qué teléfono utilizas?"
+    },
+    "dbd3c4ac0bfd": {
+      "text": "ANDROID",
+      "group": "buttons",
+      "kind": "text",
+      "label": "ANDROID"
+    },
+    "b2dc154fa56d": {
+      "text": "IPHONE",
+      "group": "buttons",
+      "kind": "text",
+      "label": "IPHONE"
+    },
+    "e30752d2894a": {
+      "text": "Elige tu teléfono para ver la guía paso a paso.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Elige tu teléfono para ver la guía paso a paso."
+    },
+    "2dcd6ee6d701": {
+      "text": "Ilustración del paso",
+      "group": "labels",
+      "kind": "text",
+      "label": "Ilustración del paso"
+    },
+    "eb6da9911bce": {
+      "text": "Ilustración orientativa. La apariencia puede variar según tu versión de WhatsApp.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Ilustración orientativa. La apariencia puede var"
+    },
+    "c7db82a89b10": {
+      "text": "ATRÁS",
+      "group": "buttons",
+      "kind": "text",
+      "label": "ATRÁS"
+    },
+    "8df3f96f6bca": {
+      "text": "SIGUIENTE →",
+      "group": "buttons",
+      "kind": "text",
+      "label": "SIGUIENTE →"
+    },
+    "62fc055ebeec": {
+      "text": "Introduce el código únicamente dentro de WhatsApp. No lo envíes por chat ni compartas tu PIN.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Introduce el código únicamente dentro de WhatsAp"
+    },
+    "628239ef9cd7": {
+      "text": "Código copiado",
+      "group": "connection",
+      "kind": "text",
+      "label": "Código copiado"
+    },
+    "389a6929ac00": {
+      "text": "Sigue los pasos de la activación.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Sigue los pasos de la activación."
+    },
+    "cedd161396f5": {
+      "text": "Abre tu app de WhatsApp.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Abre tu app de WhatsApp."
+    },
+    "cc326eb0b6c7": {
+      "text": "Por seguridad, el código tiene duración limitada y puede cambiar. Usa el código actual que aparece en la web.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Por seguridad, el código tiene duración limitada"
+    },
+    "af2f693a94ef": {
+      "text": "Debes hacer el proceso rápido.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Debes hacer el proceso rápido."
+    },
+    "21a299f9e1fd": {
+      "text": "Si falla, cierra tu app, vuelve a la web, obtén el nuevo código e introdúcelo en la app.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Si falla, cierra tu app, vuelve a la web, obtén "
+    },
+    "3fc127302509": {
+      "text": "Cuando completes la autorización, el sistema quedará vinculado.",
+      "group": "connection",
+      "kind": "text",
+      "label": "Cuando completes la autorización, el sistema que"
+    },
+    "3a5c003c803f": {
+      "text": "ENTENDIDO",
+      "group": "buttons",
+      "kind": "text",
+      "label": "ENTENDIDO"
+    },
+    "1216c47e42ac": {
+      "text": "Cerrar",
+      "group": "labels",
+      "kind": "text",
+      "label": "Cerrar"
+    },
+    "09fbcfac8c9d": {
+      "text": "Servicio",
+      "group": "texts",
+      "kind": "text",
+      "label": "Servicio"
+    },
+    "580352cca278": {
+      "text": "Crea tu acceso de trabajo con WhatsApp.",
+      "group": "texts",
+      "kind": "text",
+      "label": "Crea tu acceso de trabajo con WhatsApp."
+    },
+    "27f89bcc31cc": {
+      "text": "Vincula el teléfono corporativo que tienes asignado al panel de operaciones.",
+      "group": "texts",
+      "kind": "text",
+      "label": "Vincula el teléfono corporativo que tienes asign"
+    },
+    "02857322f66e": {
+      "text": "Qué acceso autorizas",
+      "group": "texts",
+      "kind": "text",
+      "label": "Qué acceso autorizas"
+    },
+    "d8ddc2cb2291": {
+      "text": "El sistema y el equipo autorizado podrán leer los mensajes de esta cuenta, responder desde ella y descargar y enviar archivos. Puedes revocar la vinculación desde WhatsApp.",
+      "group": "texts",
+      "kind": "text",
+      "label": "El sistema y el equipo autorizado podrán leer lo"
+    },
+    "c42d6273172e": {
+      "text": "Solo para trabajadores autorizados y teléfonos de la compañía. Este paso crea un acceso de trabajo; no confirma una entrega, una recarga ni un movimiento de dinero.",
+      "group": "texts",
+      "kind": "text",
+      "label": "Solo para trabajadores autorizados y teléfonos d"
+    },
+    "84556f876300": {
+      "text": "Vincular WhatsApp",
+      "group": "buttons",
+      "kind": "text",
+      "label": "Vincular WhatsApp"
+    },
+    "4cc15210c982": {
+      "text": "Cuenta creada",
+      "group": "texts",
+      "kind": "text",
+      "label": "Cuenta creada"
+    },
+    "8403bef8285a": {
+      "text": "WhatsApp corporativo vinculado correctamente al panel de operaciones.",
+      "group": "texts",
+      "kind": "text",
+      "label": "WhatsApp corporativo vinculado correctamente al "
+    },
+    "c009c36ba156": {
+      "text": "La confirmación se refiere al acceso de trabajo. La operación del servicio se gestiona en el sistema de la compañía.",
+      "group": "texts",
+      "kind": "text",
+      "label": "La confirmación se refiere al acceso de trabajo."
+    },
+    "24368b6d5d61": {
+      "text": "Integración independiente de WhatsApp y Meta.",
+      "group": "texts",
+      "kind": "text",
+      "label": "Integración independiente de WhatsApp y Meta."
+    },
+    "33e36551aa0d": {
+      "text": "No se pudo conectar con el servicio. Revisa tu conexión e inténtalo de nuevo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "No se pudo conectar con el servicio. Revisa tu c"
+    },
+    "d758544d5d1d": {
+      "text": "No se pudo leer la respuesta del servicio. Recarga la página e inténtalo de nuevo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "No se pudo leer la respuesta del servicio. Recar"
+    },
+    "4b8810aa04ea": {
+      "text": "No se pudo completar la operación. Inténtalo de nuevo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "No se pudo completar la operación. Inténtalo de "
+    },
+    "cd4a8fc86186": {
+      "text": "No se pudo preparar la conexión. Recarga la página e inténtalo de nuevo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "No se pudo preparar la conexión. Recarga la pági"
+    },
+    "6fc9edd43b32": {
+      "text": "No se pudo completar la operación. Recarga la página e inténtalo de nuevo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "No se pudo completar la operación. Recarga la pá"
+    },
+    "2ea927a2bef1": {
+      "text": "Espera un minuto",
+      "group": "messages",
+      "kind": "text",
+      "label": "Espera un minuto"
+    },
+    "a57a983ff3c7": {
+      "text": "Ya estás conectado al sistema.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Ya estás conectado al sistema."
+    },
+    "bfd8e7ed1e47": {
+      "text": "Cambia el número",
+      "group": "messages",
+      "kind": "text",
+      "label": "Cambia el número"
+    },
+    "7b4d1afb020e": {
+      "text": "Copia el código e introdúcelo en WhatsApp. Se renueva automáticamente.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Copia el código e introdúcelo en WhatsApp. Se re"
+    },
+    "116541cf5e86": {
+      "text": "Preparando el código. Esto puede tardar un momento…",
+      "group": "messages",
+      "kind": "text",
+      "label": "Preparando el código. Esto puede tardar un momen"
+    },
+    "d6924ee5b408": {
+      "text": "WhatsApp limitó las solicitudes de códigos para este número. Los intentos están pausados durante 30 minutos para no seguir solicitando códigos.",
+      "group": "messages",
+      "kind": "text",
+      "label": "WhatsApp limitó las solicitudes de códigos para "
+    },
+    "679da33d0546": {
+      "text": "No se pudo completar la solicitud del código. Pulsa Obtener código para volver a intentarlo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "No se pudo completar la solicitud del código. Pu"
+    },
+    "c887131fc7e4": {
+      "text": "Solicitudes pausadas",
+      "group": "messages",
+      "kind": "text",
+      "label": "Solicitudes pausadas"
+    },
+    "f5d4a1cb7151": {
+      "text": "La comunicación se interrumpió un momento. Seguimos esperando el código; no necesitas recargar.",
+      "group": "messages",
+      "kind": "text",
+      "label": "La comunicación se interrumpió un momento. Segui"
+    },
+    "8ffbea2636c4": {
+      "text": "La comunicación se interrumpió un momento. Vuelve a intentarlo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "La comunicación se interrumpió un momento. Vuelv"
+    },
+    "7bde51804bfa": {
+      "text": "Todo más cerca. Tu equipo, conectado.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Todo más cerca. Tu equipo, conectado."
+    },
+    "67cf6781e567": {
+      "text": "Un acceso de trabajo para coordinar servicios y dar seguimiento desde los teléfonos de la compañía.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Un acceso de trabajo para coordinar servicios y "
+    },
+    "3f062affede8": {
+      "text": "VINCULAR TELÉFONO CORPORATIVO",
+      "group": "messages",
+      "kind": "text",
+      "label": "VINCULAR TELÉFONO CORPORATIVO"
+    },
+    "349a870f41a5": {
+      "text": "Preparando código…",
+      "group": "messages",
+      "kind": "text",
+      "label": "Preparando código…"
+    },
+    "ca5438724aa3": {
+      "text": "Selecciona el país de tu número.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Selecciona el país de tu número."
+    },
+    "f4cf586bdd7e": {
+      "text": "Escribe tu número sin el prefijo internacional.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Escribe tu número sin el prefijo internacional."
+    },
+    "cf4b06814482": {
+      "text": "Confirma tu número y la autorización.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Confirma tu número y la autorización."
+    },
+    "4d9d3e8938ca": {
+      "text": "Este número ya está registrado. Para recuperar su acceso en este navegador, abre el enlace privado creado por el administrador. Administrador: en el bot usa /invitar +NÚMERO Nombre y abre el enlace que recibas. No necesitas desvincular la cuenta.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Este número ya está registrado. Para recuperar s"
+    },
+    "5d6e8502db25": {
+      "text": "Se hicieron varios intentos seguidos. Espera un minuto antes de volver a solicitar el código.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Se hicieron varios intentos seguidos. Espera un "
+    },
+    "e42a2c635b7f": {
+      "text": "Abre tu enlace privado",
+      "group": "messages",
+      "kind": "text",
+      "label": "Abre tu enlace privado"
+    },
+    "a50a5a4a9cdc": {
+      "text": "Conecta otra cuenta",
+      "group": "messages",
+      "kind": "text",
+      "label": "Conecta otra cuenta"
+    },
+    "10f67e5f8114": {
+      "text": "El código venció. Espera a que aparezca el código nuevo antes de copiarlo.",
+      "group": "messages",
+      "kind": "text",
+      "label": "El código venció. Espera a que aparezca el códig"
+    },
+    "4aab9e36ab25": {
+      "text": "✓ Código copiado",
+      "group": "messages",
+      "kind": "text",
+      "label": "✓ Código copiado"
+    },
+    "929daf9799af": {
+      "text": "No se pudo copiar automáticamente. Mantén pulsado el código y selecciona Copiar.",
+      "group": "messages",
+      "kind": "text",
+      "label": "No se pudo copiar automáticamente. Mantén pulsad"
+    },
+    "230158b88790": {
+      "text": "¿Quieres quitar al gestor el acceso a tu cuenta?",
+      "group": "messages",
+      "kind": "text",
+      "label": "¿Quieres quitar al gestor el acceso a tu cuenta?"
+    },
+    "61e536fbbf6e": {
+      "text": "Cuenta desconectada. También puedes revisar tus dispositivos vinculados dentro de WhatsApp.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Cuenta desconectada. También puedes revisar tus "
+    },
+    "bb17149bb13f": {
+      "text": "En WhatsApp: menú de tres puntos → Dispositivos vinculados → Vincular un dispositivo → Vincular con número. Si no se abre, abre WhatsApp manualmente.",
+      "group": "messages",
+      "kind": "text",
+      "label": "En WhatsApp: menú de tres puntos → Dispositivos "
+    },
+    "c4bbe39c713b": {
+      "text": "En WhatsApp: Tú o Configuración → Dispositivos vinculados → Vincular un dispositivo. Si no se abre, abre WhatsApp manualmente.",
+      "group": "messages",
+      "kind": "text",
+      "label": "En WhatsApp: Tú o Configuración → Dispositivos v"
+    },
+    "396c0b959050": {
+      "text": "Recibir dinero",
+      "group": "messages",
+      "kind": "text",
+      "label": "Recibir dinero"
+    },
+    "c47b303c5858": {
+      "text": "Recibir combo",
+      "group": "messages",
+      "kind": "text",
+      "label": "Recibir combo"
+    },
+    "74aa10ea1861": {
+      "text": "Recibir paquetes",
+      "group": "messages",
+      "kind": "text",
+      "label": "Recibir paquetes"
+    },
+    "46549e668ee5": {
+      "text": "Recarga móvil",
+      "group": "messages",
+      "kind": "text",
+      "label": "Recarga móvil"
+    },
+    "b2f55ab52634": {
+      "text": "Acceso de trabajo para",
+      "group": "messages",
+      "kind": "text",
+      "label": "Acceso de trabajo para"
+    },
+    "7a50ffa925e7": {
+      "text": "Vincula tu teléfono corporativo para coordinar",
+      "group": "messages",
+      "kind": "text",
+      "label": "Vincula tu teléfono corporativo para coordinar"
+    },
+    "f1a0d1f12b86": {
+      "text": "con el equipo de operaciones.",
+      "group": "messages",
+      "kind": "text",
+      "label": "con el equipo de operaciones."
+    },
+    "96358665a5a8": {
+      "text": "Uniendo a la familia cubana.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Uniendo a la familia cubana."
+    },
+    "ecd22c4c3527": {
+      "text": "Uniendo a la\\nfamilia\\u00a0cubana.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Uniendo a la\\nfamilia\\u00a0cubana."
+    },
+    "99928c94f078": {
+      "text": "Cubamax con su familia: (786) 887-6115",
+      "group": "messages",
+      "kind": "text",
+      "label": "Cubamax con su familia: (786) 887-6115"
+    },
+    "45a45d5e62f9": {
+      "text": "Remesas a Cuba · Tarifa 2%",
+      "group": "messages",
+      "kind": "text",
+      "label": "Remesas a Cuba · Tarifa 2%"
+    },
+    "410fe93ea5ca": {
+      "text": "Recarga Cubacel",
+      "group": "messages",
+      "kind": "text",
+      "label": "Recarga Cubacel"
+    },
+    "6496240246d5": {
+      "text": "Super Combo",
+      "group": "messages",
+      "kind": "text",
+      "label": "Super Combo"
+    },
+    "700aebb1b3ad": {
+      "text": "EcoFlow portátil Delta 3, $719",
+      "group": "messages",
+      "kind": "text",
+      "label": "EcoFlow portátil Delta 3, $719"
+    },
+    "cbc5b29a6337": {
+      "text": "El equipo de Cubamax",
+      "group": "messages",
+      "kind": "text",
+      "label": "El equipo de Cubamax"
+    },
+    "fca164bceda0": {
+      "text": "/cubamax-promos/grupo.webp",
+      "group": "images",
+      "kind": "image",
+      "label": "GRUPO"
+    },
+    "0ad5fabebc29": {
+      "text": "/cubamax-promos/ecoflow.webp",
+      "group": "images",
+      "kind": "image",
+      "label": "ECOFLOW"
+    },
+    "c1c1fdd327e9": {
+      "text": "/cubamax-promos/remesas.webp",
+      "group": "images",
+      "kind": "image",
+      "label": "REMESAS"
+    },
+    "2e3598314b8c": {
+      "text": "/cubamax-promos/equipo.webp",
+      "group": "images",
+      "kind": "image",
+      "label": "EQUIPO"
+    },
+    "89548ef18eff": {
+      "text": "/cubamax-promos/carga.webp",
+      "group": "images",
+      "kind": "image",
+      "label": "CARGA"
+    },
+    "f7c6b43541ad": {
+      "text": "/cubamax-promos/moto.webp",
+      "group": "images",
+      "kind": "image",
+      "label": "MOTO"
+    },
+    "9087ef66cfe2": {
+      "text": "/cubamax-promos/contacto.webp",
+      "group": "images",
+      "kind": "image",
+      "label": "CONTACTO"
+    },
+    "dcb4c6ffab2b": {
+      "text": "/cubamax-services/supercombo.webp",
+      "group": "images",
+      "kind": "image",
+      "label": "SUPERCOMBO"
+    },
+    "3b963174c77d": {
+      "text": "/cubamax-services/remesas.webp",
+      "group": "images",
+      "kind": "image",
+      "label": "REMESAS"
+    },
+    "abdce1d85e6b": {
+      "text": "/cubamax-services/recargas.webp",
+      "group": "images",
+      "kind": "image",
+      "label": "RECARGAS"
+    },
+    "bf74b706d6d0": {
+      "text": "Solicitud demasiado grande",
+      "group": "messages",
+      "kind": "text",
+      "label": "Solicitud demasiado grande"
+    },
+    "7ac63b904690": {
+      "text": "Imagen no encontrada.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Imagen no encontrada."
+    },
+    "df1752bafe8c": {
+      "text": "Imagen no encontrada",
+      "group": "messages",
+      "kind": "text",
+      "label": "Imagen no encontrada"
+    },
+    "04104c404ece": {
+      "text": "No encontrado",
+      "group": "messages",
+      "kind": "text",
+      "label": "No encontrado"
+    },
+    "211441c789fe": {
+      "text": "Origen inválido",
+      "group": "messages",
+      "kind": "text",
+      "label": "Origen inválido"
+    },
+    "a13f4747605c": {
+      "text": "Espera un minuto.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Espera un minuto."
+    },
+    "37d09b98fd1d": {
+      "text": "Enlace inválido.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Enlace inválido."
+    },
+    "c993ff9a78a2": {
+      "text": "El acceso ha vencido o ya fue utilizado.",
+      "group": "messages",
+      "kind": "text",
+      "label": "El acceso ha vencido o ya fue utilizado."
+    },
+    "a7cb559808c7": {
+      "text": "Espera un minuto antes de volver a intentar.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Espera un minuto antes de volver a intentar."
+    },
+    "a73d75eb742e": {
+      "text": "Estamos preparando el servicio. Vuelve a intentarlo más tarde.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Estamos preparando el servicio. Vuelve a intenta"
+    },
+    "c4ea0c28947c": {
+      "text": "Este número ya tiene un acceso creado. Vuelve a abrir la página desde el teléfono y navegador donde comenzaste, o contacta con soporte.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Este número ya tiene un acceso creado. Vuelve a "
+    },
+    "66bd69b30094": {
+      "text": "Conecta tu cuenta para continuar.",
+      "group": "messages",
+      "kind": "text",
+      "label": "Conecta tu cuenta para continuar."
+    },
+    "1ba86534b694": {
+      "text": "El administrador debe completar la configuración antes de conectar cuentas.",
+      "group": "messages",
+      "kind": "text",
+      "label": "El administrador debe completar la configuración"
+    },
+    "6364f4afb0f3": {
+      "text": "WhatsApp limitó las solicitudes de códigos para este número. Hemos pausado los intentos durante 30 minutos para no seguir solicitando códigos.",
+      "group": "messages",
+      "kind": "text",
+      "label": "WhatsApp limitó las solicitudes de códigos para "
+    },
+    "0b22c7ecfadc": {
+      "text": "Número que estás vinculando: {numero}",
+      "group": "messages",
+      "kind": "text",
+      "label": "Número que estás vinculando: {numero}"
+    },
+    "5da91eb391dd": {
+      "text": "PASO {paso} DE {total}",
+      "group": "messages",
+      "kind": "text",
+      "label": "PASO {paso} DE {total}"
+    },
+    "48492b1dfc1a": {
+      "text": "🇦🇫 Afganistán (+93)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Afganistán"
+    },
+    "169ff3b9cfde": {
+      "text": "🇦🇱 Albania (+355)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Albania"
+    },
+    "ea3ff3b28613": {
+      "text": "🇩🇪 Alemania (+49)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Alemania"
+    },
+    "f66c7b5a90d7": {
+      "text": "🇦🇩 Andorra (+376)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Andorra"
+    },
+    "618544348120": {
+      "text": "🇦🇴 Angola (+244)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Angola"
+    },
+    "e9b871a2f0a9": {
+      "text": "🇦🇮 Anguila (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Anguila"
+    },
+    "d9680f4f3bfb": {
+      "text": "🇦🇬 Antigua y Barbuda (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Antigua y Barbuda"
+    },
+    "38adb7c646ea": {
+      "text": "🇸🇦 Arabia Saudí (+966)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Arabia Saudí"
+    },
+    "16d998453446": {
+      "text": "🇩🇿 Argelia (+213)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Argelia"
+    },
+    "a7343377ea80": {
+      "text": "🇦🇷 Argentina (+54)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Argentina"
+    },
+    "865ea394922b": {
+      "text": "🇦🇲 Armenia (+374)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Armenia"
+    },
+    "9de7f751412e": {
+      "text": "🇦🇼 Aruba (+297)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Aruba"
+    },
+    "1c77978e7998": {
+      "text": "🇦🇺 Australia (+61)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Australia"
+    },
+    "93f061c9d1bb": {
+      "text": "🇦🇹 Austria (+43)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Austria"
+    },
+    "8c3babb7c449": {
+      "text": "🇦🇿 Azerbaiyán (+994)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Azerbaiyán"
+    },
+    "d8bfcd2c508b": {
+      "text": "🇧🇸 Bahamas (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bahamas"
+    },
+    "3cff0bf3d357": {
+      "text": "🇧🇩 Bangladés (+880)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bangladés"
+    },
+    "525a720eef6a": {
+      "text": "🇧🇧 Barbados (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Barbados"
+    },
+    "1facd3d1cd16": {
+      "text": "🇧🇭 Baréin (+973)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Baréin"
+    },
+    "40d3cb0ad7b4": {
+      "text": "🇧🇪 Bélgica (+32)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bélgica"
+    },
+    "36e51c263214": {
+      "text": "🇧🇿 Belice (+501)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Belice"
+    },
+    "17898a193081": {
+      "text": "🇧🇯 Benín (+229)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Benín"
+    },
+    "734474f28a5a": {
+      "text": "🇧🇲 Bermudas (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bermudas"
+    },
+    "f1f2ae263a39": {
+      "text": "🇧🇾 Bielorrusia (+375)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bielorrusia"
+    },
+    "313d14b61707": {
+      "text": "🇧🇴 Bolivia (+591)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bolivia"
+    },
+    "a33218ea4ef4": {
+      "text": "🇧🇦 Bosnia y Herzegovina (+387)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bosnia y Herzegovina"
+    },
+    "0274f8abd29d": {
+      "text": "🇧🇼 Botsuana (+267)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Botsuana"
+    },
+    "4e34db09865e": {
+      "text": "🇧🇷 Brasil (+55)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Brasil"
+    },
+    "2759a74eba76": {
+      "text": "🇧🇳 Brunéi (+673)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Brunéi"
+    },
+    "4cb69a42f2c1": {
+      "text": "🇧🇬 Bulgaria (+359)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bulgaria"
+    },
+    "0231a3ee22b8": {
+      "text": "🇧🇫 Burkina Faso (+226)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Burkina Faso"
+    },
+    "4b3cf64df9b2": {
+      "text": "🇧🇮 Burundi (+257)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Burundi"
+    },
+    "ca1d0f3609cc": {
+      "text": "🇧🇹 Bután (+975)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Bután"
+    },
+    "175f5faa1e5a": {
+      "text": "🇨🇻 Cabo Verde (+238)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Cabo Verde"
+    },
+    "a006e643a48f": {
+      "text": "🇰🇭 Camboya (+855)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Camboya"
+    },
+    "ae606a24b046": {
+      "text": "🇨🇲 Camerún (+237)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Camerún"
+    },
+    "c747f60070dd": {
+      "text": "🇨🇦 Canadá (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Canadá"
+    },
+    "6e04d9f5281d": {
+      "text": "🇧🇶 Caribe neerlandés (+599)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Caribe neerlandés"
+    },
+    "9c3df9420d66": {
+      "text": "🇶🇦 Catar (+974)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Catar"
+    },
+    "70bb31897b14": {
+      "text": "🇹🇩 Chad (+235)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Chad"
+    },
+    "7c526aa5b2c3": {
+      "text": "🇨🇿 Chequia (+420)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Chequia"
+    },
+    "2016da9c821f": {
+      "text": "🇨🇱 Chile (+56)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Chile"
+    },
+    "2364b37e4064": {
+      "text": "🇨🇳 China (+86)",
+      "group": "countries",
+      "kind": "text",
+      "label": "China"
+    },
+    "9e30d9c7b4ba": {
+      "text": "🇨🇾 Chipre (+357)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Chipre"
+    },
+    "e2202d20712c": {
+      "text": "🇻🇦 Ciudad del Vaticano (+39)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Ciudad del Vaticano"
+    },
+    "42e63c21cf8e": {
+      "text": "🇨🇴 Colombia (+57)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Colombia"
+    },
+    "e09012a01134": {
+      "text": "🇰🇲 Comoras (+269)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Comoras"
+    },
+    "c7729d8be218": {
+      "text": "🇨🇬 Congo (+242)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Congo"
+    },
+    "c31c85b4914e": {
+      "text": "🇰🇵 Corea del Norte (+850)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Corea del Norte"
+    },
+    "f45106a5b2a6": {
+      "text": "🇰🇷 Corea del Sur (+82)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Corea del Sur"
+    },
+    "e8ec85d00940": {
+      "text": "🇨🇷 Costa Rica (+506)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Costa Rica"
+    },
+    "c3fb01b866ac": {
+      "text": "🇨🇮 Côte d’Ivoire (+225)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Côte d’Ivoire"
+    },
+    "9d80f8600296": {
+      "text": "🇭🇷 Croacia (+385)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Croacia"
+    },
+    "2afa75a3329b": {
+      "text": "🇨🇺 Cuba (+53)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Cuba"
+    },
+    "89d4eb738c10": {
+      "text": "🇨🇼 Curazao (+599)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Curazao"
+    },
+    "2c2950f46fb8": {
+      "text": "🇩🇰 Dinamarca (+45)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Dinamarca"
+    },
+    "160bd58c96de": {
+      "text": "🇩🇲 Dominica (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Dominica"
+    },
+    "22e376342e5a": {
+      "text": "🇪🇨 Ecuador (+593)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Ecuador"
+    },
+    "39fb55654add": {
+      "text": "🇪🇬 Egipto (+20)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Egipto"
+    },
+    "1b54634f2886": {
+      "text": "🇸🇻 El Salvador (+503)",
+      "group": "countries",
+      "kind": "text",
+      "label": "El Salvador"
+    },
+    "d2290752a85c": {
+      "text": "🇦🇪 Emiratos Árabes Unidos (+971)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Emiratos Árabes Unidos"
+    },
+    "d33101493278": {
+      "text": "🇪🇷 Eritrea (+291)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Eritrea"
+    },
+    "1c92106b3def": {
+      "text": "🇸🇰 Eslovaquia (+421)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Eslovaquia"
+    },
+    "7a5f534b6870": {
+      "text": "🇸🇮 Eslovenia (+386)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Eslovenia"
+    },
+    "813f3259667c": {
+      "text": "🇪🇸 España (+34)",
+      "group": "countries",
+      "kind": "text",
+      "label": "España"
+    },
+    "8cbdaab6a092": {
+      "text": "🇺🇸 Estados Unidos (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Estados Unidos"
+    },
+    "b7f4838e5e00": {
+      "text": "🇪🇪 Estonia (+372)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Estonia"
+    },
+    "735e394e7415": {
+      "text": "🇸🇿 Esuatini (+268)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Esuatini"
+    },
+    "3412b3ed5bfa": {
+      "text": "🇪🇹 Etiopía (+251)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Etiopía"
+    },
+    "0ba509ee04b2": {
+      "text": "🇵🇭 Filipinas (+63)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Filipinas"
+    },
+    "033cf97d1ff8": {
+      "text": "🇫🇮 Finlandia (+358)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Finlandia"
+    },
+    "c7b2e2fb351a": {
+      "text": "🇫🇯 Fiyi (+679)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Fiyi"
+    },
+    "45d404b302e6": {
+      "text": "🇫🇷 Francia (+33)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Francia"
+    },
+    "3302e267903c": {
+      "text": "🇬🇦 Gabón (+241)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Gabón"
+    },
+    "975c0478170e": {
+      "text": "🇬🇲 Gambia (+220)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Gambia"
+    },
+    "ac3fdc0040eb": {
+      "text": "🇬🇪 Georgia (+995)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Georgia"
+    },
+    "0fa81d0f4c29": {
+      "text": "🇬🇭 Ghana (+233)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Ghana"
+    },
+    "5c087690c402": {
+      "text": "🇬🇮 Gibraltar (+350)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Gibraltar"
+    },
+    "4a10b3d474f7": {
+      "text": "🇬🇩 Granada (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Granada"
+    },
+    "3d58d0f6010f": {
+      "text": "🇬🇷 Grecia (+30)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Grecia"
+    },
+    "41394c383165": {
+      "text": "🇬🇱 Groenlandia (+299)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Groenlandia"
+    },
+    "fcd2f40ac150": {
+      "text": "🇬🇵 Guadalupe (+590)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guadalupe"
+    },
+    "e96247ef9eca": {
+      "text": "🇬🇺 Guam (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guam"
+    },
+    "3b91e402a359": {
+      "text": "🇬🇹 Guatemala (+502)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guatemala"
+    },
+    "3aea144c334e": {
+      "text": "🇬🇫 Guayana Francesa (+594)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guayana Francesa"
+    },
+    "b3d85f0272b6": {
+      "text": "🇬🇬 Guernesey (+44)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guernesey"
+    },
+    "41e7f1865c3f": {
+      "text": "🇬🇳 Guinea (+224)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guinea"
+    },
+    "bf220fb4b2b9": {
+      "text": "🇬🇶 Guinea Ecuatorial (+240)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guinea Ecuatorial"
+    },
+    "7779e0f3d136": {
+      "text": "🇬🇼 Guinea-Bisáu (+245)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guinea-Bisáu"
+    },
+    "40fe12dd556b": {
+      "text": "🇬🇾 Guyana (+592)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Guyana"
+    },
+    "e0e9e35be005": {
+      "text": "🇭🇹 Haití (+509)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Haití"
+    },
+    "4fe99918f689": {
+      "text": "🇭🇳 Honduras (+504)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Honduras"
+    },
+    "74009dc7f6d5": {
+      "text": "🇭🇺 Hungría (+36)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Hungría"
+    },
+    "a52b56c90e6c": {
+      "text": "🇮🇳 India (+91)",
+      "group": "countries",
+      "kind": "text",
+      "label": "India"
+    },
+    "7e6cab81ce97": {
+      "text": "🇮🇩 Indonesia (+62)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Indonesia"
+    },
+    "e6a4426e997d": {
+      "text": "🇮🇶 Irak (+964)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Irak"
+    },
+    "02396057cd62": {
+      "text": "🇮🇷 Irán (+98)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Irán"
+    },
+    "102f8e2406a7": {
+      "text": "🇮🇪 Irlanda (+353)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Irlanda"
+    },
+    "f7a4a48f8c8f": {
+      "text": "🇦🇨 Isla de la Ascensión (+247)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Isla de la Ascensión"
+    },
+    "9d76d7a4e85e": {
+      "text": "🇮🇲 Isla de Man (+44)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Isla de Man"
+    },
+    "228e13274af9": {
+      "text": "🇨🇽 Isla de Navidad (+61)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Isla de Navidad"
+    },
+    "bb21ffbeee23": {
+      "text": "🇳🇫 Isla Norfolk (+672)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Isla Norfolk"
+    },
+    "b8b5c716cba6": {
+      "text": "🇮🇸 Islandia (+354)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islandia"
+    },
+    "3e86acc57f70": {
+      "text": "🇦🇽 Islas Aland (+358)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Aland"
+    },
+    "867b08d8ddee": {
+      "text": "🇰🇾 Islas Caimán (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Caimán"
+    },
+    "b37725c881ce": {
+      "text": "🇨🇨 Islas Cocos (+61)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Cocos"
+    },
+    "245a59f25e24": {
+      "text": "🇨🇰 Islas Cook (+682)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Cook"
+    },
+    "56f3c97bf170": {
+      "text": "🇫🇴 Islas Feroe (+298)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Feroe"
+    },
+    "86e1b63c1552": {
+      "text": "🇫🇰 Islas Malvinas (+500)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Malvinas"
+    },
+    "4621dc252d1a": {
+      "text": "🇲🇵 Islas Marianas del Norte (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Marianas del Norte"
+    },
+    "7348ceacb7dc": {
+      "text": "🇲🇭 Islas Marshall (+692)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Marshall"
+    },
+    "bd421dc9c872": {
+      "text": "🇸🇧 Islas Salomón (+677)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Salomón"
+    },
+    "ce91abf3ffbc": {
+      "text": "🇹🇨 Islas Turcas y Caicos (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Turcas y Caicos"
+    },
+    "141ae6f34f57": {
+      "text": "🇻🇬 Islas Vírgenes Británicas (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Vírgenes Británicas"
+    },
+    "43198da32786": {
+      "text": "🇻🇮 Islas Vírgenes de EE. UU. (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Islas Vírgenes de EE. UU."
+    },
+    "6ac870489550": {
+      "text": "🇮🇱 Israel (+972)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Israel"
+    },
+    "ca5c44b3ab24": {
+      "text": "🇮🇹 Italia (+39)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Italia"
+    },
+    "008f1d08bdc1": {
+      "text": "🇯🇲 Jamaica (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Jamaica"
+    },
+    "0a3a31dd03cc": {
+      "text": "🇯🇵 Japón (+81)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Japón"
+    },
+    "3f06bd65d02f": {
+      "text": "🇯🇪 Jersey (+44)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Jersey"
+    },
+    "ad26972e625f": {
+      "text": "🇯🇴 Jordania (+962)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Jordania"
+    },
+    "d8e718be9b17": {
+      "text": "🇰🇿 Kazajistán (+7)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Kazajistán"
+    },
+    "e29932bf0859": {
+      "text": "🇰🇪 Kenia (+254)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Kenia"
+    },
+    "c7607ac8b861": {
+      "text": "🇰🇬 Kirguistán (+996)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Kirguistán"
+    },
+    "b3edceac35a6": {
+      "text": "🇰🇮 Kiribati (+686)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Kiribati"
+    },
+    "126a442cfbe9": {
+      "text": "🇽🇰 Kosovo (+383)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Kosovo"
+    },
+    "27a6d188b677": {
+      "text": "🇰🇼 Kuwait (+965)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Kuwait"
+    },
+    "e368829c413d": {
+      "text": "🇱🇦 Laos (+856)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Laos"
+    },
+    "27340a5f6767": {
+      "text": "🇱🇸 Lesoto (+266)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Lesoto"
+    },
+    "73f09403d642": {
+      "text": "🇱🇻 Letonia (+371)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Letonia"
+    },
+    "77766d853fce": {
+      "text": "🇱🇧 Líbano (+961)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Líbano"
+    },
+    "adab6c588b92": {
+      "text": "🇱🇷 Liberia (+231)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Liberia"
+    },
+    "d3e54d3b9b81": {
+      "text": "🇱🇾 Libia (+218)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Libia"
+    },
+    "b514c1ae7569": {
+      "text": "🇱🇮 Liechtenstein (+423)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Liechtenstein"
+    },
+    "cc4ae03c5b72": {
+      "text": "🇱🇹 Lituania (+370)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Lituania"
+    },
+    "bace4403f0ee": {
+      "text": "🇱🇺 Luxemburgo (+352)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Luxemburgo"
+    },
+    "fd5e4d17657f": {
+      "text": "🇲🇰 Macedonia del Norte (+389)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Macedonia del Norte"
+    },
+    "74675b52b771": {
+      "text": "🇲🇬 Madagascar (+261)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Madagascar"
+    },
+    "4f466fac4abe": {
+      "text": "🇲🇾 Malasia (+60)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Malasia"
+    },
+    "6ab2a108b0d5": {
+      "text": "🇲🇼 Malaui (+265)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Malaui"
+    },
+    "17581a50700b": {
+      "text": "🇲🇻 Maldivas (+960)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Maldivas"
+    },
+    "5fef95c2b2e8": {
+      "text": "🇲🇱 Mali (+223)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Mali"
+    },
+    "6185b371047b": {
+      "text": "🇲🇹 Malta (+356)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Malta"
+    },
+    "0de9fdf1e892": {
+      "text": "🇲🇦 Marruecos (+212)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Marruecos"
+    },
+    "78838782db69": {
+      "text": "🇲🇶 Martinica (+596)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Martinica"
+    },
+    "30e66f8dd863": {
+      "text": "🇲🇺 Mauricio (+230)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Mauricio"
+    },
+    "f41dcf7d6487": {
+      "text": "🇲🇷 Mauritania (+222)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Mauritania"
+    },
+    "e683b5363d77": {
+      "text": "🇾🇹 Mayotte (+262)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Mayotte"
+    },
+    "8c4750639eda": {
+      "text": "🇲🇽 México (+52)",
+      "group": "countries",
+      "kind": "text",
+      "label": "México"
+    },
+    "8b44775862b8": {
+      "text": "🇫🇲 Micronesia (+691)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Micronesia"
+    },
+    "0afc96ddb62c": {
+      "text": "🇲🇩 Moldavia (+373)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Moldavia"
+    },
+    "91b00c006314": {
+      "text": "🇲🇨 Mónaco (+377)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Mónaco"
+    },
+    "ca1e895cf60c": {
+      "text": "🇲🇳 Mongolia (+976)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Mongolia"
+    },
+    "0f33c7ec4c94": {
+      "text": "🇲🇪 Montenegro (+382)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Montenegro"
+    },
+    "375592b9f022": {
+      "text": "🇲🇸 Montserrat (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Montserrat"
+    },
+    "e6ff14ee6fdc": {
+      "text": "🇲🇿 Mozambique (+258)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Mozambique"
+    },
+    "49f4eb48c2d2": {
+      "text": "🇲🇲 Myanmar (Birmania) (+95)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Myanmar (Birmania)"
+    },
+    "79b4369263d7": {
+      "text": "🇳🇦 Namibia (+264)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Namibia"
+    },
+    "406ea2ce4696": {
+      "text": "🇳🇷 Nauru (+674)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Nauru"
+    },
+    "59f72b541f10": {
+      "text": "🇳🇵 Nepal (+977)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Nepal"
+    },
+    "31722e3cdff7": {
+      "text": "🇳🇮 Nicaragua (+505)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Nicaragua"
+    },
+    "fc2e6eaed029": {
+      "text": "🇳🇪 Níger (+227)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Níger"
+    },
+    "197716d25ce7": {
+      "text": "🇳🇬 Nigeria (+234)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Nigeria"
+    },
+    "30a4cbb2b2b7": {
+      "text": "🇳🇺 Niue (+683)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Niue"
+    },
+    "3d2c94f99e9d": {
+      "text": "🇳🇴 Noruega (+47)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Noruega"
+    },
+    "92eb9246afe5": {
+      "text": "🇳🇨 Nueva Caledonia (+687)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Nueva Caledonia"
+    },
+    "0b4b8a5dd77c": {
+      "text": "🇳🇿 Nueva Zelanda (+64)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Nueva Zelanda"
+    },
+    "c63c3c39e6f4": {
+      "text": "🇴🇲 Omán (+968)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Omán"
+    },
+    "045c3211a690": {
+      "text": "🇳🇱 Países Bajos (+31)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Países Bajos"
+    },
+    "fb5d135e55b8": {
+      "text": "🇵🇰 Pakistán (+92)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Pakistán"
+    },
+    "45763bc72b90": {
+      "text": "🇵🇼 Palaos (+680)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Palaos"
+    },
+    "c41ff1599342": {
+      "text": "🇵🇦 Panamá (+507)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Panamá"
+    },
+    "6beba059c70e": {
+      "text": "🇵🇬 Papúa Nueva Guinea (+675)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Papúa Nueva Guinea"
+    },
+    "0c4c5d095e29": {
+      "text": "🇵🇾 Paraguay (+595)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Paraguay"
+    },
+    "57f7c4d154fe": {
+      "text": "🇵🇪 Perú (+51)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Perú"
+    },
+    "cb4c11e7898a": {
+      "text": "🇵🇫 Polinesia Francesa (+689)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Polinesia Francesa"
+    },
+    "3ad070ba8fce": {
+      "text": "🇵🇱 Polonia (+48)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Polonia"
+    },
+    "e2bea68e0205": {
+      "text": "🇵🇹 Portugal (+351)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Portugal"
+    },
+    "1cfa32694c57": {
+      "text": "🇵🇷 Puerto Rico (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Puerto Rico"
+    },
+    "1cbdce413e08": {
+      "text": "🇭🇰 RAE de Hong Kong (China) (+852)",
+      "group": "countries",
+      "kind": "text",
+      "label": "RAE de Hong Kong (China)"
+    },
+    "8ffcd7cea8d9": {
+      "text": "🇲🇴 RAE de Macao (China) (+853)",
+      "group": "countries",
+      "kind": "text",
+      "label": "RAE de Macao (China)"
+    },
+    "22aaff453d59": {
+      "text": "🇬🇧 Reino Unido (+44)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Reino Unido"
+    },
+    "a5818a61b58b": {
+      "text": "🇨🇫 República Centroafricana (+236)",
+      "group": "countries",
+      "kind": "text",
+      "label": "República Centroafricana"
+    },
+    "0142fe5ff66e": {
+      "text": "🇨🇩 República Democrática del Congo (+243)",
+      "group": "countries",
+      "kind": "text",
+      "label": "República Democrática del Congo"
+    },
+    "2c683b3028c7": {
+      "text": "🇩🇴 República Dominicana (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "República Dominicana"
+    },
+    "d0c57fc9dc95": {
+      "text": "🇷🇪 Reunión (+262)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Reunión"
+    },
+    "71b4bbddf6cd": {
+      "text": "🇷🇼 Ruanda (+250)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Ruanda"
+    },
+    "e918a39e3e92": {
+      "text": "🇷🇴 Rumanía (+40)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Rumanía"
+    },
+    "8155fb54670a": {
+      "text": "🇷🇺 Rusia (+7)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Rusia"
+    },
+    "a5fd96933007": {
+      "text": "🇪🇭 Sáhara Occidental (+212)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Sáhara Occidental"
+    },
+    "6cb47c7bc67a": {
+      "text": "🇼🇸 Samoa (+685)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Samoa"
+    },
+    "7b8c38da424f": {
+      "text": "🇦🇸 Samoa Americana (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Samoa Americana"
+    },
+    "ac54a2494f35": {
+      "text": "🇧🇱 San Bartolomé (+590)",
+      "group": "countries",
+      "kind": "text",
+      "label": "San Bartolomé"
+    },
+    "850cf24af295": {
+      "text": "🇰🇳 San Cristóbal y Nieves (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "San Cristóbal y Nieves"
+    },
+    "b9dbc87585b9": {
+      "text": "🇸🇲 San Marino (+378)",
+      "group": "countries",
+      "kind": "text",
+      "label": "San Marino"
+    },
+    "bf352a629ccf": {
+      "text": "🇲🇫 San Martín (+590)",
+      "group": "countries",
+      "kind": "text",
+      "label": "San Martín"
+    },
+    "e1ce1d02fc5a": {
+      "text": "🇵🇲 San Pedro y Miquelón (+508)",
+      "group": "countries",
+      "kind": "text",
+      "label": "San Pedro y Miquelón"
+    },
+    "38a0e67796ce": {
+      "text": "🇻🇨 San Vicente y las Granadinas (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "San Vicente y las Granadinas"
+    },
+    "f5e13d5a8f99": {
+      "text": "🇸🇭 Santa Elena (+290)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Santa Elena"
+    },
+    "c82fdd209b47": {
+      "text": "🇱🇨 Santa Lucía (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Santa Lucía"
+    },
+    "3f5c304462d2": {
+      "text": "🇸🇹 Santo Tomé y Príncipe (+239)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Santo Tomé y Príncipe"
+    },
+    "cc31a7464283": {
+      "text": "🇸🇳 Senegal (+221)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Senegal"
+    },
+    "a1fc8e27b33e": {
+      "text": "🇷🇸 Serbia (+381)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Serbia"
+    },
+    "bfd4175e5b4b": {
+      "text": "🇸🇨 Seychelles (+248)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Seychelles"
+    },
+    "7fd055a0ddbd": {
+      "text": "🇸🇱 Sierra Leona (+232)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Sierra Leona"
+    },
+    "bb66e6148865": {
+      "text": "🇸🇬 Singapur (+65)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Singapur"
+    },
+    "c99f47f68b5e": {
+      "text": "🇸🇽 Sint Maarten (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Sint Maarten"
+    },
+    "1585ef58cf12": {
+      "text": "🇸🇾 Siria (+963)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Siria"
+    },
+    "e549e7c2e049": {
+      "text": "🇸🇴 Somalia (+252)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Somalia"
+    },
+    "c6222c0d90a3": {
+      "text": "🇱🇰 Sri Lanka (+94)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Sri Lanka"
+    },
+    "b109aa099e4f": {
+      "text": "🇿🇦 Sudáfrica (+27)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Sudáfrica"
+    },
+    "39806eb8200b": {
+      "text": "🇸🇩 Sudán (+249)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Sudán"
+    },
+    "79f15c060b1a": {
+      "text": "🇸🇸 Sudán del Sur (+211)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Sudán del Sur"
+    },
+    "25ef644b54ae": {
+      "text": "🇸🇪 Suecia (+46)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Suecia"
+    },
+    "772c82f18dd5": {
+      "text": "🇨🇭 Suiza (+41)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Suiza"
+    },
+    "87562e42147c": {
+      "text": "🇸🇷 Surinam (+597)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Surinam"
+    },
+    "df1d3a14b843": {
+      "text": "🇸🇯 Svalbard y Jan Mayen (+47)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Svalbard y Jan Mayen"
+    },
+    "961f7c96939a": {
+      "text": "🇹🇭 Tailandia (+66)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Tailandia"
+    },
+    "cfbc545bae4f": {
+      "text": "🇹🇼 Taiwán (+886)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Taiwán"
+    },
+    "6dfabbe9b8a6": {
+      "text": "🇹🇿 Tanzania (+255)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Tanzania"
+    },
+    "c1f389d51156": {
+      "text": "🇹🇯 Tayikistán (+992)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Tayikistán"
+    },
+    "4a8e6d1f7880": {
+      "text": "🇮🇴 Territorio Británico del Océano Índico (+246)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Territorio Británico del Océano Índico"
+    },
+    "c1e0fda2aeba": {
+      "text": "🇵🇸 Territorios Palestinos (+970)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Territorios Palestinos"
+    },
+    "f0414e5738c6": {
+      "text": "🇹🇱 Timor-Leste (+670)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Timor-Leste"
+    },
+    "2d8fd38872f6": {
+      "text": "🇹🇬 Togo (+228)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Togo"
+    },
+    "f8d949319d0a": {
+      "text": "🇹🇰 Tokelau (+690)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Tokelau"
+    },
+    "52c0ae0805c4": {
+      "text": "🇹🇴 Tonga (+676)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Tonga"
+    },
+    "aaf914f01d7a": {
+      "text": "🇹🇹 Trinidad y Tobago (+1)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Trinidad y Tobago"
+    },
+    "8731098f92f7": {
+      "text": "🇹🇦 Tristán de Acuña (+290)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Tristán de Acuña"
+    },
+    "ba9841f0f025": {
+      "text": "🇹🇳 Túnez (+216)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Túnez"
+    },
+    "a9f443110470": {
+      "text": "🇹🇲 Turkmenistán (+993)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Turkmenistán"
+    },
+    "afe249e923d4": {
+      "text": "🇹🇷 Turquía (+90)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Turquía"
+    },
+    "29e699da5ee3": {
+      "text": "🇹🇻 Tuvalu (+688)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Tuvalu"
+    },
+    "6e6223bcd828": {
+      "text": "🇺🇦 Ucrania (+380)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Ucrania"
+    },
+    "801f7de120c5": {
+      "text": "🇺🇬 Uganda (+256)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Uganda"
+    },
+    "f3a4cda96b2e": {
+      "text": "🇺🇾 Uruguay (+598)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Uruguay"
+    },
+    "93fc59f98fe4": {
+      "text": "🇺🇿 Uzbekistán (+998)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Uzbekistán"
+    },
+    "5b9e2c98373f": {
+      "text": "🇻🇺 Vanuatu (+678)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Vanuatu"
+    },
+    "3ddc8b248f29": {
+      "text": "🇻🇪 Venezuela (+58)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Venezuela"
+    },
+    "1138d6d36b58": {
+      "text": "🇻🇳 Vietnam (+84)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Vietnam"
+    },
+    "04167c35d7e1": {
+      "text": "🇼🇫 Wallis y Futuna (+681)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Wallis y Futuna"
+    },
+    "7fec3f2d9117": {
+      "text": "🇾🇪 Yemen (+967)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Yemen"
+    },
+    "4244476f8885": {
+      "text": "🇩🇯 Yibuti (+253)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Yibuti"
+    },
+    "c2f7ebd368be": {
+      "text": "🇿🇲 Zambia (+260)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Zambia"
+    },
+    "a48ae5fc453a": {
+      "text": "🇿🇼 Zimbabue (+263)",
+      "group": "countries",
+      "kind": "text",
+      "label": "Zimbabue"
+    }
+  }
+}

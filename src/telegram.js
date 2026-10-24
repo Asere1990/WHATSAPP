@@ -1,3 +1,4 @@
+import {savePageImage,PageEditor} from './page-editor.js';
 import { readFileSync } from 'node:fs';
 import { Control } from './control.js';
 import { GuideEditor } from './guides.js';
@@ -5,7 +6,7 @@ import {PortalEditor} from './portal.js';
 import {SystemMessages} from './system-messages.js';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 export class Telegram {
-  constructor(store,config) {this.store=store;this.config=config;this.pending=new Map();this.running=false;this.offset=Number(store.config().telegram_offset||0);this.control=new Control(this);this.guideEditor=new GuideEditor(this);this.portalEditor=new PortalEditor(this);this.systemMessages=new SystemMessages(this);}
+  constructor(store,config) {this.store=store;this.config=config;this.pending=new Map();this.running=false;this.offset=Number(store.config().telegram_offset||0);this.control=new Control(this);this.guideEditor=new GuideEditor(this);this.portalEditor=new PortalEditor(this);this.pageEditor=new PageEditor(this);this.systemMessages=new SystemMessages(this);}
   admins() {
     let file='';try{file=readFileSync('admins.txt','utf8');}catch{}
     return new Set(`${this.config.admins||''}\n${file}`.split(/[\s,]+/).filter(x=>/^\d+$/.test(x)));
@@ -80,7 +81,8 @@ export class Telegram {
       if(cb.data==='help')return reply(this.help());
       if(cb.data==='invite'){this.pending.set(key,{kind:'invite'});return reply('Envía el número con código de país y el nombre. Ejemplo: +12025550123 María');}
       if(cb.data==='cm'||cb.data?.startsWith('cm:')){this.pending.delete(key);return this.portalEditor.callback(chat,key,cb.data);}
-      if(cb.data==='design'){this.pending.delete(key);return this.send(chat,'¿Qué quieres cambiar?',{inline_keyboard:[[{text:'Logo',callback_data:'edit:logo'},{text:'Título',callback_data:'edit:title'}],[{text:'Texto',callback_data:'edit:description'},{text:'Color',callback_data:'edit:color'}],[{text:'Texto del botón',callback_data:'edit:button'},{text:'Ver página',url:this.config.url}],[{text:'🇨🇺 EDITAR CUBAMAX',callback_data:'cm'}],[{text:'📱 GUÍAS ANDROID / IPHONE',callback_data:'guide'}]]});}
+      if(cb.data==='design'){this.pending.delete(key);return this.send(chat,'EDITAR PÁGINA · Elige la web.',{inline_keyboard:[[{text:'EDITAR WHATSAPP',callback_data:'pg:wa'}],[{text:'EDITAR CUBAMAX',callback_data:'cm'}]]});}
+      if(cb.data?.startsWith('pg:')){this.pending.delete(key);return this.pageEditor.callback(chat,key,cb.data);}
       if(cb.data?.startsWith('edit:')) {this.pending.set(key,{kind:cb.data.slice(5)});return reply(cb.data==='edit:logo'?'Envía el nuevo logo como foto.':'Envía el nuevo valor. /cancelar para salir.');}
       if(cb.data?.startsWith('disconnect:')){await this.accounts.disconnect(cb.data.split(':')[1]);return reply('Cuenta desvinculada.');}
       return;
@@ -91,13 +93,12 @@ export class Telegram {
     const pending=this.pending.get(key);
     if(pending&&!raw.startsWith('/')&&!m.reply_to_message) {
       if(pending.kind==='systemMessage')return this.systemMessages.input(chat,key,pending,m);
+      if(pending.kind==='page'){await this.pageEditor.input(chat,pending,m);this.pending.delete(key);return;}
       if(pending.kind==='cubamax'){await this.portalEditor.input(chat,pending,m);this.pending.delete(key);return;}
       if(pending.kind==='guide'){await this.guideEditor.input(chat,pending,m);this.pending.delete(key);return;}
       if(pending.kind==='invite'){await this.invite(chat,...raw.split(/\s+/));this.pending.delete(key);return;}
       if(pending.kind==='logo'){
-        if(!m.photo)return reply('Envía una foto.');
-        const photo=m.photo.at(-1);if(photo.file_size>2*1024*1024)throw new Error('Logo máximo 2 MB.');
-        const data=await this.download(photo.file_id);this.store.setConfig('logo',`data:image/jpeg;base64,${data.toString('base64')}`);
+        this.store.setConfig('logo',await savePageImage(this,m));
       } else this.edit(pending.kind,raw);
       this.pending.delete(key);return reply(`✅ Cambio guardado. Vista previa: ${this.config.url}`);
     }

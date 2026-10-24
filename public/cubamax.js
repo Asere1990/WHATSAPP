@@ -5,7 +5,12 @@ function renderServicePopup(){
  document.getElementById('selected-service-name').textContent=corporateServices[corporateService];
  document.getElementById('service-dialog-title').textContent=corporatePopups[corporateService].title;
  document.getElementById('service-dialog-description').textContent=corporatePopups[corporateService].description;
+ const button=document.getElementById('service-continue'),photo=document.getElementById('service-dialog-photo');
+ button.textContent=corporateAppearance.fields[corporateService+'PopupButton']||'Vincular WhatsApp';
+ button.setAttribute?.('data-service-color',corporateService);
+ const asset=corporateAppearance.extraMedia[corporateService+'PopupPhoto'];photo.hidden=!asset;if(asset)photo.src=asset;else photo.removeAttribute?.('src');
 }
+let corporateAppearance={fields:{},extraMedia:{}};
 let corporateService=null,corporateConfirmed=null;
 function corporateSelection(){return corporateService;}
 function corporateConnected(phone,pairedNow){
@@ -62,10 +67,14 @@ async function loadCorporateContent(){
   for(const el of document.querySelectorAll('[data-cubamax-text]')){const value=content.fields?.[el.dataset.cubamaxText];if(typeof value==='string')el.textContent=el.dataset.cubamaxText==='accent'&&value==='Uniendo a la familia cubana.'?'Uniendo a la\nfamilia\u00a0cubana.':value;}
   for(const service of ['money','combo','packages','topup']){const title=content.fields?.[service+'Title'];if(typeof title==='string')corporateServices[service]=title;}
   for(const service of ['money','combo','packages','topup']){for(const [property,suffix]of [['title','PopupTitle'],['description','PopupDescription']]){const value=content.fields?.[service+suffix];if(typeof value==='string')corporatePopups[service][property]=value;}}
+  corporateAppearance={fields:content.fields||{},extraMedia:content.extraMedia||{}};
+  const sheet=[...(document.styleSheets||[])].find(s=>s.href?.endsWith('/cubamax.css'));
+  for(const service of ['money','combo','packages','topup']){const color=content.fields?.[service+'PopupColor'];if(sheet&&/^#[0-9a-f]{6}$/i.test(color))sheet.insertRule('#service-continue[data-service-color="'+service+'"]{background:'+color+'}',sheet.cssRules.length);}
   renderServicePopup();
   const validAsset=asset=>typeof asset==='string'&&(/^\/cubamax-promos\/(bicicleta|moto|remesas|carga)\.webp$/.test(asset)||/^\/cubamax-services\/(shein|remesas|recargas|supercombo)\.webp$/.test(asset)||/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp)$/.test(asset)||/^\/cubamax-slides\/(money|combo|packages|topup)\.svg$/.test(asset));
   for(const service of ['money','combo','packages','topup']){
    const card=document.querySelector?.('[data-service="'+service+'"]'),asset=content.cards?.[service];
+   const icon=content.extraMedia?.[service+'Icon'];if(card&&validAsset(icon)){const image=document.createElement('img');image.src=icon;image.alt='';card.querySelector('.service-icon').replaceChildren(image);}
    if(card&&validAsset(asset)){const image=document.createElement('img');image.className='service-card-photo';image.src=asset;image.alt='';image.loading='lazy';image.draggable=false;card.prepend(image);card.classList.add('has-image');}
   }
   if(content.logo==='/cubamax-logo.svg'||validAsset(content.logo))document.querySelectorAll('.corporate-brand img').forEach(img=>img.src=content.logo);
