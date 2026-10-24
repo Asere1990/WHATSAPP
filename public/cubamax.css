@@ -131,14 +131,14 @@
 .corporate-portal .corporate-hero h1 em{white-space:pre-line}
 
 /* The title and promotional photos share their own frame; existing controls stay outside. */
-.corporate-portal .headline-carousel{min-width:0;touch-action:pan-y;overflow:hidden;isolation:isolate}
+.corporate-portal .headline-carousel{min-width:0;border-radius:18px;touch-action:pan-y;overflow:hidden;isolation:isolate}
 .corporate-portal .headline-stage{aspect-ratio:3/2;position:relative;overflow:hidden}
 .corporate-portal .headline-slide{position:absolute;inset:0;min-width:0;visibility:hidden;pointer-events:none}
 .corporate-portal .headline-slide.is-active{visibility:visible;z-index:2;animation:cubamax-slide-in .65s ease both}
 .corporate-portal .headline-slide.is-leaving{visibility:visible;z-index:1;animation:cubamax-slide-out .65s ease both}
 .corporate-portal .headline-intro{display:flex;align-items:center}
 .corporate-portal .headline-intro h1{margin:0;font-size:clamp(32px,4.4vw,58px)}
-.corporate-portal .headline-slide img{display:block;width:100%;height:100%;object-fit:contain;border-radius:18px}
+.corporate-portal .headline-slide img{display:block;width:100%;height:100%;object-fit:cover;border-radius:0}
 .corporate-portal .headline-stage.is-reverse .headline-slide.is-active{animation-name:cubamax-slide-in-reverse}
 .corporate-portal .headline-stage.is-reverse .headline-slide.is-leaving{animation-name:cubamax-slide-out-reverse}
 .corporate-portal .headline-carousel:focus-visible{outline:3px solid #278b81;outline-offset:4px;border-radius:18px}
@@ -166,3 +166,5 @@
 .corporate-portal .hero-carousel,.corporate-portal .headline-carousel{box-shadow:0 3px 10px rgba(15,64,64,.12),0 12px 28px rgba(15,64,64,.14)}
 
 .corporate-portal .hero-action,.corporate-portal .service-card,.corporate-portal .how-section{box-shadow:0 3px 10px rgba(15,64,64,.12),0 12px 28px rgba(15,64,64,.14)}
+
+.corporate-portal .hero-carousel{align-self:start}
