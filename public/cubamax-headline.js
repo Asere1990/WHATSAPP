@@ -6,7 +6,7 @@
  const primaryImage=intro.querySelector('img');
  const slides=[intro],ready=[!!(primaryImage?.complete&&primaryImage.naturalWidth)];let current=0,timer=null,gesture=null,primaryFailed=false;
  const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
- const photos=[['contacto','Cubamax: (786) 887-6115'],['grupo','Cubamax con su familia: (786) 887-6115'],['remesas2','Remesas a Cuba · Tarifa 2%'],['recargas','Recarga Cubacel'],['supercombo','Super Combo'],['ecoflow','Alejandro y Flora · Cubamax Shein'],['equipo','El equipo de Cubamax']];
+ const photos=[['contacto','Cubamax: (786) 887-6115'],['grupo','Cubamax con su familia: (786) 887-6115'],['remesas2','Remesas a Cuba · Tarifa 2%'],['recargas','Recarga Cubacel'],['supercombo','Super Combo'],['shein','Shein con Cubamax'],['equipo','El equipo de Cubamax']];
  function schedule(){
   clearTimeout(timer);timer=null;
   if(ready[current]&&!document.hidden&&!gesture&&!reduced?.matches)timer=setTimeout(()=>show(1),5000);

@@ -168,3 +168,6 @@
 .corporate-portal .hero-action,.corporate-portal .service-card,.corporate-portal .how-section{box-shadow:0 3px 10px rgba(15,64,64,.12),0 12px 28px rgba(15,64,64,.14)}
 
 .corporate-portal .hero-carousel{align-self:start}
+
+.corporate-portal .cubamax-contact-phone{display:block;width:fit-content;margin:18px auto 10px;padding:10px 22px;border-radius:14px;background:#147f80;color:#fff;font-size:clamp(25px,5vw,36px);font-weight:800;line-height:1.2;text-decoration:none;letter-spacing:.02em;box-shadow:0 3px 10px rgba(15,64,64,.18)}
+.corporate-portal .cubamax-contact-phone:focus-visible{outline:3px solid #ed751b;outline-offset:4px}
