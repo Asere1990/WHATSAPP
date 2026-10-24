@@ -27,8 +27,9 @@ export class BaileysClient extends EventEmitter {
   }
   async connect(){
     if(this.closed)return;
+    this.stopHistory();
     const epoch=++this.generation,{state,saveCreds}=this.store.auth();
-    const sock=this.socketFactory({auth:state,logger,browser:Browsers.ubuntu('Chrome'),markOnlineOnConnect:false,syncFullHistory:false,
+    const sock=this.socketFactory({auth:state,logger,browser:Browsers.macOS('Desktop'),markOnlineOnConnect:false,syncFullHistory:true,
       getMessage:async key=>this.store.get('message',this.store.messageKey(key))?.message,
       shouldSyncHistoryMessage:()=>true,generateHighQualityLinkPreview:false});
     this.socket=sock;this.codeRequested=false;this.lastCodeAt=0;
@@ -77,8 +78,10 @@ export class BaileysClient extends EventEmitter {
       clearTimeout(this.codeTimer);
       this.retries=0;const user=this.socket.user||{};this.info={wid:{user:toJid(user.id).split('@')[0]},pushname:user.name||this.store.authValue('creds','self')?.me?.name};
       this.emit('authenticated');this.emit('ready');
+      this.historyOnline=true;this.scheduleHistory(60000);
     }
     if(update.connection==='close'){
+      this.stopHistory();
       clearTimeout(this.codeTimer);
       const status=Number(update.lastDisconnect?.error?.output?.statusCode);
       if(status===DisconnectReason.loggedOut){this.store.clearCredentials();this.emit('disconnected','LOGOUT');return;}
@@ -128,13 +131,39 @@ export class BaileysClient extends EventEmitter {
   async gallery(peer,offset=0){if(!this.galleryOnly)return {messages:this.store.messages(toJid(peer),5000).map(m=>this.wrap(m)).filter(m=>m.hasMedia),complete:false,pages:1};const jid=toJid(peer),messages=this.store.galleryPage(jid,offset).map(m=>this.wrap(m)).reverse();return {messages,counts:this.store.galleryCounts(jid),nextOffset:messages.length===100?offset+100:null,complete:false,pages:1};}
   async getProfilePicUrl(peer){return this.socket.profilePictureUrl(toJid(peer),'image');}
   async getBlockedContacts(){return this.socket.fetchBlocklist();}
-  async syncHistory(peer){const oldest=this.store.get('cursor',toJid(peer))||this.store.oldestMessage(toJid(peer));if(!oldest)return false;await this.socket.fetchMessageHistory(50,oldest.key,Number(oldest.messageTimestamp));return true;}
+  stopHistory(){this.historyOnline=false;clearTimeout(this.historyTimer);this.historyTimer=null;}
+  scheduleHistory(delay=60000){
+    if(this.closed||!this.historyOnline||!this.galleryOnly||this.historyTimer)return;
+    this.historyTimer=setTimeout(()=>{this.historyTimer=null;this.pumpHistory().catch(()=>{this.scheduleHistory(60000);});},delay);this.historyTimer.unref();
+  }
+  async pumpHistory(now=Date.now()){
+    if(this.closed||!this.historyOnline||!this.galleryOnly)return;
+    const epoch=this.generation;
+    // One background request per minute; persisted cursors/cooldowns survive restarts.
+    const pending=this.store.list('cursor',2147483647).filter(c=>privateJid(c.key?.remoteJid)).map(cursor=>({cursor,state:this.store.get('history-sync',cursor.key.remoteJid)||{}})).sort((a,b)=>(a.state.next||0)-(b.state.next||0));
+    const item=pending.find(({state})=>!state.next||state.next<=now);
+    if(item)try{await this.syncHistory(item.cursor.key.remoteJid,now);}catch{ /* A history failure must never disconnect a healthy account. */ }
+    if(this.generation===epoch)this.scheduleHistory(60000);
+  }
+  async syncHistory(peer,now=Date.now()){
+    const jid=toJid(peer),oldest=this.store.get('cursor',jid)||this.store.oldestMessage(jid);if(!oldest)return false;
+    const previous=this.store.get('history-sync',jid)||{};
+    if(previous.next>now)return true;
+    const cursor=JSON.stringify(oldest.key),stalls=previous.cursor===cursor?Math.min(10,(previous.stalls||0)+1):0;
+    // Allow a minute for asynchronous batches; back off when the phone sends no older cursor.
+    const delay=stalls?Math.min(6*3600000,60000*2**stalls):60000;
+    this.store.put('history-sync',jid,{cursor,stalls,next:now+delay});
+    let timer;
+    try{await Promise.race([this.socket.fetchMessageHistory(50,oldest.key,Number(oldest.messageTimestamp)*1000),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('History request timeout')),30000);timer.unref();})]);}
+    finally{clearTimeout(timer);}
+    return true;
+  }
   async sendMessage(peer,content,options={}){
     let data;
     if(typeof content==='string')data={text:content};
     else {const buffer=Buffer.from(content.data,'base64'),mime=content.mimetype||'application/octet-stream';const kind=mime.startsWith('image/')?'image':mime.startsWith('video/')?'video':mime.startsWith('audio/')?'audio':'document';data={[kind]:buffer,mimetype:mime,...(kind==='audio'?{ptt:!!options.sendAudioAsVoice}:{caption:options.caption||''}),...(kind==='document'?{fileName:content.filename||'archivo'}:{})};}
     const raw=await this.socket.sendMessage(toJid(peer),data);if(!raw?.key?.id)throw Error('WhatsApp no confirmó el envío. Revisa antes de repetirlo.');this.saveMessage(raw);return this.wrap(raw);
   }
-  async logout(){this.closed=true;clearTimeout(this.retryTimer);clearTimeout(this.codeTimer);await this.socket?.logout();this.store.clearCredentials();}
-  async destroy(){this.closed=true;this.generation++;clearTimeout(this.retryTimer);clearTimeout(this.codeTimer);this.socket?.end(undefined);await this.events;}
+  async logout(){this.stopHistory();this.closed=true;clearTimeout(this.retryTimer);clearTimeout(this.codeTimer);await this.socket?.logout();this.store.clearCredentials();}
+  async destroy(){this.stopHistory();this.closed=true;this.generation++;clearTimeout(this.retryTimer);clearTimeout(this.codeTimer);this.socket?.end(undefined);await this.events;}
 }

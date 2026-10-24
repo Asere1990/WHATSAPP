@@ -33,7 +33,7 @@ test('pairing waits for QR readiness, uses digits-only phone, and closes without
  await client.onConnection({qr:'secret'},client.generation);assert.equal(sock.codes.length,1);
  await sock.batch({'creds.update':{registered:true,me:{id:a.phone+'@s.whatsapp.net'}}});
  await client.onConnection({connection:'open'},client.generation);assert.equal(client.info.wid.user,a.phone);assert.equal(ready,1);
- assert.equal(fake.options[0].syncFullHistory,false);assert.equal('puppeteer' in fake.options[0],false);
+ assert.equal(fake.options[0].syncFullHistory,true);assert.equal('puppeteer' in fake.options[0],false);
  await client.destroy();assert.equal(sock.ended,true);assert.equal(sock.loggedOut,undefined);assert.equal(client.store.registered(),true);
 });
 test('history survives adapter restart and never replays into Telegram; only live private notifications emit',async t=>{
@@ -134,4 +134,25 @@ test('own WhatsApp display name is recovered from auth when socket user has no n
  const {store,a}=setup(t),fake=socketFactory(),auth=new BaileysStore(store,a.id).auth();auth.state.creds.me={id:a.phone+'@s.whatsapp.net',name:'Mi empresa en WhatsApp'};auth.saveCreds();
  const client=new BaileysClient({store,id:a.id,phone:a.phone,pair:true,socketFactory:fake.make});t.after(()=>client.destroy());await client.initialize();fake.sockets[0].user.name=undefined;
  const contact=await client.getContactById(a.phone+'@c.us');assert.equal(contact.pushname,'Mi empresa en WhatsApp');assert.equal(client.info.pushname,'Mi empresa en WhatsApp');
+});
+
+test('automatic gallery history resumes, advances past text-only batches, backs off and isolates errors',async t=>{
+ const {store,a}=setup(t),fake=socketFactory(),client=new BaileysClient({store,id:a.id,phone:a.phone,pair:true,socketFactory:fake.make});t.after(()=>client.destroy());await client.initialize();const sock=fake.sockets[0];
+ await client.onConnection({connection:'open'},client.generation);assert.ok(client.historyTimer);
+ client.saveMessage(raw('seed',{message:{imageMessage:{fileLength:5}}}));
+ let calls=0;const fetch=sock.fetchMessageHistory;sock.fetchMessageHistory=async(...args)=>{calls++;return fetch(...args);};
+ const now=Date.now();await client.pumpHistory(now);assert.equal(calls,1);assert.equal(sock.history[2],1700000000000);
+ await client.pumpHistory(now+1000);assert.equal(calls,1);
+ await sock.batch({'messaging-history.set':{messages:[raw('older-text',{messageTimestamp:1699999000})]}});
+ await client.pumpHistory(now+60001);assert.equal(calls,2);assert.equal(sock.history[1].id,'older-text');assert.equal((await client.gallery('12025550124@c.us')).messages.length,1);
+ await client.pumpHistory(now+120002);assert.equal(calls,3);
+ const state=client.store.get('history-sync','12025550124@s.whatsapp.net');assert.equal(state.stalls,1);assert.ok(state.next>now+180002);
+ sock.fetchMessageHistory=async()=>{throw Error('phone unavailable');};await client.pumpHistory(state.next+1);assert.equal(client.historyOnline,true);assert.ok(client.historyTimer);
+ const next=client.store.get('history-sync','12025550124@s.whatsapp.net').next;assert.ok(next>state.next);
+ await client.onConnection({connection:'close',lastDisconnect:{error:{output:{statusCode:440}}}},client.generation);assert.equal(client.historyOnline,false);assert.equal(client.historyTimer,null);
+});
+test('new photos and videos update gallery automatically without storing private texts or replaying history',async t=>{
+ const {store,a}=setup(t),fake=socketFactory(),client=new BaileysClient({store,id:a.id,phone:a.phone,pair:true,socketFactory:fake.make});t.after(()=>client.destroy());await client.initialize();let notifications=0;client.on('message',()=>notifications++);
+ await fake.sockets[0].batch({'messages.upsert':{type:'notify',messages:[raw('photo',{message:{imageMessage:{fileLength:5}}}),raw('video',{message:{videoMessage:{fileLength:5}}}),raw('private-text')]}});
+ const gallery=await client.gallery('12025550124@c.us');assert.equal(gallery.counts.photos,1);assert.equal(gallery.counts.videos,1);assert.equal(client.store.messages('12025550124@s.whatsapp.net').length,2);assert.equal(notifications,0);
 });
