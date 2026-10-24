@@ -21,15 +21,15 @@ test('Telegram page editor separates sites, clears drafts on back and preserves 
  await bot.handle(callback('pg:wa:field:'+field));await bot.handle(callback('design'));assert.equal(bot.pending.size,0);
  await bot.handle(callback('pg:wa:reset:'+field));assert.deepEqual(pageContent(store,'wa'),[]);
 });
-test('popup photos, button names, colors and service icons are independent and reject unsafe content',async t=>{
+test('popup photos, button names and colors are independent and reject unsafe content',async t=>{
  const {bot,store}=setup(t);const before=portalContent(store);
  await bot.portalEditor.input(123,{field:'moneyPopupButton'},{text:'CONTINUAR'});
  await bot.portalEditor.input(123,{field:'moneyPopupColor'},{text:'#ff1234'});
  await assert.rejects(bot.portalEditor.input(123,{field:'moneyPopupColor'},{text:'red;display:none'}),/RRGGBB/);
- for(const mediaKey of ['moneyIcon','moneyPopupPhoto'])await bot.portalEditor.input(123,{field:'extraMedia',mediaKey},{photo:[{file_id:'test'}]});
- const saved=portalContent(store);assert.equal(saved.fields.moneyPopupButton,'CONTINUAR');assert.equal(saved.fields.comboPopupButton,before.fields.comboPopupButton);assert.equal(saved.fields.moneyPopupColor,'#ff1234');assert.equal(Object.keys(saved.extraMedia).length,2);assert.deepEqual(saved.cards,before.cards);assert.deepEqual(saved.slides,before.slides);
- bot.download=async()=>Buffer.from('<svg onload="bad()"></svg>');await assert.rejects(bot.portalEditor.input(123,{field:'extraMedia',mediaKey:'comboIcon'},{document:{file_id:'bad'}}),/imagen/);assert.equal(portalContent(store).extraMedia.comboIcon,undefined);
- await bot.portalEditor.callback(123,'123:123','cm:remove:moneyIcon');assert.equal(portalContent(store).extraMedia.moneyIcon,undefined);assert.ok(portalContent(store).extraMedia.moneyPopupPhoto);
+ for(const mediaKey of ['moneyPopupPhoto'])await bot.portalEditor.input(123,{field:'extraMedia',mediaKey},{photo:[{file_id:'test'}]});
+ const saved=portalContent(store);assert.equal(saved.fields.moneyPopupButton,'CONTINUAR');assert.equal(saved.fields.comboPopupButton,before.fields.comboPopupButton);assert.equal(saved.fields.moneyPopupColor,'#ff1234');assert.equal(Object.keys(saved.extraMedia).length,1);assert.deepEqual(saved.cards,before.cards);assert.deepEqual(saved.slides,before.slides);
+ bot.download=async()=>Buffer.from('<svg onload="bad()"></svg>');await assert.rejects(bot.portalEditor.input(123,{field:'extraMedia',mediaKey:'comboPopupPhoto'},{document:{file_id:'bad'}}),/imagen/);assert.equal(portalContent(store).extraMedia.comboPopupPhoto,undefined);
+ await assert.rejects(bot.portalEditor.callback(123,'123:123','cm:media:moneyIcon'),/Imagen no disponible/);assert.ok(portalContent(store).extraMedia.moneyPopupPhoto);
 });
 test('browser overrides preserve button identity and handle later dynamic text, placeholders and pictures',async()=>{
  const text=(value)=>({nodeType:3,nodeValue:value,childNodes:[],parentElement:{closest:()=>false}});

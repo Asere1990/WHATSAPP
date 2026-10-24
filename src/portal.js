@@ -25,7 +25,7 @@ export function portalContent(store){
  if(Array.isArray(raw)&&raw.length===4&&['shein','remesas','recargas','supercombo'].every((id,i)=>raw[i]?.asset===`/cubamax-services/${id}.webp`)){raw=defaults.map(s=>({...s}));store.setConfig('cubamax_slides',JSON.stringify(raw));}
  const slides=Array.isArray(raw)?raw.filter(s=>/^[a-z0-9]{1,20}$/.test(s?.id)&&typeof s.title==='string'&&s.title.length<=100&&validAsset(s.asset)).slice(0,12).map(s=>({...s})):[];
  const savedCards=stored(store,'cubamax_cards',{}),cards=Object.fromEntries(serviceIds.filter(id=>validAsset(savedCards[id])).map(id=>[id,savedCards[id]]));
- const media=stored(store,'cubamax_extra_media',{}),extraMedia=Object.fromEntries(Object.entries(media).filter(([key,value])=>/^(money|combo|packages|topup)(Icon|PopupPhoto)$/.test(key)&&validAsset(value)));
+ const media=stored(store,'cubamax_extra_media',{}),extraMedia=Object.fromEntries(Object.entries(media).filter(([key,value])=>/^(money|combo|packages|topup)(PopupPhoto)$/.test(key)&&validAsset(value)));
  const logo=store.config().cubamax_logo;return {fields,cards,extraMedia,slides:slides.length?slides:defaults.map(s=>({...s})),logo:validAsset(logo)?logo:'/cubamax-logo.svg'};
 }
 export class PortalEditor{
@@ -34,16 +34,16 @@ export class PortalEditor{
  async callback(chat,key,data){
  const [,action,id,operation]=data.split(':'),content=portalContent(this.bot.store);
  if(!action)return this.menu(chat);
- if(action==='cards')return this.bot.send(chat,'Elige la tarjeta. Puedes cambiar el fondo y el icono superior izquierdo por separado. Las fotos pueden recortarse para llenar el marco.',{inline_keyboard:[...serviceIds.map(service=>[{text:content.fields[service+'Title'],callback_data:'cm:card:'+service}]),[{text:'ATRÁS',callback_data:'cm'}]]});
+ if(action==='cards')return this.bot.send(chat,'Elige la tarjeta. Puedes cambiar el fondo. Las fotos pueden recortarse para llenar el marco.',{inline_keyboard:[...serviceIds.map(service=>[{text:content.fields[service+'Title'],callback_data:'cm:card:'+service}]),[{text:'ATRÁS',callback_data:'cm'}]]});
  if(action==='card'){
   if(!serviceIds.includes(id))throw Error('Servicio no disponible.');
-  if(operation==='image'){this.bot.pending.set(key,{kind:'cubamax',field:'serviceImage',service:id});return this.bot.send(chat,'Envía la foto que cubrirá toda esta tarjeta: PNG/JPG/WebP/GIF, hasta 2 MB. El texto y el icono se conservarán encima. /cancelar para salir.');}
+  if(operation==='image'){this.bot.pending.set(key,{kind:'cubamax',field:'serviceImage',service:id});return this.bot.send(chat,'Envía la foto que cubrirá toda esta tarjeta: PNG/JPG/WebP/GIF, hasta 2 MB. El texto se conservará encima. /cancelar para salir.');}
   if(operation==='delete'){const cards={...content.cards};delete cards[id];this.bot.store.setConfig('cubamax_cards',JSON.stringify(cards));return this.bot.send(chat,'Foto quitada. Se mostrará el diseño original al recargar Cubamax.');}
-  return this.bot.send(chat,content.fields[id+'Title']+' · Foto del botón',{inline_keyboard:[[{text:'CAMBIAR FONDO',callback_data:'cm:card:'+id+':image'}],[{text:'CAMBIAR ICONO',callback_data:'cm:media:'+id+'Icon'},{text:'QUITAR ICONO',callback_data:'cm:remove:'+id+'Icon'}],[{text:'QUITAR FOTO',callback_data:'cm:card:'+id+':delete'}],[{text:'ATRÁS',callback_data:'cm:cards'}]]});
+  return this.bot.send(chat,content.fields[id+'Title']+' · Foto del botón',{inline_keyboard:[[{text:'CAMBIAR FONDO',callback_data:'cm:card:'+id+':image'}],[{text:'QUITAR FOTO',callback_data:'cm:card:'+id+':delete'}],[{text:'ATRÁS',callback_data:'cm:cards'}]]});
  }
  if(action==='popups')return this.bot.send(chat,'Elige el popup que quieres editar. Cada servicio tiene su propio título y texto. Puedes editar texto, foto, nombre y color del botón. Su función se conserva.',{inline_keyboard:[...['money','combo','packages','topup'].map(service=>[{text:content.fields[service+'Title'],callback_data:'cm:group:popup-'+service}]),[{text:'ATRÁS',callback_data:'cm'}]]});
  if(action==='media'||action==='remove'){
-  if(!/^(money|combo|packages|topup)(Icon|PopupPhoto)$/.test(id))throw Error('Imagen no disponible.');
+  if(!/^(money|combo|packages|topup)(PopupPhoto)$/.test(id))throw Error('Imagen no disponible.');
   if(action==='remove'){const media={...content.extraMedia};delete media[id];this.bot.store.setConfig('cubamax_extra_media',JSON.stringify(media));return this.menu(chat);}
   this.bot.pending.set(key,{kind:'cubamax',field:'extraMedia',mediaKey:id});return this.bot.send(chat,'Envía la foto nueva (PNG/JPG/WebP/GIF, hasta 2 MB). /cancelar para salir.',{inline_keyboard:[[{text:'ATRÁS',callback_data:'cm'}]]});
  }
@@ -81,7 +81,7 @@ export class PortalEditor{
   const data=await this.bot.download(file.file_id);if(data.length>2*1024*1024)throw Error('Imagen máxima: 2 MB.');const media=detectMedia(data);if(media.ext==='mp4')throw Error('Envía una imagen PNG/JPG/WebP/GIF.');
   const disk=statfsSync(this.bot.accounts.dir);if(disk.bavail*disk.bsize<data.length+100*1024*1024)throw Error('No hay suficiente espacio para guardar la imagen.');
   const filename=createHash('sha256').update(data).digest('hex')+'.'+media.ext,folder=path.join(this.bot.accounts.dir,'portal-media');mkdirSync(folder,{recursive:true,mode:0o700});writeFileSync(path.join(folder,filename),data,{mode:0o600});const asset='/portal-media/'+filename;
-  if(pending.field==='extraMedia'){if(!/^(money|combo|packages|topup)(Icon|PopupPhoto)$/.test(pending.mediaKey))throw Error('Imagen no disponible.');store.setConfig('cubamax_extra_media',JSON.stringify({...portalContent(store).extraMedia,[pending.mediaKey]:asset}));}
+  if(pending.field==='extraMedia'){if(!/^(money|combo|packages|topup)(PopupPhoto)$/.test(pending.mediaKey))throw Error('Imagen no disponible.');store.setConfig('cubamax_extra_media',JSON.stringify({...portalContent(store).extraMedia,[pending.mediaKey]:asset}));}
   else if(pending.field==='serviceImage'){if(!serviceIds.includes(pending.service))throw Error('Servicio no disponible.');store.setConfig('cubamax_cards',JSON.stringify({...portalContent(store).cards,[pending.service]:asset}));}
   else if(pending.field==='previewImage')store.setConfig('cubamax_preview_image',asset);
   else if(pending.field==='logo')store.setConfig('cubamax_logo',asset);
