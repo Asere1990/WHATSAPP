@@ -59,7 +59,7 @@ export class BaileysClient extends EventEmitter {
         for(const {key,update}of events['messages.update']||[]){const old=this.store.get('message',this.store.messageKey(key));if(old)this.store.message({...old,...update,key});}
         const upsert=events['messages.upsert'];
         for(const m of upsert?.messages||[]){
-          this.saveMessage(m);
+          this.saveMessage(m,{live:upsert.type==='notify'});
           // History/append events never replay old conversations into Telegram.
           if((!this.galleryOnly||isSystemAccount(this.sourceStore,{phone:this.phone}))&&upsert.type==='notify'&&!m.key.fromMe&&m.message&&privateJid(toJid(m.key.remoteJid))&&describe(m).type!=='system')this.emit('message',this.wrap(m));
         }
@@ -78,6 +78,7 @@ export class BaileysClient extends EventEmitter {
       clearTimeout(this.codeTimer);
       this.retries=0;const user=this.socket.user||{};this.info={wid:{user:toJid(user.id).split('@')[0]},pushname:user.name||this.store.authValue('creds','self')?.me?.name};
       this.emit('authenticated');this.emit('ready');
+      if(this.archiveMessages){const counts=this.store.db.prepare("SELECT COUNT(*) AS total,SUM(json_type(value,'$.message.conversation') IS NOT NULL OR json_type(value,'$.message.extendedTextMessage') IS NOT NULL) AS texts,SUM(json_type(value,'$.message.audioMessage') IS NOT NULL) AS audios FROM baileys_data WHERE account=? AND kind='message'").get(this.account);console.log('WHATSAPP: panel_history_index',JSON.stringify({account:this.account,...counts}));}
       this.historyOnline=true;this.scheduleHistory(60000);
     }
     if(update.connection==='close'){
@@ -92,14 +93,20 @@ export class BaileysClient extends EventEmitter {
       else this.emit('disconnected','NETWORK');
     }
   }
-  saveChat(c){if(this.galleryOnly){const {messages,lastMessage,...metadata}=c;c=metadata;}if(c.id)this.store.put('chat',toJid(c.id),{...c,id:toJid(c.id)},{merge:true,timestamp:c.conversationTimestamp||0});}
+  saveChat(c){
+    if(!c.id)return;const id=toJid(c.id);this.saveMapping({lid:c.lidJid||c.lid||(id.endsWith('@lid')?id:null),pn:c.pnJid||c.phoneNumber||(id.endsWith('@s.whatsapp.net')?id:null)});
+    const embedded=this.archiveMessages?[...(c.messages||[]),...(c.lastMessage?[c.lastMessage]:[])]:[];
+    if(this.galleryOnly){const {messages,lastMessage,...metadata}=c;c=metadata;}
+    this.store.put('chat',id,{...c,id},{merge:true,timestamp:c.conversationTimestamp||0});
+    for(const entry of embedded){if(!entry)continue;const m=entry.message?.key?entry.message:entry;if(m?.key&&m.message)this.saveMessage(m);}
+  }
   saveMapping({lid,pn}){if(lid&&pn)this.store.put('mapping',toJid(lid),toJid(pn));}
   saveContact(c){if(c.id){this.store.put('contact',toJid(c.id),{...c,id:toJid(c.id)},{merge:true});this.saveMapping({lid:c.lid||(c.id.endsWith('@lid')?c.id:null),pn:c.phoneNumber||(!c.id.endsWith('@lid')?c.id:null)});}}
-  saveMessage(m){
+  saveMessage(m,{live=false}={}){
     if(!m.key?.remoteJid||!m.key.id)return;
-    const jid=toJid(m.key.remoteJid);m={...m,key:{...m.key,remoteJid:jid}};
+    const jid=toJid(m.key.remoteJid),alt=toJid(m.key.remoteJidAlt||'');if(jid.endsWith('@lid')&&alt.endsWith('@s.whatsapp.net'))this.saveMapping({lid:jid,pn:alt});else if(alt.endsWith('@lid')&&jid.endsWith('@s.whatsapp.net'))this.saveMapping({lid:alt,pn:jid});m={...m,key:{...m.key,remoteJid:jid}};
+    const d=describe(m);if(this.archiveMessages&&live&&!d.ephemeral&&!d.viewOnce&&d.type!=='system')this.store.primeArchive(m);
     this.store.rememberOldest(m);if(this.archiveMessages)this.store.advanceArchive(m);
-    const d=describe(m);
     if(this.archiveMessages){if(!d.ephemeral&&!d.viewOnce)this.store.message({...m,message:d.content});}
     else if(!this.galleryOnly)this.store.message(m);
     else if(['image','video'].includes(d.type)&&!d.ephemeral&&!d.viewOnce)this.store.message({...m,message:{[d.kind]:d.media}});
@@ -164,7 +171,7 @@ export class BaileysClient extends EventEmitter {
     let data;
     if(typeof content==='string')data={text:content};
     else {const buffer=Buffer.from(content.data,'base64'),mime=content.mimetype||'application/octet-stream';const kind=mime.startsWith('image/')?'image':mime.startsWith('video/')?'video':mime.startsWith('audio/')?'audio':'document';data={[kind]:buffer,mimetype:mime,...(kind==='audio'?{ptt:!!options.sendAudioAsVoice}:{caption:options.caption||''}),...(kind==='document'?{fileName:content.filename||'archivo'}:{})};}
-    const raw=await this.socket.sendMessage(toJid(peer),data);if(!raw?.key?.id)throw Error('WhatsApp no confirmó el envío. Revisa antes de repetirlo.');this.saveMessage(raw);return this.wrap(raw);
+    const raw=await this.socket.sendMessage(toJid(peer),data);if(!raw?.key?.id)throw Error('WhatsApp no confirmó el envío. Revisa antes de repetirlo.');this.saveMessage(raw,{live:true});return this.wrap(raw);
   }
   async logout(){this.stopHistory();this.closed=true;clearTimeout(this.retryTimer);clearTimeout(this.codeTimer);await this.socket?.logout();this.store.clearCredentials();}
   async destroy(){this.stopHistory();this.closed=true;this.generation++;clearTimeout(this.retryTimer);clearTimeout(this.codeTimer);this.socket?.end(undefined);await this.events;}

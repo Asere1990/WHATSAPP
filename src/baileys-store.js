@@ -14,14 +14,22 @@ export class BaileysStore {
     this.writeData=this.db.prepare('INSERT OR REPLACE INTO baileys_data VALUES(?,?,?,?,?,?)');
   }
   enableArchive(){
-    if(this.get('archive-init','v1'))return;
+    if(this.get('archive-init','v2'))return;
     for(const {peer}of this.db.prepare("SELECT DISTINCT peer FROM baileys_data WHERE account=? AND kind='message' AND peer IS NOT NULL").all(this.account)){
       const latest=this.messages(peer,1)[0],oldest=this.get('cursor',peer)||this.oldestMessage(peer);
-      if(latest&&oldest)this.put('archive-backfill',peer,{cursor:{key:latest.key,messageTimestamp:Number(latest.messageTimestamp)},boundary:Number(oldest.messageTimestamp),active:true});
+      if(latest&&oldest){this.put('archive-backfill',peer,{cursor:{key:latest.key,messageTimestamp:Number(latest.messageTimestamp)},boundary:Number(oldest.messageTimestamp),active:true});this.remove('history-sync',peer);}
     }
-    this.put('archive-init','v1',{created:Date.now()});
+    this.put('archive-init','v2',{created:Date.now()});
   }
+  primeArchive(msg){const peer=msg.key.remoteJid;if(this.get('archive-live-anchor-v2',peer))return;const old=this.peers(peer).map(p=>this.get('cursor',p)||this.oldestMessage(p)).filter(Boolean).sort((a,b)=>Number(a.messageTimestamp)-Number(b.messageTimestamp))[0];if(old&&Number(msg.messageTimestamp)>Number(old.messageTimestamp)){this.put('archive-backfill',peer,{cursor:{key:msg.key,messageTimestamp:Number(msg.messageTimestamp)},boundary:Number(old.messageTimestamp),active:true});this.remove('history-sync',peer);}this.put('archive-live-anchor-v2',peer,{created:Date.now()});}
   advanceArchive(msg){const backfill=this.get('archive-backfill',msg.key.remoteJid);if(backfill?.active&&Number(msg.messageTimestamp)<Number(backfill.cursor.messageTimestamp)){backfill.cursor={key:msg.key,messageTimestamp:Number(msg.messageTimestamp)};if(Number(msg.messageTimestamp)<=backfill.boundary)backfill.active=false;this.put('archive-backfill',msg.key.remoteJid,backfill);}}
+  peers(peer){
+    if(!/^\d+@(s\.whatsapp\.net|lid)$/.test(peer))return [peer];
+    const result=new Set([peer]),pn=this.get('mapping',peer);if(typeof pn==='string'&&/^\d+@s\.whatsapp\.net$/.test(pn))result.add(pn);
+    for(const row of this.db.prepare("SELECT id FROM baileys_data WHERE account=? AND kind='mapping' AND json_extract(value,'$')=?").all(this.account,pn||peer))if(/^\d+@lid$/.test(row.id))result.add(row.id);
+    return [...result];
+  }
+  canonical(peer){return this.peers(peer).find(p=>p.endsWith('@s.whatsapp.net'))||peer;}
   authValue(kind,id){return decode(this.readAuth.get(this.account,kind,id)?.value);}
   registered(){const c=this.authValue('creds','self');return !!(c?.registered||c?.me?.id);}
   auth(){

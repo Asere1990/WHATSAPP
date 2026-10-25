@@ -1,4 +1,5 @@
 (()=>{
+ window.addEventListener('hashchange',()=>{if(location.hash)location.reload();});
 const $=id=>document.getElementById(id),node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};let csrf='',data=null,field=null,value=null,busy=false,visual=true,scroll=0,service='';
 const status=text=>$('status').textContent=text;
 function lock(text){$('editor').hidden=true;$('page').removeAttribute('src');$('locked').hidden=false;$('locked-text').textContent=text;}
