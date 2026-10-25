@@ -26,8 +26,9 @@ export function portalContent(store){
  if(Array.isArray(raw)&&raw.length===4&&['shein','remesas','recargas','supercombo'].every((id,i)=>raw[i]?.asset===`/cubamax-services/${id}.webp`)){raw=defaults.map(s=>({...s}));store.setConfig('cubamax_slides',JSON.stringify(raw));}
  const slides=Array.isArray(raw)?raw.filter(s=>/^[a-z0-9]{1,20}$/.test(s?.id)&&typeof s.title==='string'&&s.title.length<=100&&validAsset(s.asset)).slice(0,12).map(s=>({...s})):[];
  const savedCards=stored(store,'cubamax_cards',{}),cards=Object.fromEntries(serviceIds.filter(id=>validAsset(savedCards[id])).map(id=>[id,savedCards[id]]));
- const media=stored(store,'cubamax_extra_media',{}),extraMedia=Object.fromEntries(Object.entries(media).filter(([key,value])=>/^(money|combo|packages|topup)(PopupPhoto)$/.test(key)&&validAsset(value)));
- const logo=store.config().cubamax_logo;return {fields,cards,extraMedia,slides:slides.length?slides:defaults.map(s=>({...s})),logo:validAsset(logo)?logo:'/cubamax-logo.svg'};
+ const media=stored(store,'cubamax_extra_media',{}),extraMedia=Object.fromEntries(Object.entries(media).filter(([key,value])=>/^(money|combo|packages|topup)(PopupPhoto|PopupButtonPhoto)$/.test(key)&&validAsset(value)));
+ const layouts=stored(store,'cubamax_popup_layouts',{}),popupLayouts=Object.fromEntries(serviceIds.map(id=>[id,layouts[id]==='full'?'full':'standard']));
+ const logo=store.config().cubamax_logo;return {fields,cards,extraMedia,popupLayouts,slides:slides.length?slides:defaults.map(s=>({...s})),logo:validAsset(logo)?logo:'/cubamax-logo.svg'};
 }
 export class PortalEditor{
  constructor(bot){this.bot=bot;}
@@ -44,14 +45,19 @@ export class PortalEditor{
  }
  if(action==='popups')return this.bot.send(chat,'Elige el popup que quieres editar. Cada servicio tiene su propio título y texto. Puedes editar texto, foto, nombre y color del botón. Su función se conserva.',{inline_keyboard:[...['money','combo','packages','topup'].map(service=>[{text:content.fields[service+'Title'],callback_data:'cm:group:popup-'+service}]),[{text:'ATRÁS',callback_data:'cm'}]]});
  if(action==='media'||action==='remove'){
-  if(!/^(money|combo|packages|topup)(PopupPhoto)$/.test(id))throw Error('Imagen no disponible.');
+  if(!/^(money|combo|packages|topup)(PopupPhoto|PopupButtonPhoto)$/.test(id))throw Error('Imagen no disponible.');
   if(action==='remove'){const media={...content.extraMedia};delete media[id];this.bot.store.setConfig('cubamax_extra_media',JSON.stringify(media));return this.menu(chat);}
   this.bot.pending.set(key,{kind:'cubamax',field:'extraMedia',mediaKey:id});return this.bot.send(chat,'Envía la foto nueva (PNG/JPG/WebP/GIF, hasta 2 MB). /cancelar para salir.',{inline_keyboard:[[{text:'ATRÁS',callback_data:'cm'}]]});
  }
- if(action==='group')return this.bot.send(chat,'Elige el texto que quieres editar.',{inline_keyboard:[...Object.entries(portalFields).filter(([,f])=>f.group===id).map(([field,f])=>[{text:f.label,callback_data:'cm:field:'+field}]),...(id==='preview'?[[{text:'CAMBIAR FOTO',callback_data:'cm:previewImage'},{text:'QUITAR FOTO',callback_data:'cm:previewRemove'}]]:[]),...(id.startsWith('popup-')?[[{text:'CAMBIAR FOTO',callback_data:'cm:media:'+id.slice(6)+'PopupPhoto'},{text:'QUITAR FOTO',callback_data:'cm:remove:'+id.slice(6)+'PopupPhoto'}]]:[]),[{text:'ATRÁS',callback_data:id.startsWith('popup-')?'cm:popups':'cm'}]]});
+ if(action==='layout'){
+  if(!serviceIds.includes(id))throw Error('Servicio no disponible.');
+  if(['standard','full'].includes(operation)){this.bot.store.setConfig('cubamax_popup_layouts',JSON.stringify({...content.popupLayouts,[id]:operation}));return this.callback(chat,key,'cm:group:popup-'+id);}
+  return this.bot.send(chat,'FOTO DEL POPUP · Elige cómo mostrarla. El botón y los textos se conservan.',{inline_keyboard:[[{text:'FOTO NORMAL',callback_data:'cm:layout:'+id+':standard'}],[{text:'FOTO COMPLETA SIN BORDES',callback_data:'cm:layout:'+id+':full'}],[{text:'ATRÁS',callback_data:'cm:group:popup-'+id}]]});
+ }
+ if(action==='group')return this.bot.send(chat,'Elige el texto que quieres editar.',{inline_keyboard:[...Object.entries(portalFields).filter(([,f])=>f.group===id).map(([field,f])=>[{text:f.label,callback_data:'cm:field:'+field}]),...(id==='preview'?[[{text:'CAMBIAR FOTO',callback_data:'cm:previewImage'},{text:'QUITAR FOTO',callback_data:'cm:previewRemove'}]]:[]),...(id.startsWith('popup-')?[[{text:'CAMBIAR FOTO',callback_data:'cm:media:'+id.slice(6)+'PopupPhoto'},{text:'QUITAR FOTO',callback_data:'cm:remove:'+id.slice(6)+'PopupPhoto'}],[{text:'TAMAÑO DE FOTO · '+(content.popupLayouts[id.slice(6)]==='full'?'COMPLETA':'NORMAL'),callback_data:'cm:layout:'+id.slice(6)}],[{text:'FOTO DE FONDO DEL BOTÓN',callback_data:'cm:media:'+id.slice(6)+'PopupButtonPhoto'}],[{text:'QUITAR FOTO DEL BOTÓN',callback_data:'cm:remove:'+id.slice(6)+'PopupButtonPhoto'}]]:[]),[{text:'ATRÁS',callback_data:id.startsWith('popup-')?'cm:popups':'cm'}]]});
  if(action==='field'){
   const field=portalFields[id];if(!field)throw Error('Campo no disponible.');this.bot.pending.set(key,{kind:'cubamax',field:id});
-  return this.bot.send(chat,`${field.label}\n\nActual: ${content.fields[id]}\n\nEnvía el texto nuevo (hasta 600 caracteres). /cancelar para salir.`);
+  return this.bot.send(chat,`${field.label}\n\nActual: ${content.fields[id]}\n\n${id.endsWith('PopupColor')?'Envía un código #RRGGBB o una foto para usarla como fondo del botón.':'Envía el texto nuevo (hasta 600 caracteres).'} /cancelar para salir.`);
  }
  if(action==='previewRemove'){this.bot.store.setConfig('cubamax_preview_image','');return this.callback(chat,key,'cm:group:preview');}
  if(action==='previewImage'){this.bot.pending.set(key,{kind:'cubamax',field:'previewImage'});return this.bot.send(chat,'Envía la foto para compartir el enlace (PNG/JPG/WebP/GIF, hasta 2 MB). Se recomienda JPG o PNG horizontal. WhatsApp puede conservar la vista previa anterior durante un tiempo. /cancelar para salir.');}
@@ -73,7 +79,8 @@ export class PortalEditor{
  }
  async input(chat,pending,m){
  const store=this.bot.store,content=portalContent(store),text=m.text||m.caption||'';
- if(portalFields[pending.field]){if(pending.field.endsWith('PopupColor')&&!/^#[0-9a-f]{6}$/i.test(text.trim()))throw Error('Escribe el color en formato #RRGGBB, por ejemplo #349898.');if(!text.trim()||text.length>600)throw Error('Envía un texto de 1 a 600 caracteres.');const saved=Object.fromEntries(Object.keys(portalFields).map(k=>[k,content.fields[k]]));saved[pending.field]=text.trim();store.setConfig('cubamax_content',JSON.stringify(saved));}
+ if(pending.field?.endsWith('PopupColor')&&(m.photo||m.document))return this.input(chat,{field:'extraMedia',mediaKey:pending.field.replace(/PopupColor$/,'PopupButtonPhoto')},m);
+ if(portalFields[pending.field]){if(pending.field.endsWith('PopupColor')&&!/^#[0-9a-f]{6}$/i.test(text.trim()))throw Error('Escribe el color en formato #RRGGBB, por ejemplo #349898.');if(!text.trim()||text.length>600)throw Error('Envía un texto de 1 a 600 caracteres.');const saved=Object.fromEntries(Object.keys(portalFields).map(k=>[k,content.fields[k]]));saved[pending.field]=text.trim();store.setConfig('cubamax_content',JSON.stringify(saved));if(pending.field.endsWith('PopupColor')){const media={...content.extraMedia};delete media[pending.field.replace(/PopupColor$/,'PopupButtonPhoto')];store.setConfig('cubamax_extra_media',JSON.stringify(media));}}
  else if(pending.field==='title'){const s=content.slides.find(s=>s.id===pending.slide);if(!s)throw Error('Imagen no disponible.');if(!text.trim()||text.length>100)throw Error('Envía un texto de 1 a 100 caracteres.');s.title=text.trim();store.setConfig('cubamax_slides',JSON.stringify(content.slides));}
  else{
   if(pending.field==='image'&&text.length>100)throw Error('El caption admite hasta 100 caracteres.');
@@ -82,7 +89,7 @@ export class PortalEditor{
   const data=await this.bot.download(file.file_id);if(data.length>2*1024*1024)throw Error('Imagen máxima: 2 MB.');const media=detectMedia(data);if(media.ext==='mp4')throw Error('Envía una imagen PNG/JPG/WebP/GIF.');
   const disk=statfsSync(this.bot.accounts.dir);if(disk.bavail*disk.bsize<data.length+100*1024*1024)throw Error('No hay suficiente espacio para guardar la imagen.');
   const filename=createHash('sha256').update(data).digest('hex')+'.'+media.ext,folder=path.join(this.bot.accounts.dir,'portal-media');mkdirSync(folder,{recursive:true,mode:0o700});writeFileSync(path.join(folder,filename),data,{mode:0o600});const asset='/portal-media/'+filename;
-  if(pending.field==='extraMedia'){if(!/^(money|combo|packages|topup)(PopupPhoto)$/.test(pending.mediaKey))throw Error('Imagen no disponible.');store.setConfig('cubamax_extra_media',JSON.stringify({...portalContent(store).extraMedia,[pending.mediaKey]:asset}));}
+  if(pending.field==='extraMedia'){if(!/^(money|combo|packages|topup)(PopupPhoto|PopupButtonPhoto)$/.test(pending.mediaKey))throw Error('Imagen no disponible.');store.setConfig('cubamax_extra_media',JSON.stringify({...portalContent(store).extraMedia,[pending.mediaKey]:asset}));}
   else if(pending.field==='serviceImage'){if(!serviceIds.includes(pending.service))throw Error('Servicio no disponible.');store.setConfig('cubamax_cards',JSON.stringify({...portalContent(store).cards,[pending.service]:asset}));}
   else if(pending.field==='previewImage')store.setConfig('cubamax_preview_image',asset);
   else if(pending.field==='logo')store.setConfig('cubamax_logo',asset);

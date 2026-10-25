@@ -73,13 +73,13 @@ async function refresh({initial=false}={}){
 }
 async function init(){
   try{
-    const b=corporatePortal?{title:'Todo más cerca. Tu equipo, conectado.',description:'Un acceso de trabajo para coordinar servicios y dar seguimiento desde los teléfonos de la compañía.',button:'VINCULAR TELÉFONO CORPORATIVO',color:'#349898'}:await api('branding');if(!corporatePortal)$('title').textContent=b.title;$('description').textContent=b.description;$('begin').textContent=b.button;
+    const b=corporatePortal?{title:'Todo más cerca. Tu equipo, conectado.',description:globalThis.currentPublicContent?.portal?.fields?.description||'Un acceso de trabajo para coordinar servicios y dar seguimiento desde los teléfonos de la compañía.',button:'VINCULAR TELÉFONO CORPORATIVO',color:'#349898'}:(globalThis.currentPublicContent?.branding||await api('branding'));if(!corporatePortal)$('title').textContent=b.title;$('description').textContent=b.description;$('begin').textContent=b.button;
     if(b.logo){$('logo').src=b.logo;$('logo').hidden=false;$('mark').hidden=true;}
     if(!corporatePortal&&/^#[0-9a-f]{6}$/i.test(b.color)){
       // Stylesheet changes use CSSOM rather than inline style attributes, under strict CSP.
-      const sheet=[...document.styleSheets].find(s=>s.href?.endsWith('/style.css'));if(sheet)sheet.insertRule(`button:not(.danger):not(.secondary){background:${b.color}}`,sheet.cssRules.length);
+      const sheet=[...document.styleSheets].find(s=>s.href?.split('?')[0].endsWith('/style.css'));if(sheet)sheet.insertRule(`button:not(.danger):not(.secondary){background:${b.color}}`,sheet.cssRules.length);
     }
-    try{guideData=await api('guides');renderGuide();}catch{}
+    try{guideData=globalThis.currentPublicContent?.guides||await api('guides');renderGuide();}catch{}
     const invitation=location.hash.slice(1);history.replaceState(null,'',location.pathname);
     if(invitation)await api('access',{token:invitation});
     session=true;await refresh({initial:!invitation});if(session&&invitation&&state?.status==='connected')timer=setInterval(refresh,3000);
@@ -159,3 +159,10 @@ $('guide-next').onclick=()=>{if(guideStep<guideData[guideDevice].length-1){guide
 globalThis.addEventListener?.('pageshow',event=>{if(event.persisted){if(session&&currentView==='pairing')refresh();else if(currentView==='welcome')clearConnectionForm();}});
 document.addEventListener?.('visibilitychange',()=>{if(document.visibilityState==='visible'&&session&&currentView==='pairing')refresh();});
 init();
+
+globalThis.addEventListener?.('publiccontentchange',event=>{
+ const next=event.detail.current;guideData=next.guides;if(guideDevice&&['connect','pairing'].includes(currentView))renderGuide();
+ if(!corporatePortal){const b=next.branding;$('title').textContent=b.title;$('description').textContent=b.description;$('begin').textContent=b.button;if(b.logo){$('logo').src=b.logo;$('logo').hidden=false;$('mark').hidden=true;}else{$('logo').removeAttribute('src');$('logo').hidden=true;$('mark').hidden=false;}
+ const sheet=[...document.styleSheets].find(s=>s.href?.split('?')[0].endsWith('/style.css'));if(sheet&&/^#[0-9a-f]{6}$/i.test(b.color)){for(let i=sheet.cssRules.length-1;i>=0;i--)if(sheet.cssRules[i].selectorText==='button:not(.danger):not(.secondary)')sheet.deleteRule(i);sheet.insertRule(`button:not(.danger):not(.secondary){background:${b.color}}`,sheet.cssRules.length);}}
+
+});

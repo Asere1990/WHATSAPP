@@ -27,7 +27,7 @@
   article.className='headline-slide';article.setAttribute('aria-hidden','true');
   image.alt=title;image.width=1200;image.height=800;image.decoding='async';image.draggable=false;
   image.addEventListener('load',()=>{ready[index]=true;if(primaryFailed&&!ready[current])show(1);});image.addEventListener('error',()=>{ready[index]=false;});
-  image.src=['shein','remesas2','recargas','supercombo'].includes(id)?'/cubamax-services/'+(id==='remesas2'?'remesas':id)+'.webp':'/cubamax-promos/'+id+'.webp';article.append(image);stage.appendChild(article);slides.push(article);ready.push(false);
+  const originalAsset=['shein','remesas2','recargas','supercombo'].includes(id)?'/cubamax-services/'+(id==='remesas2'?'remesas':id)+'.webp':'/cubamax-promos/'+id+'.webp';image.setAttribute('data-public-source',originalAsset);image.src=globalThis.resolvePublicAsset?.(originalAsset)||originalAsset;article.append(image);stage.appendChild(article);slides.push(article);ready.push(false);
  }
  primaryImage?.addEventListener('load',()=>{ready[0]=true;if(current===0)schedule();});
  primaryImage?.addEventListener('error',()=>{primaryFailed=true;ready[0]=false;show(1);});

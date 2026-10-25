@@ -84,3 +84,11 @@ test('link preview text and photo edit through Telegram, remain independent from
  await bot.portalEditor.callback(123,'123:123','cm:previewRemove');assert.ok(!renderCubamaxPreview(source,store,'https://cubamaxcom.online','/').includes('og:image'));
  store.setConfig('cubamax_preview_image','https://evil.test/image.png');assert.ok(!renderCubamaxPreview(source,store,'https://cubamaxcom.online','/').includes('og:image'));
 });
+test('popup full photo and button photo are independent, reversible and retain existing service settings',async t=>{
+ const {bot,store}=setup(t),before=portalContent(store);
+ await bot.portalEditor.callback(123,'123:123','cm:layout:money:full');assert.equal(portalContent(store).popupLayouts.money,'full');assert.equal(portalContent(store).popupLayouts.combo,'standard');
+ await bot.portalEditor.input(123,{field:'moneyPopupColor'},{photo:[{file_id:'button'}]});const photo=portalContent(store).extraMedia.moneyPopupButtonPhoto;assert.match(photo,/^\/portal-media\//);assert.equal(portalContent(store).extraMedia.moneyPopupPhoto,undefined);
+ await bot.portalEditor.input(123,{field:'moneyPopupColor'},{text:'#123456'});assert.equal(portalContent(store).fields.moneyPopupColor,'#123456');assert.equal(portalContent(store).extraMedia.moneyPopupButtonPhoto,undefined);
+ await bot.portalEditor.callback(123,'123:123','cm:layout:money:standard');assert.equal(portalContent(store).popupLayouts.money,'standard');assert.deepEqual(portalContent(store).slides,before.slides);assert.deepEqual(portalContent(store).cards,before.cards);
+ await assert.rejects(bot.portalEditor.callback(123,'123:123','cm:media:moneyPopupButtonPhotoXXX'),/disponible/);
+});

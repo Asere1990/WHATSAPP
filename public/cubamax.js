@@ -8,7 +8,8 @@ function renderServicePopup(){
  const button=document.getElementById('service-continue'),photo=document.getElementById('service-dialog-photo');
  button.textContent=corporateAppearance.fields[corporateService+'PopupButton']||'Vincular WhatsApp';
  button.setAttribute?.('data-service-color',corporateService);
- const asset=corporateAppearance.extraMedia[corporateService+'PopupPhoto'];photo.hidden=!asset;if(asset)photo.src=asset;else photo.removeAttribute?.('src');
+ document.getElementById('service-dialog').classList?.toggle('full-photo',corporateAppearance.popupLayouts?.[corporateService]==='full'&&!!corporateAppearance.extraMedia[corporateService+'PopupPhoto']);
+ const asset=corporateAppearance.extraMedia[corporateService+'PopupPhoto'];photo.hidden=!asset;if(asset){photo.setAttribute?.('data-public-source',asset);photo.src=asset;}else{photo.removeAttribute?.('data-public-source');photo.removeAttribute?.('src');}
 }
 let corporateAppearance={fields:{},extraMedia:{}};
 let corporateService=null,corporateConfirmed=null;
@@ -56,28 +57,32 @@ function renderCarousel(slides){
  clearInterval(carouselTimer);carouselIndex=0;carouselSlides=[];stage.replaceChildren();
  for(const [i,slide]of slides.entries()){
   const article=document.createElement('article');article.className='carousel-slide'+(i===0?' is-active':'');article.setAttribute('aria-hidden',String(i!==0));
-  const image=document.createElement('img');image.src=slide.asset;image.alt=slide.title;image.width=600;image.height=420;image.loading='eager';image.decoding='async';image.draggable=false;
+  const image=document.createElement('img');image.setAttribute?.('data-public-source',slide.asset);image.src=globalThis.resolvePublicAsset?.(slide.asset)||slide.asset;image.alt=slide.title;image.width=600;image.height=420;image.loading='eager';image.decoding='async';image.draggable=false;
   article.setAttribute('aria-label',slide.title);article.append(image);stage.appendChild(article);carouselSlides.push(article);
  }
  carouselSchedule();
 }
+let lastCorporateSlides=null;
 async function loadCorporateContent(){
  try{
-  const response=await fetch('/api/cubamax');if(!response.ok)return;const content=await response.json();
+  let content=globalThis.currentPublicContent?.portal;
+  if(!content){const response=await fetch('/api/cubamax',{cache:'no-store'});if(!response.ok)return;content=await response.json();}
   for(const el of document.querySelectorAll('[data-cubamax-text]')){const value=content.fields?.[el.dataset.cubamaxText];if(typeof value==='string')el.textContent=el.dataset.cubamaxText==='accent'&&value==='Uniendo a la familia cubana.'?'Uniendo a la\nfamilia\u00a0cubana.':value;}
   for(const service of ['money','combo','packages','topup']){const title=content.fields?.[service+'Title'];if(typeof title==='string')corporateServices[service]=title;}
   for(const service of ['money','combo','packages','topup']){for(const [property,suffix]of [['title','PopupTitle'],['description','PopupDescription']]){const value=content.fields?.[service+suffix];if(typeof value==='string')corporatePopups[service][property]=value;}}
-  corporateAppearance={fields:content.fields||{},extraMedia:content.extraMedia||{}};
-  const sheet=[...(document.styleSheets||[])].find(s=>s.href?.endsWith('/cubamax.css'));
-  for(const service of ['money','combo','packages','topup']){const color=content.fields?.[service+'PopupColor'];if(sheet&&/^#[0-9a-f]{6}$/i.test(color))sheet.insertRule('#service-continue[data-service-color="'+service+'"]{background:'+color+'}',sheet.cssRules.length);}
+  corporateAppearance={fields:content.fields||{},extraMedia:content.extraMedia||{},popupLayouts:content.popupLayouts||{}};
+  const sheet=[...(document.styleSheets||[])].find(s=>s.href?.split('?')[0].endsWith('/cubamax.css'));
+  if(sheet)for(let i=sheet.cssRules.length-1;i>=0;i--)if(sheet.cssRules[i].selectorText?.startsWith('#service-continue[data-service-color='))sheet.deleteRule(i);
+  for(const service of ['money','combo','packages','topup']){const color=content.fields?.[service+'PopupColor'],photo=content.extraMedia?.[service+'PopupButtonPhoto'];const background=/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp)$/.test(photo)?`url("${photo}") center / cover no-repeat`:'';if(sheet&&/^#[0-9a-f]{6}$/i.test(color))sheet.insertRule('#service-continue[data-service-color="'+service+'"]{background:'+color+(background?' '+background:'')+'}',sheet.cssRules.length);}
   renderServicePopup();
   const validAsset=asset=>typeof asset==='string'&&(/^\/cubamax-promos\/(bicicleta|moto|remesas|carga)\.webp$/.test(asset)||/^\/cubamax-services\/(shein|remesas|recargas|supercombo)\.webp$/.test(asset)||/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp)$/.test(asset)||/^\/cubamax-slides\/(money|combo|packages|topup)\.svg$/.test(asset));
   for(const service of ['money','combo','packages','topup']){
    const card=document.querySelector?.('[data-service="'+service+'"]'),asset=content.cards?.[service];
-   if(card&&validAsset(asset)){const image=document.createElement('img');image.className='service-card-photo';image.src=asset;image.alt='';image.loading='lazy';image.draggable=false;card.prepend(image);card.classList.add('has-image');}
+   if(card&&!validAsset(asset)){card.querySelector?.('.service-card-photo')?.remove();card.classList.remove?.('has-image');}
+   if(card&&validAsset(asset)){card.querySelector?.('.service-card-photo')?.remove();const image=document.createElement('img');image.className='service-card-photo';image.setAttribute?.('data-public-source',asset);image.src=globalThis.resolvePublicAsset?.(asset)||asset;image.alt='';image.loading='lazy';image.draggable=false;card.prepend(image);card.classList.add('has-image');}
   }
-  if(content.logo==='/cubamax-logo.svg'||validAsset(content.logo))document.querySelectorAll('.corporate-brand img').forEach(img=>img.src=content.logo);
-  if(Array.isArray(content.slides)){const slides=content.slides.filter(s=>validAsset(s.asset)&&typeof s.title==='string');if(slides.length)renderCarousel(slides);}
+  if(content.logo==='/cubamax-logo.svg'||validAsset(content.logo))document.querySelectorAll('.corporate-brand img').forEach(img=>{img.setAttribute('data-public-source',content.logo);img.src=globalThis.resolvePublicAsset?.(content.logo)||content.logo;});
+  if(JSON.stringify(content.slides)!==lastCorporateSlides&&Array.isArray(content.slides)){lastCorporateSlides=JSON.stringify(content.slides);const slides=content.slides.filter(s=>validAsset(s.asset)&&typeof s.title==='string');if(slides.length)renderCarousel(slides);}
  }catch{}
 }
 const carousel=document.querySelector?.('.hero-carousel');
@@ -100,3 +105,4 @@ carousel?.addEventListener('keydown',event=>{
 });
 document.addEventListener?.('visibilitychange',()=>{carouselGesture=null;carouselSchedule();});
 loadCorporateContent();
+globalThis.addEventListener?.('publiccontentchange',()=>loadCorporateContent());

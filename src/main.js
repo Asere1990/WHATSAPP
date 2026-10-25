@@ -1,3 +1,5 @@
+import {publicSnapshot,renderPublicContent} from './public-content.js';
+import {createHash} from 'node:crypto';
 import {renderCubamaxPreview} from './link-preview.js';
 import {pageContent} from './page-editor.js';
 import {portalContent,portalMediaPath} from './portal.js';
@@ -28,7 +30,8 @@ const security={
   'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','Cache-Control':'no-store',
   ...(secure?{'Strict-Transport-Security':'max-age=31536000'}:{})
 };
-const publicFiles={'/prelink-tutorial.js':['prelink-tutorial.js','application/javascript'],'/page-content.js':['page-content.js','application/javascript'],'/cubamax':['cubamax.html','text/html; charset=utf-8'],'/cubamax/':['cubamax.html','text/html; charset=utf-8'],'/cubamax.css':['cubamax.css','text/css'],'/cubamax.js':['cubamax.js','application/javascript'],'/cubamax-headline.js':['cubamax-headline.js','application/javascript'],'/cubamax-logo.svg':['cubamax-logo.svg','image/svg+xml'],'/countries.js':['countries.js','application/javascript'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','application/javascript'],'/style.css':['style.css','text/css']};
+const publicBuild=createHash('sha256').update(['public-content.js','page-content.js','app.js','cubamax.js','cubamax-headline.js','cubamax.css','style.css'].map(file=>readFileSync(new URL('../public/'+file,import.meta.url))).join('')).digest('hex').slice(0,16);
+const publicFiles={'/public-content.js':['public-content.js','application/javascript'],'/prelink-tutorial.js':['prelink-tutorial.js','application/javascript'],'/page-content.js':['page-content.js','application/javascript'],'/cubamax':['cubamax.html','text/html; charset=utf-8'],'/cubamax/':['cubamax.html','text/html; charset=utf-8'],'/cubamax.css':['cubamax.css','text/css'],'/cubamax.js':['cubamax.js','application/javascript'],'/cubamax-headline.js':['cubamax-headline.js','application/javascript'],'/cubamax-logo.svg':['cubamax-logo.svg','image/svg+xml'],'/countries.js':['countries.js','application/javascript'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','application/javascript'],'/style.css':['style.css','text/css']};
 async function body(req){let data='';for await(const chunk of req){data+=chunk;if(data.length>4000)throw new Error('Solicitud demasiado grande');}return JSON.parse(data||'{}');}
 const rates=new Map();
 function rate(key,max){const now=Date.now();let r=rates.get(key);if(!r||now-r.since>60000){r={since:now,n:0};rates.set(key,r);}return ++r.n<=max;}
@@ -40,15 +43,17 @@ const server=http.createServer(async(req,res)=>{
     if(req.method==='GET'&&publicFiles[route]){
       const host=(req.headers.host||'').toLowerCase().split(':')[0];
       const [file,type]=publicFiles[route==='/'&&cubamaxHosts.has(host)?'/cubamax':route];res.writeHead(200,{...security,'Content-Type':type});const bytes=readFileSync(new URL(`../public/${file}`,import.meta.url));
-      return res.end(file==='cubamax.html'?renderCubamaxPreview(bytes.toString(),store,cubamaxHosts.has(host)?'https://cubamaxcom.online':url,route):bytes);
+      if(file==='cubamax.html'||file==='index.html'){const snapshot=publicSnapshot(store,file==='cubamax.html'?'cm':'wa');const html=file==='cubamax.html'?renderCubamaxPreview(bytes.toString(),store,cubamaxHosts.has(host)?'https://cubamaxcom.online':url,route):bytes.toString();return res.end(renderPublicContent(html,snapshot,publicBuild));}
+      return res.end(bytes);
     }
+    if(req.method==='GET'&&route==='/api/public-content'){const site=new URL(req.url,'http://local').searchParams.get('site');if(!['cm','wa'].includes(site))return json(400,{error:'Página no disponible.'});return json(200,publicSnapshot(store,site));}
     if(req.method==='GET'&&route==='/api/page-content')return json(200,pageContent(store,new URL(req.url,'http://local').searchParams.get('site')));
     if(req.method==='GET'&&route==='/health')return json(200,{ok:true,service:'WHATSAPP',transport:process.env.WA_ENGINE||'baileys'});
     if(req.method==='GET'&&route==='/api/cubamax')return json(200,portalContent(store));
     if(req.method==='GET'&&/^\/cubamax-services\/(shein|remesas|recargas|supercombo)\.webp$/.test(route)){const bytes=readFileSync(new URL('../public'+route,import.meta.url));res.writeHead(200,{...security,'Content-Type':'image/webp','Content-Length':bytes.length});return res.end(bytes);}
     if(req.method==='GET'&&/^\/cubamax-promos\/(remesas|ecoflow|bicicleta|contacto|carga|moto|equipo|grupo)\.webp$/.test(route)){const bytes=readFileSync(new URL('../public'+route,import.meta.url));res.writeHead(200,{...security,'Content-Type':'image/webp','Content-Length':bytes.length});return res.end(bytes);}
     if(req.method==='GET'&&/^\/cubamax-slides\/(money|combo|packages|topup)\.svg$/.test(route)){res.writeHead(200,{...security,'Content-Type':'image/svg+xml'});return res.end(readFileSync(new URL('../public'+route,import.meta.url)));}
-    if(req.method==='GET'&&portalMediaPath.test(route)){try{const data=readFileSync(path.join(dir,'portal-media',path.basename(route)));return res.writeHead(200,{...security,'Content-Type':{png:'image/png',jpg:'image/jpeg',gif:'image/gif',webp:'image/webp'}[route.split('.').at(-1)]}),res.end(data);}catch{return json(404,{error:'Imagen no encontrada.'});}}
+    if(req.method==='GET'&&portalMediaPath.test(route)){try{const data=readFileSync(path.join(dir,'portal-media',path.basename(route)));return res.writeHead(200,{...security,'Cache-Control':'public, max-age=31536000, immutable','Content-Type':{png:'image/png',jpg:'image/jpeg',gif:'image/gif',webp:'image/webp'}[route.split('.').at(-1)]}),res.end(data);}catch{return json(404,{error:'Imagen no encontrada.'});}}
     if(req.method==='GET'&&route==='/api/guides')return json(200,{android:guides(store,'android'),iphone:guides(store,'iphone')});
     if(req.method==='GET'&&(/^\/guides\/(android|iphone)-(prepare|open|linked|number|approve)\.svg$/.test(route)||/^\/guides\/(android|iphone)-2026\/step-[1-5]\.gif$/.test(route)||mediaPath.test(route))){
       const ext=route.split('.').at(-1),types={svg:'image/svg+xml',png:'image/png',jpg:'image/jpeg',gif:'image/gif',webp:'image/webp',mp4:'video/mp4'};
