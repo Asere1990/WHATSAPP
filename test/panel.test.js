@@ -40,6 +40,8 @@ test('panel API rejects foreign accounts/media, bad origins, missing CSRF and re
  response=await fetch(url+'/api/panel/editor/publish',{method:'POST',headers,body:JSON.stringify({site:'cm',version:0})});assert.equal(response.status,403);
  response=await fetch(url+'/api/panel/accounts',{headers});assert.deepEqual((await response.json()).items.map(row=>row.id),[a.id]);
  response=await fetch(url+'/api/panel/messages?account='+b.id+'&peer='+peer,{headers});assert.equal(response.status,404);
+ response=await fetch(url+'/api/panel/avatar?account='+b.id,{headers});assert.equal(response.status,404);
+ response=await fetch(url+'/api/panel/avatar?account='+a.id+'&peer=12025550999@s.whatsapp.net',{headers});assert.equal(response.status,404);
  response=await fetch(url+'/api/panel/media?account='+b.id+'&message='+Buffer.from(db.messageKey(raw.key)).toString('base64url'),{headers});assert.equal(response.status,404);
  response=await fetch(url+'/api/panel/messages?account='+a.id+'&peer='+peer,{headers});assert.equal((await response.json()).items[0].text,'Solo propietario');
  const message={account:a.id,peer,text:'Hola',request:'a'.repeat(32)};
@@ -72,4 +74,9 @@ test('number and LID references share ordinary text, audio and gallery without c
 });
 test('first new ordinary message reopens the gap skipped by the old gallery filter without resetting each live message',t=>{
  const {store,a}=setup(t),peer='12025550129@s.whatsapp.net',client=new BaileysClient({store,id:a.id,phone:a.phone});t.after(()=>client.destroy());const saved=new BaileysStore(store,a.id),m=(id,ts)=>({key:{id,remoteJid:peer,fromMe:false},messageTimestamp:ts,message:{conversation:id}});client.saveMessage(m('old-gallery-anchor',100));saved.put('history-sync',peer,{next:Date.now()+3600000});client.saveMessage(m('new-live',300),{live:true});assert.equal(saved.get('archive-backfill',peer).cursor.key.id,'new-live');assert.equal(saved.get('archive-backfill',peer).boundary,100);assert.equal(saved.get('history-sync',peer),undefined);client.saveMessage(m('recovered-text',250));client.saveMessage(m('another-live',400),{live:true});assert.equal(saved.get('archive-backfill',peer).cursor.key.id,'recovered-text');assert.equal(saved.messages(peer).length,4);
+});
+test('referral chooser keeps WhatsApp and Cubamax links separate and ownership survives either page',async t=>{
+ const {store,a,b}=setup(t),sent=[],telegram={admins:()=>new Set(['1']),permissions:()=>new Set(['2']),send:async(...args)=>sent.push(args)},panel=new WebPanel(store,{live:new Map()},telegram,{url:'http://test',allowedOrigins:new Set()});await panel.telegramAction(2,2,'referral');assert.deepEqual(sent[0][2].inline_keyboard.slice(0,2).map(row=>row[0].callback_data),['op:referral:wa','op:referral:cm']);
+ const cm=panel.access.token('2','referral',{site:'cm'}),wa=panel.access.token('2','referral',{site:'wa'});assert.equal(panel.access.referral(cm).site,'cm');assert.equal(panel.access.referral(wa).site,'wa');panel.access.attach(a.id,cm);panel.access.attach(b.id,wa);assert.equal(panel.access.owner(a.id),'2');assert.equal(panel.access.owner(b.id),'2');const wa2=panel.access.token('2','referral',{site:'wa'});assert.equal(panel.access.referral(wa),null);assert.ok(panel.access.referral(cm));assert.ok(panel.access.referral(wa2));
+ const req={method:'GET',headers:{},url:'/vincular/'+wa2},res={writeHead(status,headers){this.status=status;this.headers=headers;},end(){}};await panel.handle(req,res,req.url,{},()=>{});assert.equal(res.status,302);assert.equal(res.headers.Location,'/whatsapp');assert.throws(()=>panel.access.token('2','referral',{site:'unknown'}),/Página/);
 });

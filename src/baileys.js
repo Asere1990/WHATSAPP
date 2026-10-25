@@ -138,7 +138,7 @@ export class BaileysClient extends EventEmitter {
   async getContactLidAndPhone(peers){return peers.map(peer=>({lid:peer,pn:toPeer(this.store.get('mapping',toJid(peer))||peer)}));}
   async getMessageById(id){const raw=this.store.get('message',id);return raw?this.wrap(raw):null;}
   async gallery(peer,offset=0){if(!this.galleryOnly)return {messages:this.store.messages(toJid(peer),5000).map(m=>this.wrap(m)).filter(m=>m.hasMedia),complete:false,pages:1};const jid=toJid(peer),messages=this.store.galleryPage(jid,offset).map(m=>this.wrap(m)).reverse();return {messages,counts:this.store.galleryCounts(jid),nextOffset:messages.length===100?offset+100:null,complete:false,pages:1};}
-  async getProfilePicUrl(peer){return this.socket.profilePictureUrl(toJid(peer),'image');}
+  async getProfilePicUrl(peer,{type='image'}={}){return this.socket.profilePictureUrl(toJid(peer),type);}
   async getBlockedContacts(){return this.socket.fetchBlocklist();}
   stopHistory(){this.historyOnline=false;clearTimeout(this.historyTimer);this.historyTimer=null;}
   scheduleHistory(delay=60000){
