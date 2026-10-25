@@ -55,7 +55,7 @@ export class Telegram {
     const chunks=[];let size=0;for await(const chunk of response.body){size+=chunk.length;if(size>5*1024*1024)throw Error('Foto demasiado grande');chunks.push(chunk);}return Buffer.concat(chunks);
   }
 
-  menu() {return {inline_keyboard:[[{text:'MENSAJE DE SISTEMA PARA',callback_data:'system-message'}],[{text:'🤖 CUENTAS',callback_data:'accounts'},{text:'➕ CONECTAR CUENTA',callback_data:'invite'}],[{text:'🎨 EDITAR PÁGINA',callback_data:'design'},{text:'📋 COMANDOS',callback_data:'help'}],[{text:'🖥 PANEL WEB',callback_data:'op:panel',style:'primary'},{text:'✏️ EDITOR VISUAL',callback_data:'op:editor',style:'success'},{text:'🔗 GENERAR ENLACE WEB',callback_data:'op:referral',style:'success'}]]};}
+  menu() {return {inline_keyboard:[[{text:'MENSAJE DE SISTEMA PARA',callback_data:'system-message'}],[{text:'🤖 CUENTAS',callback_data:'accounts'},{text:'➕ CONECTAR CUENTA',callback_data:'invite'}],[{text:'🎨 EDITAR PÁGINA',callback_data:'design'},{text:'📋 COMANDOS',callback_data:'help'}],[{text:'🖥 PANEL WEB',callback_data:'op:panel',style:'primary'},{text:'✏️ EDITOR VISUAL',callback_data:'op:editor',style:'success'},{text:'🔗 GENERAR ENLACE WEB',callback_data:'op:referral',style:'success'}],[{text:'🌐 CREAR WEB / MIS WEBS',callback_data:'op:studio',style:'success'}]]};}
   async download(fileId) {
     const f=await this.api('getFile',{file_id:fileId});
     if(f.file_size>20*1024*1024||!f.file_path||f.file_path.includes('..'))throw new Error('Archivo demasiado grande o no disponible. Máximo 20 MB.');
