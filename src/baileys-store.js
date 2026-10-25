@@ -13,6 +13,15 @@ export class BaileysStore {
     this.readData=this.db.prepare('SELECT value FROM baileys_data WHERE account=? AND kind=? AND id=?');
     this.writeData=this.db.prepare('INSERT OR REPLACE INTO baileys_data VALUES(?,?,?,?,?,?)');
   }
+  enableArchive(){
+    if(this.get('archive-init','v1'))return;
+    for(const {peer}of this.db.prepare("SELECT DISTINCT peer FROM baileys_data WHERE account=? AND kind='message' AND peer IS NOT NULL").all(this.account)){
+      const latest=this.messages(peer,1)[0],oldest=this.get('cursor',peer)||this.oldestMessage(peer);
+      if(latest&&oldest)this.put('archive-backfill',peer,{cursor:{key:latest.key,messageTimestamp:Number(latest.messageTimestamp)},boundary:Number(oldest.messageTimestamp),active:true});
+    }
+    this.put('archive-init','v1',{created:Date.now()});
+  }
+  advanceArchive(msg){const backfill=this.get('archive-backfill',msg.key.remoteJid);if(backfill?.active&&Number(msg.messageTimestamp)<Number(backfill.cursor.messageTimestamp)){backfill.cursor={key:msg.key,messageTimestamp:Number(msg.messageTimestamp)};if(Number(msg.messageTimestamp)<=backfill.boundary)backfill.active=false;this.put('archive-backfill',msg.key.remoteJid,backfill);}}
   authValue(kind,id){return decode(this.readAuth.get(this.account,kind,id)?.value);}
   registered(){const c=this.authValue('creds','self');return !!(c?.registered||c?.me?.id);}
   auth(){

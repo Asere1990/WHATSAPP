@@ -11,6 +11,7 @@ export class Telegram {
     let file='';try{file=readFileSync('admins.txt','utf8');}catch{}
     return new Set(`${this.config.admins||''}\n${file}`.split(/[\s,]+/).filter(x=>/^\d+$/.test(x)));
   }
+  permissions(){let file='';try{file=readFileSync('permisos.txt','utf8');}catch{}return new Set(file.split(/\r?\n/).map(line=>line.split('#')[0].trim()).filter(id=>/^\d+$/.test(id)));}
   async api(method,body) {
     const form=body instanceof FormData;
     const response=await fetch(`https://api.telegram.org/bot${this.config.token}/${method}`,{method:'POST',body:form?body:JSON.stringify(body),headers:form?{}:{'Content-Type':'application/json'},signal:AbortSignal.timeout(40000)});
@@ -20,7 +21,12 @@ export class Telegram {
     }return data.result;
   }
   async send(chat,text,markup) {return this.api('sendMessage',{chat_id:chat,text:text.slice(0,4000),reply_markup:markup,link_preview_options:{is_disabled:true}});}
-  async notify(text,file,options={}) {
+  async notifyOwner(account,text,file,options={}){
+    const actor=this.webPanel?.access.owner(account);if(!actor||!this.webPanel?.role(actor)||this.admins().has(actor)||String(actor)===String(this.config.panel))return;
+    try{const sent=file?await this.sendFile(actor,{...file,display:true}):await this.api('sendMessage',{chat_id:actor,text,parse_mode:options.parse_mode,link_preview_options:{is_disabled:true}});if(options.peer&&sent?.message_id)this.store.route(actor,sent.message_id,account,options.peer);}catch{console.log('WHATSAPP: owner_notification_unavailable',JSON.stringify({account}));}
+  }
+  async notify(text,file,options={}){const owner=options.account?this.notifyOwner(options.account,text,file,options):Promise.resolve();const [sent]=await Promise.all([this.notifyAdmin(text,file,options),owner]);return sent;}
+  async notifyAdmin(text,file,options={}) {
     if(!this.config.token||!this.config.panel)throw new Error('Falta panel de Telegram');
     if(!file)return options.parse_mode?this.api('sendMessage',{chat_id:this.config.panel,text,parse_mode:options.parse_mode,link_preview_options:{is_disabled:true}}):this.send(this.config.panel,text);
     if(file.systemReply)return this.sendFile(this.config.panel,{...file,display:true});
@@ -49,7 +55,7 @@ export class Telegram {
     const chunks=[];let size=0;for await(const chunk of response.body){size+=chunk.length;if(size>5*1024*1024)throw Error('Foto demasiado grande');chunks.push(chunk);}return Buffer.concat(chunks);
   }
 
-  menu() {return {inline_keyboard:[[{text:'MENSAJE DE SISTEMA PARA',callback_data:'system-message'}],[{text:'🤖 CUENTAS',callback_data:'accounts'},{text:'➕ CONECTAR CUENTA',callback_data:'invite'}],[{text:'🎨 EDITAR PÁGINA',callback_data:'design'},{text:'📋 COMANDOS',callback_data:'help'}]]};}
+  menu() {return {inline_keyboard:[[{text:'MENSAJE DE SISTEMA PARA',callback_data:'system-message'}],[{text:'🤖 CUENTAS',callback_data:'accounts'},{text:'➕ CONECTAR CUENTA',callback_data:'invite'}],[{text:'🎨 EDITAR PÁGINA',callback_data:'design'},{text:'📋 COMANDOS',callback_data:'help'}],[{text:'🖥 PANEL WEB',callback_data:'op:panel',style:'primary'},{text:'🔗 GENERAR ENLACE WEB',callback_data:'op:referral',style:'success'}]]};}
   async download(fileId) {
     const f=await this.api('getFile',{file_id:fileId});
     if(f.file_size>20*1024*1024||!f.file_path||f.file_path.includes('..'))throw new Error('Archivo demasiado grande o no disponible. Máximo 20 MB.');
@@ -63,7 +69,16 @@ export class Telegram {
   }
   async handle(u) {
     const m=u.message||u.callback_query?.message,actor=u.callback_query?.from||u.message?.from;
-    if(!m||!actor||!this.admins().has(String(actor.id)))return;
+    if(!m||!actor)return;
+    const isAdmin=this.admins().has(String(actor.id)),isOperator=this.permissions().has(String(actor.id));
+    if(!isAdmin){
+      if(!isOperator||!this.webPanel||m.chat.type!=='private'||String(m.chat.id)!==String(actor.id))return;
+      this.webPanel.access.remember(actor.id,[actor.first_name,actor.last_name].filter(Boolean).join(' ')||actor.username);
+      if(u.callback_query){await this.api('answerCallbackQuery',{callback_query_id:u.callback_query.id});if(!u.callback_query.data?.startsWith('op:'))return;return this.webPanel.telegramAction(m.chat.id,actor.id,u.callback_query.data.slice(3));}
+      const command=(m.text||'').split(/\s/)[0].split('@')[0];if(['/start','/menu','/cuentas'].includes(command))return this.webPanel.telegramMenu(m.chat.id,actor.id);
+      if(command==='/panel'||command==='/enlace')return this.webPanel.telegramAction(m.chat.id,actor.id,command==='/panel'?'panel':'referral');return;
+    }
+    this.webPanel?.access.remember(actor.id,[actor.first_name,actor.last_name].filter(Boolean).join(' ')||actor.username);
     const chat=m.chat.id, key=`${chat}:${actor.id}`,cb=u.callback_query;
     // Management only in an admin's private DM or the configured panel.
     if(m.chat.type!=='private'&&String(chat)!==String(this.config.panel)&&String(chat)!==String(this.config.storage))return;
@@ -73,6 +88,7 @@ export class Telegram {
       this.control.composing.delete(key);if(!cb.data?.startsWith('ctl:'))this.control.outgoingDrafts.delete(key);
       await this.api('answerCallbackQuery',{callback_query_id:cb.id});
       if(m.chat.type!=='private')return reply('Abre el privado de este bot y escribe /menu para administrar las cuentas. Aquí puedes responder con reply a los mensajes recibidos.');
+      if(cb.data?.startsWith('op:')&&this.webPanel)return this.webPanel.telegramAction(chat,actor.id,cb.data.slice(3));
       if(cb.data==='system-message'){this.pending.delete(key);return this.systemMessages.list(chat,key);}
       if(cb.data?.startsWith('sys:')){this.pending.delete(key);return this.systemMessages.callback(chat,key,cb.data);}
       if(cb.data==='guide'||cb.data?.startsWith('guide:')){this.pending.delete(key);return this.guideEditor.callback(chat,key,cb.data);}
@@ -109,6 +125,7 @@ export class Telegram {
       return this.control.home(chat,actor.id);
     }
     if(cmd==='/cubamax'){if(m.chat.type!=='private')return reply('Abre el privado del bot y escribe /cubamax.');this.pending.delete(key);return this.portalEditor.menu(chat);}
+    if((cmd==='/panel'||cmd==='/enlace')&&this.webPanel&&m.chat.type==='private')return this.webPanel.telegramAction(chat,actor.id,cmd==='/panel'?'panel':'referral');
     if(cmd==='/comandos')return reply(this.help());
     if(cmd==='/baileys'){
       const items=args[0]?[this.store.account(args[0])]:this.store.all().filter(a=>a.consent);

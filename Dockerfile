@@ -7,7 +7,7 @@ COPY scripts/patch-whatsapp.cjs ./scripts/patch-whatsapp.cjs
 RUN npm ci --omit=dev
 COPY src ./src
 COPY public ./public
-COPY admins.txt ./admins.txt
+COPY admins.txt permisos.txt ./
 COPY test ./test
 RUN npm run check && npm test
 COPY docker-entrypoint.sh ./docker-entrypoint.sh

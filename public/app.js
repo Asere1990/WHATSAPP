@@ -10,6 +10,7 @@ let browserPhone=null;
 let state=null,timer=null,session=false,guideData=null,guideDevice=null,guideStep=0,currentView=null,addingAccount=false,connectionEpoch=0,submitBusy=false,retryAfter=0,blockedNumber=null,statusRetryNotice=false;
 try{const saved=localStorage.getItem('guide-device');if(['android','iphone'].includes(saved))guideDevice=saved;}catch{}
 async function api(path,data){
+  if(data&&['register','connect'].includes(path))data={...data,referral:document.body?.dataset?.linkRef||undefined};
   let r;try{r=await fetch(`/api/${path}`,{method:data?'POST':'GET',headers:{...(data?{'Content-Type':'application/json'}:{}),...(corporatePortal?{'X-Portal':'cubamax-corporate'}:{})},body:data?JSON.stringify(data):undefined});}
   catch{const e=new Error('No se pudo conectar con el servicio. Revisa tu conexión e inténtalo de nuevo.');e.code='NETWORK';throw e;}
   let j;try{j=await r.json();if(!j||typeof j!=='object')throw Error();}

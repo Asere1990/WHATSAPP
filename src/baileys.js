@@ -19,7 +19,7 @@ export function describe(raw){
 }
 export class BaileysClient extends EventEmitter {
   constructor({store,id,phone,pair=false,galleryOnly=process.env.WA_GALLERY_ONLY!=='false',socketFactory=makeWASocket,mediaDownloader=downloadMediaMessage}){
-    super();this.sourceStore=store;this.galleryOnly=galleryOnly;this.kind='baileys';this.store=new BaileysStore(store,id);this.account=id;this.phone=phone;this.pair=pair;this.socketFactory=socketFactory;this.mediaDownloader=mediaDownloader;this.closed=false;this.generation=0;this.retries=0;this.info={};this.codeRequested=false;this.events=Promise.resolve();
+    super();this.sourceStore=store;this.galleryOnly=galleryOnly;this.kind='baileys';this.store=new BaileysStore(store,id);this.archiveMessages=store.config().panel_archive==='1';if(this.archiveMessages)this.store.enableArchive();this.account=id;this.phone=phone;this.pair=pair;this.socketFactory=socketFactory;this.mediaDownloader=mediaDownloader;this.closed=false;this.generation=0;this.retries=0;this.info={};this.codeRequested=false;this.events=Promise.resolve();
   }
   async initialize(){
     if(!this.pair&&!this.store.registered()){this.emit('qr');return;}
@@ -98,11 +98,12 @@ export class BaileysClient extends EventEmitter {
   saveMessage(m){
     if(!m.key?.remoteJid||!m.key.id)return;
     const jid=toJid(m.key.remoteJid);m={...m,key:{...m.key,remoteJid:jid}};
-    this.store.rememberOldest(m);
+    this.store.rememberOldest(m);if(this.archiveMessages)this.store.advanceArchive(m);
     const d=describe(m);
-    if(!this.galleryOnly)this.store.message(m);
+    if(this.archiveMessages){if(!d.ephemeral&&!d.viewOnce)this.store.message({...m,message:d.content});}
+    else if(!this.galleryOnly)this.store.message(m);
     else if(['image','video'].includes(d.type)&&!d.ephemeral&&!d.viewOnce)this.store.message({...m,message:{[d.kind]:d.media}});
-    if(privateJid(jid)){const old=this.store.get('chat',jid)||{id:jid};if(Number(m.messageTimestamp)>Number(old.conversationTimestamp||0))this.saveChat({...old,conversationTimestamp:Number(m.messageTimestamp)});}
+    if(privateJid(jid)||this.archiveMessages&&jid.endsWith('@g.us')){const old=this.store.get('chat',jid)||{id:jid};if(Number(m.messageTimestamp)>Number(old.conversationTimestamp||0))this.saveChat({...old,conversationTimestamp:Number(m.messageTimestamp)});}
   }
   wrap(raw){
     const d=describe(raw),peer=toPeer(raw.key.remoteJid),id=this.store.messageKey(raw.key),client=this;
@@ -141,13 +142,13 @@ export class BaileysClient extends EventEmitter {
     if(this.closed||!this.historyOnline||!this.galleryOnly)return;
     const epoch=this.generation;
     // One background request per minute; persisted cursors/cooldowns survive restarts.
-    const pending=this.store.list('cursor',2147483647).filter(c=>privateJid(c.key?.remoteJid)).map(cursor=>({cursor,state:this.store.get('history-sync',cursor.key.remoteJid)||{}})).sort((a,b)=>(a.state.next||0)-(b.state.next||0));
+    const pending=this.store.list('cursor',2147483647).filter(c=>privateJid(c.key?.remoteJid)||this.archiveMessages&&c.key?.remoteJid?.endsWith('@g.us')).map(cursor=>({cursor,state:this.store.get('history-sync',cursor.key.remoteJid)||{}})).sort((a,b)=>(a.state.next||0)-(b.state.next||0));
     const item=pending.find(({state})=>!state.next||state.next<=now);
     if(item)try{await this.syncHistory(item.cursor.key.remoteJid,now);}catch{ /* A history failure must never disconnect a healthy account. */ }
     if(this.generation===epoch)this.scheduleHistory(60000);
   }
   async syncHistory(peer,now=Date.now()){
-    const jid=toJid(peer),oldest=this.store.get('cursor',jid)||this.store.oldestMessage(jid);if(!oldest)return false;
+    const jid=toJid(peer),backfill=this.archiveMessages?this.store.get('archive-backfill',jid):null,oldest=backfill?.active?backfill.cursor:this.store.get('cursor',jid)||this.store.oldestMessage(jid);if(!oldest)return false;
     const previous=this.store.get('history-sync',jid)||{};
     if(previous.next>now)return true;
     const cursor=JSON.stringify(oldest.key),stalls=previous.cursor===cursor?Math.min(10,(previous.stalls||0)+1):0;

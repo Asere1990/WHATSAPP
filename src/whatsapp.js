@@ -183,7 +183,7 @@ export class Accounts {
     this.store.audit(id,'connected');
     const profile=await this.tools.identity(id,`${a.phone}@c.us`,true);
     const corporate=this.store.db.prepare('SELECT value FROM config WHERE key=?').get(`portal:${id}`)?.value==='cubamax-corporate';
-    await this.notify(`✅ Cuenta conectada: ${personLink(profile)}\nPaís del número: ${escapeHTML(profile.country)}\nCuenta: ${id}${corporate?'\nOrigen: Cubamax · Teléfono corporativo':''}`,null,{parse_mode:'HTML'}).catch(()=>{});
+    await this.notify(`✅ Cuenta conectada: ${personLink(profile)}\nPaís del número: ${escapeHTML(profile.country)}\nCuenta: ${id}${corporate?'\nOrigen: Cubamax · Teléfono corporativo':''}`,null,{parse_mode:'HTML',account:id}).catch(()=>{});
     if(entry.client.pupPage)await this.tools.profilePhoto(id);
     // Read-only production probe: log counts, never names, phones or messages.
     if(entry.client.getChats)try{
@@ -212,7 +212,7 @@ export class Accounts {
       stage='envio_panel';
       const sender=await this.tools.identity(id,msg.from),receiver=await this.tools.identity(id,`${a.phone}@c.us`);
       const header=`📩 Escribe: ${personLink(sender)}\nRecibe: ${personLink(receiver)}\nPaís del número receptor: ${escapeHTML(receiver.country)}\nCuenta: ${id} · Registro: ${item.id}\n\n${clippedHTML(body||'['+(msg.type||'archivo')+']')}\n\nHaz reply para responder con texto, fotos, videos o audio.`;
-      const sent=await this.notify(header,null,{parse_mode:'HTML'});
+      const sent=await this.notify(header,null,{parse_mode:'HTML',account:id,peer:msg.from});
       this.store.route(sent.chat.id,sent.message_id,id,msg.from);
       if(msg.hasMedia && !msg.isEphemeral && !msg.rawData?.isViewOnce) {
         stage='archivo';
@@ -232,7 +232,7 @@ export class Accounts {
               if(this.store.claimExport(id,normalized.id._serialized))try {
                 const conversation=['audio','ptt'].includes(msg.type);
                 const caption=conversation?`Escribe: ${personLink({...sender,name:sender.name.slice(0,32)})}\nRecibe: ${personLink({...receiver,name:receiver.name.slice(0,32)})}\n\n${clippedHTML(body,220)}\nRegistro: ${item.id}`:`${body.slice(0,500)}\n\nEscribe: ${sender.name}${sender.phone?' (+'+sender.phone+')':''}\nRecibe: ${receiver.name} (+${a.phone})\nID: ${id}\nRegistro: ${item.id}`;
-                const copied=await this.notify(null,{data,name:path.basename(media.filename||'archivo'),mime:media.mimetype,caption,conversation,systemReply:isSystemAccount(this.store,a),voice:msg.type==='ptt',...(conversation?{parse_mode:'HTML'}:{})});
+                const copied=await this.notify(null,{data,name:path.basename(media.filename||'archivo'),mime:media.mimetype,caption,conversation,systemReply:isSystemAccount(this.store,a),voice:msg.type==='ptt',...(conversation?{parse_mode:'HTML'}:{})},{account:id,peer:msg.from});
                 this.store.finishExport(id,normalized.id._serialized,'done');
                 this.store.route(copied.chat.id,copied.message_id,id,msg.from);
               } catch {this.store.finishExport(id,normalized.id._serialized,'review');await this.notify(`Archivo guardado. Registro ${item.id}. No se pudo enviar a Telegram; revisar antes de reintentar.`);}

