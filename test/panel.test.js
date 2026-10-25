@@ -36,6 +36,8 @@ test('panel API rejects foreign accounts/media, bad origins, missing CSRF and re
  response=await fetch(url+'/api/panel/accounts');assert.equal(response.status,401);
  response=await fetch(url+'/api/panel/login',{method:'POST',headers:{Origin:'http://evil'},body:JSON.stringify({token:panel.access.token('2','login')})});assert.equal(response.status,403);
  const login=panel.access.login(panel.access.token('2','login')),headers={Cookie:'wa_panel='+login.secret,Origin:'http://test','X-Panel-CSRF':login.csrf};
+ response=await fetch(url+'/api/panel/editor/data?site=cm',{headers});assert.equal(response.status,403);
+ response=await fetch(url+'/api/panel/editor/publish',{method:'POST',headers,body:JSON.stringify({site:'cm',version:0})});assert.equal(response.status,403);
  response=await fetch(url+'/api/panel/accounts',{headers});assert.deepEqual((await response.json()).items.map(row=>row.id),[a.id]);
  response=await fetch(url+'/api/panel/messages?account='+b.id+'&peer='+peer,{headers});assert.equal(response.status,404);
  response=await fetch(url+'/api/panel/media?account='+b.id+'&message='+Buffer.from(db.messageKey(raw.key)).toString('base64url'),{headers});assert.equal(response.status,404);
@@ -43,6 +45,7 @@ test('panel API rejects foreign accounts/media, bad origins, missing CSRF and re
  const message={account:a.id,peer,text:'Hola',request:'a'.repeat(32)};
  response=await fetch(url+'/api/panel/send',{method:'POST',headers:{...headers,'X-Panel-CSRF':''},body:JSON.stringify(message)});assert.equal(response.status,403);
  response=await fetch(url+'/api/panel/send',{method:'POST',headers,body:JSON.stringify(message)});assert.equal(response.status,200);response=await fetch(url+'/api/panel/send',{method:'POST',headers,body:JSON.stringify(message)});assert.equal(response.status,409);assert.equal(accounts.sent,1);
+ const {default:sharp}=await import('sharp'),jpeg=await sharp({create:{width:4,height:4,channels:3,background:'#00aa88'}}).jpeg().toBuffer(),photo={key:{id:'preview',remoteJid:peer,fromMe:false},messageTimestamp:101,message:{imageMessage:{jpegThumbnail:jpeg.toString('base64'),fileLength:20}}};db.message(photo);response=await fetch(url+'/api/panel/thumb?account='+a.id+'&message='+Buffer.from(db.messageKey(photo.key)).toString('base64url'),{headers});assert.equal(response.status,200);assert.deepEqual(Buffer.from(await response.arrayBuffer()),jpeg);
  operators.delete('2');response=await fetch(url+'/api/panel/accounts',{headers});assert.equal(response.status,401);
 });
 test('enrollment attribution uses the displayed link, not a referral cookie changed in another tab',t=>{

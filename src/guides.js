@@ -62,6 +62,7 @@ export function detectMedia(data){
 export function cleanupGuideMedia(store,dir){
   const folder=path.join(dir,'guide-media');if(!existsSync(folder))return;
   const used=new Set(devices.flatMap(d=>guides(store,d).map(s=>s.asset)));
+  if(store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='web_drafts'").get())for(const draft of store.db.prepare('SELECT changes FROM web_drafts').all())try{for(const value of Object.values(JSON.parse(draft.changes)))if(typeof value==='string'&&mediaPath.test(value))used.add(value);}catch{}
   for(const name of readdirSync(folder)){
     if(!/^[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/.test(name))continue;
     const file=path.join(folder,name);

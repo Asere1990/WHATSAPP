@@ -4,7 +4,7 @@
   window.resolvePublicAsset=asset=>window.currentPublicContent.page.find(e=>e.kind==='image'&&e.source===asset)?.value||asset;
   let busy=false;
   async function refreshPublicContent(){
-    if(busy||document.hidden)return;busy=true;
+    if(busy||document.hidden||document.body?.dataset.visualPreview)return;busy=true;
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);
     try{
       const response=await fetch('/api/public-content?site='+window.currentPublicContent.site,{cache:'no-store',signal:controller.signal});

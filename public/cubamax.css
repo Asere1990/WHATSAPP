@@ -99,7 +99,7 @@
 .corporate-portal .carousel-slide{display:none;position:absolute;inset:0;margin:0;background:#edf7f3}
 .corporate-portal .carousel-slide.is-active{display:block;z-index:2;animation:cubamax-slide-in .65s cubic-bezier(.22,.61,.36,1) both}
 .corporate-portal .carousel-slide.is-leaving{display:block;z-index:1;animation:cubamax-slide-out .65s cubic-bezier(.22,.61,.36,1) both}
-.corporate-portal .carousel-slide img{display:block;width:100%;height:100%;object-fit:cover}
+.corporate-portal .carousel-slide :is(img,video){display:block;width:100%;height:100%;object-fit:cover}
 @keyframes cubamax-slide-in{from{transform:translateX(100%)}to{transform:translateX(0)}}
 @keyframes cubamax-slide-out{from{transform:translateX(0)}to{transform:translateX(-100%)}}
 @media(prefers-reduced-motion:reduce){.corporate-portal .carousel-slide{animation:none!important}.corporate-portal .carousel-slide.is-leaving{display:none}}
@@ -138,7 +138,7 @@
 .corporate-portal .headline-slide.is-leaving{visibility:visible;z-index:1;animation:cubamax-slide-out .65s ease both}
 .corporate-portal .headline-intro{display:flex;align-items:center}
 .corporate-portal .headline-intro h1{margin:0;font-size:clamp(32px,4.4vw,58px)}
-.corporate-portal .headline-slide img{display:block;width:100%;height:100%;object-fit:cover;border-radius:0}
+.corporate-portal .headline-slide :is(img,video){display:block;width:100%;height:100%;object-fit:cover;border-radius:0}
 .corporate-portal .headline-stage.is-reverse .headline-slide.is-active{animation-name:cubamax-slide-in-reverse}
 .corporate-portal .headline-stage.is-reverse .headline-slide.is-leaving{animation-name:cubamax-slide-out-reverse}
 .corporate-portal .headline-carousel:focus-visible{outline:3px solid #278b81;outline-offset:4px;border-radius:18px}
@@ -185,7 +185,7 @@
 #service-dialog.full-photo{border:0;max-height:calc(100dvh - 28px);overflow-y:auto}
 #service-dialog.full-photo .service-dialog-content{display:flex;flex-direction:column;padding:0;overflow:hidden}
 #service-dialog.full-photo #service-dialog-photo{display:block;order:-1;width:100%;max-height:none;object-fit:contain;border-radius:0;margin:0 0 22px}
-#service-dialog.full-photo .service-dialog-content>:not(img):not(.dialog-close){margin-left:23px;margin-right:23px}
+#service-dialog.full-photo .service-dialog-content>:not(img):not(video):not(.dialog-close){margin-left:23px;margin-right:23px}
 #service-dialog.full-photo #service-continue{width:calc(100% - 46px);margin-bottom:30px;flex-shrink:0}
 #service-dialog.full-photo .dialog-close{z-index:2}
 #service-continue{background-size:cover;background-position:center}

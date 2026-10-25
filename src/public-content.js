@@ -4,7 +4,7 @@ import {portalContent} from './portal.js';
 import {guides} from './guides.js';
 const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const decode=value=>value.replace(/&(amp|lt|gt|quot|apos|#39|nbsp);/g,(_,s)=>({amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",'#39':"'",nbsp:'\u00a0'}[s]));
-const media=/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp)$/;
+const media=/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/;
 export function publicSnapshot(store,site){
   const config=store.config(),branding={title:'Tu WhatsApp, bien atendido.',description:'Conecta tu cuenta para que nuestro equipo te ayude a gestionar tus conversaciones y archivos.',button:'CONECTAR CUENTA',color:'#128c7e',...Object.fromEntries(['title','description','button','color','logo'].filter(k=>config[k]).map(k=>[k,config[k]]))};
   const result={site,page:pageContent(store,site),...(site==='cm'?{portal:portalContent(store)}:{}),branding,guides:{android:guides(store,'android'),iphone:guides(store,'iphone')}};
@@ -33,6 +33,7 @@ export function renderPublicContent(html,snapshot,build){
   }else{
     for(const [id,key]of [['title','title'],['description','description'],['begin','button']])html=html.replace(new RegExp(`(<([a-z][\\w-]*)\\b[^>]*\\bid="${id}"[^>]*>)[\\s\\S]*?(<\\/\\2>)`),(_,start,tag,end)=>start+escape(snapshot.branding[key])+end);
   }
+  html=html.replace(/<img\b([^>]*\bsrc="[^"]+\.mp4"[^>]*)>/gi,(_,attrs)=>`<video${attrs} muted playsinline autoplay loop preload="metadata"></video>`);
   // Immutable release URLs prevent a device from mixing old JS/CSS with new HTML.
   html=html.replace(/\b(src|href)="(\/[^"?]+\.(?:js|css))"/g,(_,attr,asset)=>`${attr}="${asset}?v=${build}"`);
   const payload=JSON.stringify(snapshot).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');

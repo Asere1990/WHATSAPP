@@ -10,7 +10,7 @@ for(const service of ['money','combo','packages','topup']){
  portalFields[service+'PopupButton']={group:'popup-'+service,label:'Nombre del botón',text:'Vincular WhatsApp'};
  portalFields[service+'PopupColor']={group:'popup-'+service,label:'Color del botón (#RRGGBB)',text:'#349898'};
 }
-export const portalMediaPath=/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp)$/;
+export const portalMediaPath=/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/;
 export const serviceIds=['money','combo','packages','topup'];
 const defaults=[{id:'packages',title:'Bicicleta eléctrica Izuki The One',asset:'/cubamax-promos/bicicleta.webp'},{id:'money',title:'Moto de gasolina · Promoción TV',asset:'/cubamax-promos/moto.webp'},{id:'topup',title:'Remesas a Cuba desde Estados Unidos',asset:'/cubamax-promos/remesas.webp'},{id:'combo',title:'Carga aérea a Cuba',asset:'/cubamax-promos/carga.webp'}];
 const validAsset=asset=>typeof asset==='string'&&(portalMediaPath.test(asset)||/^\/cubamax-promos\/(bicicleta|moto|remesas|carga)\.webp$/.test(asset)||/^\/cubamax-services\/(shein|remesas|recargas|supercombo)\.webp$/.test(asset)||/^\/cubamax-slides\/(money|combo|packages|topup)\.svg$/.test(asset));

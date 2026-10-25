@@ -5,7 +5,7 @@
  if(!entries)try{const r=await fetch('/api/page-content?site='+site,{cache:'no-store'});if(!r.ok)return;entries=await r.json();}catch{return;}
  if(!Array.isArray(entries))return;
  const texts=new Map(entries.filter(e=>e.kind==='text').map(e=>[e.source,e.value]));
- const images=new Map(entries.filter(e=>e.kind==='image'&&/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp)$/.test(e.value)).map(e=>[e.source,e.value]));
+ const images=new Map(entries.filter(e=>e.kind==='image'&&/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/.test(e.value)).map(e=>[e.source,e.value]));
  const rendered=new WeakMap(),originals=new WeakMap(),attributes=new WeakMap();
  const initialSources=new Map(entries.filter(e=>e.kind==='text').map(e=>[e.value,e.source]));
  let templates=[...texts].filter(([source])=>/\{[a-z]+\}/.test(source)).map(([source,value])=>{
@@ -23,7 +23,7 @@
   if(root.nodeType===1){
    const sources=attributes.get(root)||{};attributes.set(root,sources);
    for(const attr of ['placeholder','alt','aria-label'])if(root.hasAttribute(attr)){const old=root.getAttribute(attr);if(!sources[attr])sources[attr]=initialSources.get(old)||old;const value=textValue(sources[attr]);if(value!==old)root.setAttribute(attr,value);}
-   if(root.tagName==='IMG'){const asset=root.getAttribute('src');if(asset){const declared=root.getAttribute('data-public-source');if(declared&&(asset===declared||asset===images.get(declared)||asset===sources.applied))sources.src=declared;else if(asset!==sources.applied)sources.src=[...images].find(([,value])=>value===asset)?.[0]||asset;const value=images.get(sources.src)||sources.src;sources.applied=value;if(value&&value!==asset)root.setAttribute('src',value);}}
+   if(root.tagName==='IMG'||root.tagName==='VIDEO'){const asset=root.getAttribute('src');if(asset){const declared=root.getAttribute('data-public-source');if(declared&&(asset===declared||asset===images.get(declared)||asset===sources.applied))sources.src=declared;else if(asset!==sources.applied)sources.src=[...images].find(([,value])=>value===asset)?.[0]||asset;const value=images.get(sources.src)||sources.src;sources.applied=value;if(value&&/\.mp4$/.test(value)!==(root.tagName==='VIDEO')){const next=document.createElement(value.endsWith('.mp4')?'video':'img');for(const a of root.attributes)next.setAttribute(a.name,a.value);next.setAttribute('data-public-source',sources.src);if(next.tagName==='VIDEO'){next.muted=true;next.autoplay=true;next.loop=true;next.playsInline=true;next.controls=false;next.preload='metadata';}next.setAttribute('src',value);root.replaceWith(next);return;}if(value&&value!==asset)root.setAttribute('src',value);}}
   }
   for(const child of root.childNodes)apply(child);
  }
@@ -32,7 +32,7 @@
  apply(document);observe();
  globalThis.addEventListener?.('publiccontentchange',event=>{
   entries=event.detail.current.page;texts.clear();images.clear();
-  for(const entry of entries){if(entry.kind==='text')texts.set(entry.source,entry.value);else if(entry.kind==='image'&&/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp)$/.test(entry.value))images.set(entry.source,entry.value);}
+  for(const entry of entries){if(entry.kind==='text')texts.set(entry.source,entry.value);else if(entry.kind==='image'&&/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/.test(entry.value))images.set(entry.source,entry.value);}
   templates=[];
   for(const [source,value]of texts){if(!/\{[a-z]+\}/.test(source))continue;const names=[];let pattern='',at=0;for(const match of source.matchAll(/\{([a-z]+)\}/g)){pattern+=source.slice(at,match.index).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(.+?)';names.push(match[1]);at=match.index+match[0].length;}pattern+=source.slice(at).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');templates.push({pattern:new RegExp('^'+pattern+'$'),names,value});}
   observer.disconnect();apply(document);observe();

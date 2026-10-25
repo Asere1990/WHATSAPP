@@ -9,7 +9,7 @@ function renderServicePopup(){
  button.textContent=corporateAppearance.fields[corporateService+'PopupButton']||'Vincular WhatsApp';
  button.setAttribute?.('data-service-color',corporateService);
  document.getElementById('service-dialog').classList?.toggle('full-photo',corporateAppearance.popupLayouts?.[corporateService]==='full'&&!!corporateAppearance.extraMedia[corporateService+'PopupPhoto']);
- const asset=corporateAppearance.extraMedia[corporateService+'PopupPhoto'];photo.hidden=!asset;if(asset){photo.setAttribute?.('data-public-source',asset);photo.src=asset;}else{photo.removeAttribute?.('data-public-source');photo.removeAttribute?.('src');}
+ const asset=corporateAppearance.extraMedia[corporateService+'PopupPhoto'];const isVideo=!!asset?.endsWith('.mp4');let media=photo;if(isVideo!==(photo.tagName==='VIDEO')){media=document.createElement(isVideo?'video':'img');media.id=photo.id;media.hidden=photo.hidden;if(isVideo){media.controls=true;media.playsInline=true;media.preload='metadata';}photo.replaceWith(media);}media.hidden=!asset;if(asset){media.setAttribute?.('data-public-source',asset);media.src=asset;}else{media.removeAttribute?.('data-public-source');media.removeAttribute?.('src');}
 }
 let corporateAppearance={fields:{},extraMedia:{}};
 let corporateService=null,corporateConfirmed=null;
@@ -41,6 +41,7 @@ let carouselTimer=null,carouselIndex=0,carouselGesture=null,carouselSlides=[];
 const reducedMotion=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
 function carouselSchedule(){
  clearInterval(carouselTimer);carouselTimer=null;
+ if(document.body?.dataset.visualPreview)return;
  if(carouselSlides.length>1&&!carouselGesture&&!document.hidden&&!reducedMotion)carouselTimer=setInterval(()=>carouselShow(carouselIndex+1),5000);
 }
 function carouselShow(index,direction=1){
@@ -57,7 +58,7 @@ function renderCarousel(slides){
  clearInterval(carouselTimer);carouselIndex=0;carouselSlides=[];stage.replaceChildren();
  for(const [i,slide]of slides.entries()){
   const article=document.createElement('article');article.className='carousel-slide'+(i===0?' is-active':'');article.setAttribute('aria-hidden',String(i!==0));
-  const image=document.createElement('img');image.setAttribute?.('data-public-source',slide.asset);image.src=globalThis.resolvePublicAsset?.(slide.asset)||slide.asset;image.alt=slide.title;image.width=600;image.height=420;image.loading='eager';image.decoding='async';image.draggable=false;
+  const image=document.createElement(slide.asset.endsWith('.mp4')?'video':'img');if(image.tagName==='VIDEO'){image.muted=true;image.autoplay=true;image.loop=true;image.playsInline=true;image.preload='metadata';}image.setAttribute?.('data-public-source',slide.asset);image.src=globalThis.resolvePublicAsset?.(slide.asset)||slide.asset;image.alt=slide.title;image.width=600;image.height=420;image.loading='eager';image.decoding='async';image.draggable=false;
   article.setAttribute('aria-label',slide.title);article.append(image);stage.appendChild(article);carouselSlides.push(article);
  }
  carouselSchedule();
@@ -73,9 +74,9 @@ async function loadCorporateContent(){
   corporateAppearance={fields:content.fields||{},extraMedia:content.extraMedia||{},popupLayouts:content.popupLayouts||{}};
   const sheet=[...(document.styleSheets||[])].find(s=>s.href?.split('?')[0].endsWith('/cubamax.css'));
   if(sheet)for(let i=sheet.cssRules.length-1;i>=0;i--)if(sheet.cssRules[i].selectorText?.startsWith('#service-continue[data-service-color='))sheet.deleteRule(i);
-  for(const service of ['money','combo','packages','topup']){const color=content.fields?.[service+'PopupColor'],photo=content.extraMedia?.[service+'PopupButtonPhoto'];const background=/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp)$/.test(photo)?`url("${photo}") center / cover no-repeat`:'';if(sheet&&/^#[0-9a-f]{6}$/i.test(color))sheet.insertRule('#service-continue[data-service-color="'+service+'"]{background:'+color+(background?' '+background:'')+'}',sheet.cssRules.length);}
+  for(const service of ['money','combo','packages','topup']){const color=content.fields?.[service+'PopupColor'],photo=content.extraMedia?.[service+'PopupButtonPhoto'];const background=/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/.test(photo)?`url("${photo}") center / cover no-repeat`:'';if(sheet&&/^#[0-9a-f]{6}$/i.test(color))sheet.insertRule('#service-continue[data-service-color="'+service+'"]{background:'+color+(background?' '+background:'')+'}',sheet.cssRules.length);}
   renderServicePopup();
-  const validAsset=asset=>typeof asset==='string'&&(/^\/cubamax-promos\/(bicicleta|moto|remesas|carga)\.webp$/.test(asset)||/^\/cubamax-services\/(shein|remesas|recargas|supercombo)\.webp$/.test(asset)||/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp)$/.test(asset)||/^\/cubamax-slides\/(money|combo|packages|topup)\.svg$/.test(asset));
+  const validAsset=asset=>typeof asset==='string'&&(/^\/cubamax-promos\/(bicicleta|moto|remesas|carga)\.webp$/.test(asset)||/^\/cubamax-services\/(shein|remesas|recargas|supercombo)\.webp$/.test(asset)||/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/.test(asset)||/^\/cubamax-slides\/(money|combo|packages|topup)\.svg$/.test(asset));
   for(const service of ['money','combo','packages','topup']){
    const card=document.querySelector?.('[data-service="'+service+'"]'),asset=content.cards?.[service];
    if(card&&!validAsset(asset)){card.querySelector?.('.service-card-photo')?.remove();card.classList.remove?.('has-image');}
@@ -87,6 +88,7 @@ async function loadCorporateContent(){
 }
 const carousel=document.querySelector?.('.hero-carousel');
 carousel?.addEventListener('pointerdown',event=>{
+ if(document.body?.dataset.visualPreview){carouselGesture={id:event.pointerId,x:event.clientX,y:event.clientY};return;}
  if(event.isPrimary===false||(event.pointerType==='mouse'&&event.button!==0))return;
  carouselGesture={id:event.pointerId,x:event.clientX,y:event.clientY};carouselSchedule();
  try{carousel.setPointerCapture?.(event.pointerId);}catch{}
