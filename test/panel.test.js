@@ -32,7 +32,8 @@ test('panel API rejects foreign accounts/media, bad origins, missing CSRF and re
  const {store,a,b}=setup(t),admins=new Set(['1']),operators=new Set(['2','3']),telegram={admins:()=>admins,permissions:()=>operators},accounts={live:new Map(),send:async()=>{accounts.sent=(accounts.sent||0)+1;}},panel=new WebPanel(store,accounts,telegram,{url:'http://test',secure:false,allowedOrigins:new Set(['http://test'])});panel.access.attach(a.id,panel.access.token('2','referral'));panel.access.attach(b.id,panel.access.token('3','referral'));
  const db=new BaileysStore(store,a.id),peer='12025550129@s.whatsapp.net',raw={key:{id:'one',remoteJid:peer,fromMe:false},messageTimestamp:100,message:{conversation:'Solo propietario'}};db.message(raw);db.put('chat',peer,{id:peer});
  const server=createServer((req,res)=>panel.handle(req,res,new URL(req.url,'http://local').pathname,{'Cache-Control':'no-store'},async r=>{let s='';for await(const chunk of r)s+=chunk;return JSON.parse(s||'{}');}));server.listen(0,'127.0.0.1');await once(server,'listening');t.after(()=>server.close());const url='http://127.0.0.1:'+server.address().port;
- let response=await fetch(url+'/api/panel/accounts');assert.equal(response.status,401);
+ let response=await fetch(url+'/vincular/'+panel.access.token('2','referral'),{redirect:'manual'});assert.equal(response.status,302);assert.match(response.headers.get('set-cookie'),/SameSite=Lax/);
+ response=await fetch(url+'/api/panel/accounts');assert.equal(response.status,401);
  response=await fetch(url+'/api/panel/login',{method:'POST',headers:{Origin:'http://evil'},body:JSON.stringify({token:panel.access.token('2','login')})});assert.equal(response.status,403);
  const login=panel.access.login(panel.access.token('2','login')),headers={Cookie:'wa_panel='+login.secret,Origin:'http://test','X-Panel-CSRF':login.csrf};
  response=await fetch(url+'/api/panel/accounts',{headers});assert.deepEqual((await response.json()).items.map(row=>row.id),[a.id]);

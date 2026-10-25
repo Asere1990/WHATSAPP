@@ -39,7 +39,7 @@ export class WebPanel{
  }
  async handle(req,res,route,headers,readBody){
   const json=(status,data,extra={})=>{res.writeHead(status,{...headers,'Content-Type':'application/json',...extra});res.end(JSON.stringify(data));};
-  const setCookie=(name,value,seconds)=>`${name}=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${seconds}${this.options.secure?'; Secure':''}`;
+  const setCookie=(name,value,seconds)=>`${name}=${value}; HttpOnly; SameSite=${name==='wa_referral'?'Lax':'Strict'}; Path=/; Max-Age=${seconds}${this.options.secure?'; Secure':''}`;
   try{
    if(route.startsWith('/vincular/')){const code=route.slice('/vincular/'.length);if(req.method!=='GET'||!this.access.referral(code))return json(410,{error:'Este enlace venció o fue revocado. Solicita uno nuevo en Telegram.'});res.writeHead(302,{...headers,'Set-Cookie':setCookie('wa_referral',code,86400),Location:'/cubamax'});res.end();return;}
    const mutate=req.method==='POST';if(mutate&&!this.options.allowedOrigins.has(req.headers.origin))return json(403,{error:'Origen no autorizado.'});
