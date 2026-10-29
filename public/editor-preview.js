@@ -1,9 +1,18 @@
 (()=>{
-const site=document.body.classList.contains('corporate-portal')?'cm':'wa';let fields=[],editing=true,selected=null,section='';
+const site=document.body.classList.contains('corporate-portal')?'cm':'wa';let fields=[],editing=true,selected=null,section='',guideStep=0;
 const tell=m=>parent.postMessage(m,location.origin);
-function select(id,el){if(selected)selected.removeAttribute('data-editor-selected');selected=el;el?.setAttribute('data-editor-selected','');tell({type:'selection',id,scroll:scrollY,service:section|| (site==='cm'&&typeof corporateService!=='undefined'?corporateService:'')});}
+function select(id,el){if(selected)selected.removeAttribute('data-editor-selected');selected=el;el?.setAttribute('data-editor-selected','');tell({type:'selection',id,scroll:scrollY,service:section|| (site==='cm'&&typeof corporateService!=='undefined'?corporateService:''),step:guideStep});}
 function pick(target){
  const find=id=>fields.find(f=>f.id===id);
+ if(section==='guide-iphone'||section==='guide-android'){
+  const device=section.slice(6),step=globalThis.currentPublicContent?.guides?.[device]?.[guideStep];
+  if(step){const prefix=site==='cm'?'prelink':'guide';
+   for(const [part,kind] of [['title','title'],['text','text'],['image','asset'],['video','asset']]){
+    const el=target.closest('#'+prefix+'-'+part);
+    if(el)return {field:find('guide:'+device+':'+step.id+':'+kind),el};
+   }
+  }
+ }
  if(site==='wa')for(const key of ['title','text','button','photo']){const el=target.closest('#wa-welcome-'+key);if(el)return {field:find('welcome:'+key),el};}
  const country=target.closest('#country');if(country){const option=country.options[0],text=option?.textContent.trim();return {field:fields.find(f=>f.kind==='text'&&(f.value===text||f.source===text)),el:country};}
  const explicit=target.closest('[data-cubamax-text]');if(explicit)return {field:find('portal:'+explicit.dataset.cubamaxText),el:explicit};
@@ -19,8 +28,39 @@ function pick(target){
  return null;
 }
 let lastTextTap=null;
-function popup(service){section=service;
+function renderGuideStep(){
+ const device=section.slice(6),steps=globalThis.currentPublicContent?.guides?.[device];
+ if(!Array.isArray(steps)||!steps.length)return;
+ guideStep=Math.max(0,Math.min(guideStep,steps.length-1));
+ const prefix=site==='cm'?'prelink':'guide',get=name=>document.getElementById(prefix+'-'+name),step=steps[guideStep];
+ get('content').hidden=false;get('choose').hidden=true;
+ for(const name of ['android','iphone']){const button=document.getElementById((site==='cm'?'prelink-':'device-')+name);if(button)button.setAttribute('aria-pressed',String(device===name));}
+ get('count').textContent='PASO '+(guideStep+1)+' DE '+steps.length;
+ if(site==='wa')get('device').textContent=device.toUpperCase();
+ get('title').textContent=step.title;get('text').textContent=step.text;get('text').hidden=false;
+ const image=get('image'),video=get('video');video.pause();image.hidden=true;video.hidden=true;
+ if(step.asset){const media=step.asset.endsWith('.mp4')?video:image;media.src=step.asset;media.hidden=false;}
+ if(site==='wa'){const note=get('art-note');if(note)note.hidden=!step.asset?.startsWith('/guides/');}
+ get('back').disabled=guideStep===0;get('next').disabled=guideStep===steps.length-1;
+ get('next').textContent=guideStep===steps.length-1?'FIN DEL TUTORIAL':'SIGUIENTE →';
+ tell({type:'guide-step',step:guideStep});
+}
+function popup(service,step=0){const previous=section;section=service;guideStep=Number.isInteger(step)?step:0;
  for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();
+ if(previous.startsWith('guide-')&&site==='wa'){
+  const guide=document.getElementById('guide');if(guide)guide.hidden=true;
+  const content=document.getElementById('guide-content');if(content)content.hidden=true;
+  const welcome=document.getElementById('welcome');if(welcome)welcome.hidden=false;
+ }
+ if(service==='guide-iphone'||service==='guide-android'){
+  if(site==='cm'){renderGuideStep();document.getElementById('prelink-tutorial')?.showModal();}
+  else{
+   for(const id of ['welcome','loading','connect','pairing','connected','owner-actions']){const el=document.getElementById(id);if(el)el.hidden=true;}
+   const guide=document.getElementById('guide');if(guide)guide.hidden=false;
+   renderGuideStep();guide?.scrollIntoView({block:'start'});
+  }
+  return;
+ }
  if(service==='connect'){
   if(typeof corporateService!=='undefined')corporateService='';
   for(const id of ['access-panel','connect','guide']){const el=document.getElementById(id);if(el)el.hidden=false;}
@@ -29,14 +69,22 @@ function popup(service){section=service;
   return;
  }
  if(site==='wa'){if(service==='welcome')document.getElementById('wa-welcome')?.showModal();return;}corporateService=service;renderServicePopup();document.getElementById('service-dialog').showModal();}
-document.addEventListener('click',e=>{const target=e.target.closest?.('*');if(!target)return;if(target.closest('#service-close,.dialog-close'))return;const anchor=target.closest('a');if(!editing){if(anchor&&!anchor.getAttribute('href')?.startsWith('#'))e.preventDefault();if(target.closest('#service-continue,#begin,#connect-button')){e.preventDefault();e.stopImmediatePropagation();}return;}const hit=pick(target);if(hit?.field){e.preventDefault();e.stopImmediatePropagation();
+document.addEventListener('click',e=>{const target=e.target.closest?.('*');if(!target)return;
+ if(section==='guide-iphone'||section==='guide-android'){
+  if(target.closest('#prelink-close')){e.preventDefault();e.stopImmediatePropagation();document.getElementById('prelink-tutorial')?.close();return;}
+  const navigation=target.closest('#prelink-back,#prelink-next,#guide-back,#guide-next');
+  if(navigation){e.preventDefault();e.stopImmediatePropagation();lastTextTap=null;guideStep+=navigation.id.endsWith('-back')?-1:1;renderGuideStep();return;}
+  const deviceButton=target.closest('#prelink-iphone,#prelink-android,#device-iphone,#device-android');
+  if(deviceButton){e.preventDefault();e.stopImmediatePropagation();lastTextTap=null;section='guide-'+(deviceButton.id.endsWith('iphone')?'iphone':'android');guideStep=0;renderGuideStep();tell({type:'guide-device',service:section});return;}
+ }
+ if(target.closest('#service-close,.dialog-close'))return;const anchor=target.closest('a');if(!editing){if(anchor&&!anchor.getAttribute('href')?.startsWith('#'))e.preventDefault();if(target.closest('#service-continue,#begin,#connect-button')){e.preventDefault();e.stopImmediatePropagation();}return;}const hit=pick(target);if(hit?.field){e.preventDefault();e.stopImmediatePropagation();
  if(hit.field.kind==='text'){
   const now=Date.now(),previous=lastTextTap;
   if(previous&&previous.id===hit.field.id&&previous.el===hit.el&&now-previous.time<=450){lastTextTap=null;select(hit.field.id,hit.el);}
   else lastTextTap={id:hit.field.id,el:hit.el,time:now};
  }else select(hit.field.id,hit.el);return;}const card=target.closest('[data-service]');if(card){e.preventDefault();e.stopImmediatePropagation();popup(card.dataset.service);return;}if(target.closest('button,a,input,select,textarea')){if(anchor?.getAttribute('href')?.startsWith('#'))return;e.preventDefault();e.stopImmediatePropagation();}},true);
 document.addEventListener('submit',e=>{e.preventDefault();e.stopImmediatePropagation();},true);
-window.addEventListener('message',e=>{if(e.source!==parent||e.origin!==location.origin)return;const m=e.data;if(m?.type==='mode'){editing=!!m.editing;document.body.dataset.editing=String(editing);if(!editing)selected?.removeAttribute('data-editor-selected');}if(m?.type==='unselect')selected?.removeAttribute('data-editor-selected');if(m?.type==='popup')popup(m.service);if(m?.type==='restore'){scrollTo(0,Number(m.scroll)||0);if(m.service)popup(m.service);}});
+window.addEventListener('message',e=>{if(e.source!==parent||e.origin!==location.origin)return;const m=e.data;if(m?.type==='mode'){editing=!!m.editing;document.body.dataset.editing=String(editing);if(!editing)selected?.removeAttribute('data-editor-selected');}if(m?.type==='unselect')selected?.removeAttribute('data-editor-selected');if(m?.type==='popup')popup(m.service,m.step);if(m?.type==='restore'){scrollTo(0,Number(m.scroll)||0);if(m.service)popup(m.service,m.step);}});
 // Scrolling or dragging must never count as the first half of a double tap.
 document.addEventListener('pointercancel',()=>{lastTextTap=null;},true);
 window.addEventListener('scroll',()=>{lastTextTap=null;},{passive:true});
