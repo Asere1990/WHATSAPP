@@ -47,6 +47,17 @@ const server=http.createServer(async(req,res)=>{
   const sessionCookie=req.headers['x-portal']==='cubamax-corporate'?'cubamax_session':'wa_session';
   const json=(status,data,extra={})=>{res.writeHead(status,{...security,'Content-Type':'application/json',...extra});res.end(JSON.stringify(data));};
   try{
+    // A WhatsApp-only secret link selects an informational popup for the
+    // assigned phone. Opening the link never proves identity or links an account.
+    if(req.method==='GET'&&route.startsWith('/asociado/')){
+      const host=(req.headers.host||'').toLowerCase().split(':')[0];
+      if(!whatsappHosts.has(host))return json(404,{error:'No encontrado.'});
+      const candidate=route.slice('/asociado/'.length);
+      const associated=telegram.associated.links.find(candidate);
+      if(!associated)return json(410,{error:'Este enlace fue revocado o no está disponible.'});
+      const cookie='wa_associated='+candidate+'; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000'+(secure?'; Secure':'');
+      res.writeHead(302,{...security,'Cache-Control':'no-store','Set-Cookie':[cookie,'wa_referral=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'+(secure?'; Secure':'')],Location:'/whatsapp'});res.end();return;
+    }
     if(route.startsWith('/api/web/'))return webPanel.studio.public(req,res,route,security,body);
     if(req.method==='GET'&&(route==='/web/reset'||/^\/web\/[a-f0-9]{16}\/[\w-]{43}$/.test(route))){res.writeHead(200,{...security,'Content-Type':'text/html; charset=utf-8'});return res.end(readFileSync(new URL('../public/studio-page.html',import.meta.url)));}
     if(req.method==='GET'&&route==='/editor/preview'){const secret=(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_panel='))?.slice(9),session=webPanel.access.session(secret);if(!session)return json(401,{error:'Abre el editor desde Telegram.'});if(session.role!=='admin')return json(403,{error:'Solo administradores.'});const html=webPanel.editor.preview(session.actor,new URL(req.url,'http://local').searchParams.get('site'),publicBuild);res.writeHead(200,{...security,'Content-Security-Policy':security['Content-Security-Policy'].replace("frame-ancestors 'none'","frame-ancestors 'self'"),'X-Frame-Options':'SAMEORIGIN','Content-Type':'text/html; charset=utf-8'});return res.end(html);}
@@ -83,7 +94,11 @@ const server=http.createServer(async(req,res)=>{
       const cookies=Object.fromEntries((req.headers.cookie||'').split(';').map(v=>v.trim().split('=')));
       const account=store.browser(cookies.wa_session)||store.account(welcomeTokens.read(cookies.wa_welcome_identity)||'');
       const linked=!!account&&!!account.consent&&(account.status==='connected'||!!accounts.live.get(account.id)?.ready);
-      return json(200,{linked});
+      const popup=linked?null:telegram.associated.links.popup(cookies.wa_associated);
+      // Display once for each visit through the associated URL. Direct visits
+      // to the normal site do not inherit an old person's popup.
+      const clear=cookies.wa_associated?{'Set-Cookie':'wa_associated=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'+(secure?'; Secure':'')}:{};
+      return json(200,{linked,popup},clear);
     }
     if(req.method==='POST'&&route==='/api/access'){
       if(!rate(`${ip}:access`,30))return json(429,{error:'Espera un minuto.'});

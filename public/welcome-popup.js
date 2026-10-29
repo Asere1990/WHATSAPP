@@ -1,8 +1,8 @@
 (()=>{
  const dialog=document.getElementById('wa-welcome');if(!dialog)return;
- let dismissed=false,checked=false;
+ let dismissed=false,checked=false,associated=null;
  const button=document.getElementById('wa-welcome-button');
- function render(){const content=globalThis.currentPublicContent?.welcomePopup;if(!content)return;
+ function render(){const content=associated||globalThis.currentPublicContent?.welcomePopup;if(!content)return;
   for(const key of ['title','text','button'])document.getElementById('wa-welcome-'+key).textContent=content[key];
   const photo=document.getElementById('wa-welcome-photo'),valid=/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp)$/.test(content.photo);
   photo.hidden=!valid;dialog.classList.toggle('has-photo',valid);if(valid)photo.src=content.photo;else photo.removeAttribute('src');
@@ -13,7 +13,18 @@
  dialog.addEventListener('cancel',()=>{dismissed=true;});
  globalThis.checkWelcomePopup=async()=>{
   if(checked||dismissed||document.body.dataset.visualPreview)return;checked=true;
-  try{const response=await fetch('/api/welcome-popup-state',{cache:'no-store'});if(!response.ok)return;const state=await response.json();if(state.linked===false&&!dismissed&&!dialog.open)dialog.showModal();}catch{}
+  try{
+   const response=await fetch('/api/welcome-popup-state',{cache:'no-store'});
+   if(!response.ok)return;
+   const state=await response.json();
+   // Only a valid, unrevoked WhatsApp-associated link displays this popup.
+   if(state.linked!==false||!state.popup||dismissed||dialog.open)return;
+   const base=globalThis.currentPublicContent?.welcomePopup||{};
+   associated={...base,title:base.title||'Antes de comenzar',button:base.button||'CONTINUAR',
+    text:state.popup.kind==='text'?state.popup.text:'',photo:state.popup.kind==='photo'?state.popup.photo:''};
+   render();
+   dialog.showModal();
+  }catch{}
  };
  render();globalThis.addEventListener('publiccontentchange',render);
  if(document.body.dataset.visualPreview)dialog.showModal();

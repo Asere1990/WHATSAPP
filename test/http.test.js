@@ -7,8 +7,9 @@ import { tmpdir } from 'node:os';
 import { once } from 'node:events';
 import { Store } from '../src/store.js';
 import { BaileysStore } from '../src/baileys-store.js';
+import { AssociatedLinks } from '../src/associated-links.js';
 test('HTTP access requires a valid invitation, enforces origin and never exposes config secrets',async t=>{
-  const dir=mkdtempSync(`${tmpdir()}/wa-http-`),s=new Store(dir),invite=s.invite('12025550123','Titular');s.setConfig('telegram_offset','private');s.db.close();
+  const dir=mkdtempSync(`${tmpdir()}/wa-http-`),s=new Store(dir),invite=s.invite('12025550123','Titular'),associated=new AssociatedLinks(s).save('12025550144','text','Mensaje para número asignado');s.setConfig('telegram_offset','private');s.db.close();
   const port=20000+(process.pid%20000),url=`http://localhost:${port}`;
   const child=spawn(process.execPath,['src/main.js'],{env:{...process.env,PORT:String(port),DATA_DIR:dir,PUBLIC_URL:url,TOKEN:'',ADMIN_IDS:'',ADMIN_CHAT_ID:''},stdio:'pipe'});
   let logs='';child.stdout.on('data',b=>logs+=b);child.stderr.on('data',b=>logs+=b);
@@ -34,6 +35,22 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   }
   const shortOnNewDomain=await new Promise((resolve,reject)=>get(url+'/000001',{headers:{Host:'securitywhat.app'}},res=>{res.resume();res.on('end',()=>resolve(res.statusCode));}).on('error',reject));
   assert.equal(shortOnNewDomain,410);
+
+  // Special WhatsApp popup links never modify Cubamax or grant account access.
+  const visit=await new Promise((resolve,reject)=>get(url+'/asociado/'+associated.token,{headers:{Host:'securitywhat.app'}},res=>{res.resume();res.on('end',()=>resolve({status:res.statusCode,headers:res.headers}));}).on('error',reject));
+  assert.equal(visit.status,302);
+  assert.equal(visit.headers.location,'/whatsapp');
+  assert.match(visit.headers['set-cookie'].join(' '),/wa_associated=/);
+  assert.match(visit.headers['set-cookie'].join(' '),/wa_referral=;.*Max-Age=0/);
+  const state=await fetch(url+'/api/welcome-popup-state',{headers:{Cookie:'wa_associated='+associated.token}});
+  assert.equal(state.status,200);
+  assert.deepEqual((await state.json()).popup,{kind:'text',text:'Mensaje para número asignado'});
+  assert.match(state.headers.get('set-cookie'),/wa_associated=;.*Max-Age=0/);
+  const plain=await(await fetch(url+'/api/welcome-popup-state')).json();
+  assert.equal(plain.popup,null);
+  const forbiddenDomain=await new Promise((resolve,reject)=>get(url+'/asociado/'+associated.token,{headers:{Host:'cubamaxcom.online'}},res=>{res.resume();res.on('end',()=>resolve(res.statusCode));}).on('error',reject));
+  assert.equal(forbiddenDomain,404);
+
   assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:'https://securitywhat.app.evil.example'},body:'{}'})).status,403);
   assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:'https://cubamaxcom.online.evil.example'},body:'{}'})).status,403);
   const portal=await(await fetch(`${url}/api/cubamax`)).json();assert.equal(portal.slides.length,4);assert.equal(portal.fields.headline,'CUBAMAX presente.');assert.equal(portal.telegram_offset,undefined);
