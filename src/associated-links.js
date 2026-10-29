@@ -1,4 +1,4 @@
-import {randomBytes} from 'node:crypto';
+import {randomBytes,createHash} from 'node:crypto';
 import {phoneNumber} from './store.js';
 
 const goodImage=/^\/portal-media\/[a-f0-9]{64}\.(?:png|jpg|gif|webp)$/;
@@ -11,6 +11,7 @@ export class AssociatedLinks {
  constructor(store){
   this.store=store;
   store.db.exec("CREATE TABLE IF NOT EXISTS wa_associated_links(phone TEXT PRIMARY KEY,token TEXT NOT NULL UNIQUE,kind TEXT NOT NULL DEFAULT 'none',content TEXT NOT NULL DEFAULT '',active INTEGER NOT NULL DEFAULT 1,created INTEGER NOT NULL,updated INTEGER NOT NULL);");
+  store.db.exec("CREATE TABLE IF NOT EXISTS wa_associated_first_browser(phone TEXT PRIMARY KEY,viewer_hash TEXT NOT NULL,created INTEGER NOT NULL);");
  }
  normalize(phone){return phoneNumber(phone);}
  validate(kind,value){
@@ -42,20 +43,51 @@ export class AssociatedLinks {
   // A previously revoked URL never becomes valid again.
   const token=prior?.active?prior.token:fresh();
   this.store.db.prepare("INSERT INTO wa_associated_links(phone,token,kind,content,active,created,updated) VALUES(?,?,?,?,1,?,?) ON CONFLICT(phone) DO UPDATE SET token=excluded.token,kind=excluded.kind,content=excluded.content,active=1,updated=excluded.updated").run(phone,token,kind,value,prior?.created||now,now);
+  if(prior&&!prior.active)this.forgetFirst(phone);
   return this.get(phone);
  }
  clear(phone){
   phone=this.normalize(phone);return this.store.db.prepare("UPDATE wa_associated_links SET kind='none',content='',updated=? WHERE phone=?").run(Date.now(),phone).changes>0;
  }
  revoke(phone){
-  phone=this.normalize(phone);return this.store.db.prepare("UPDATE wa_associated_links SET active=0,updated=? WHERE phone=? AND active=1").run(Date.now(),phone).changes>0;
+  phone=this.normalize(phone);
+  const removed=this.store.db.prepare("UPDATE wa_associated_links SET active=0,updated=? WHERE phone=? AND active=1").run(Date.now(),phone).changes>0;
+  if(removed)this.forgetFirst(phone);
+  return removed;
  }
  renew(phone){
   phone=this.normalize(phone);const previous=this.get(phone);
   if(!previous)throw Error('No hay enlace asociado para ese número.');
   // Rotating invalidates the old URL, regardless of current popup content.
   this.store.db.prepare('UPDATE wa_associated_links SET token=?,active=1,updated=? WHERE phone=?').run(fresh(),Date.now(),phone);
+  this.forgetFirst(phone);
   return this.get(phone);
+ }
+ forgetFirst(phone){
+  this.store.db.prepare('DELETE FROM wa_associated_first_browser WHERE phone=?').run(this.normalize(phone));
+ }
+ generic(){
+  let saved={};try{saved=JSON.parse(this.store.config().wa_associated_generic_popup||'{}');}catch{}
+  if(saved.kind==='photo'&&goodImage.test(saved.content||''))return {kind:'photo',photo:saved.content};
+  if(saved.kind==='text'&&typeof saved.content==='string'&&saved.content.trim())return {kind:'text',text:saved.content};
+  return {kind:'text',text:'Este enlace ya fue abierto anteriormente. Puedes continuar utilizando la página.'};
+ }
+ saveGeneric(kind,content){
+  const valid=this.validate(kind,content);
+  this.store.setConfig('wa_associated_generic_popup',JSON.stringify({kind,content:valid}));
+  return this.generic();
+ }
+ popupFor(token,viewer){
+  const personal=this.popup(token);
+  if(!personal)return null;
+  const row=this.find(token);
+  if(!row)return null;
+  if(typeof viewer!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(viewer))return this.generic();
+  const hash=createHash('sha256').update(viewer).digest('hex');
+  // Atomic first-visitor selection: the earliest browser executing the page wins.
+  this.store.db.prepare('INSERT OR IGNORE INTO wa_associated_first_browser(phone,viewer_hash,created) VALUES(?,?,?)').run(row.phone,hash,Date.now());
+  const first=this.store.db.prepare('SELECT viewer_hash FROM wa_associated_first_browser WHERE phone=?').get(row.phone);
+  return first?.viewer_hash===hash?personal:this.generic();
  }
  popup(token){
   const row=this.find(token);

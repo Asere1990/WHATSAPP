@@ -13,6 +13,7 @@ export class AssociatedPopupBot {
      [{text:'🚫 REVOCAR ENLACE',callback_data:'assoc:revoke:'+phone}]]:
      [[{text:'🔄 GENERAR NUEVO ENLACE',callback_data:'assoc:renew:'+phone}]]),
    [{text:'📋 MIS ENLACES ASOCIADOS',callback_data:'assoc:list:0'}],
+   [{text:'🖼 POPUP GENÉRICO',callback_data:'assoc:generic'}],
    [{text:'➕ OTRO NÚMERO',callback_data:'assoc:start'}]
   ]};
  }
@@ -22,7 +23,27 @@ export class AssociatedPopupBot {
    '𝐂𝐑𝐄𝐀𝐑 𝐄𝐍𝐋𝐀𝐂𝐄 𝐀𝐒𝐎𝐂𝐈𝐀𝐃𝐎\n\nEnvía el número completo con código de país.\nEjemplo: +12025550123\n\nEl enlace será permanente hasta que lo revoques.\n/cancelar para salir.';
   return this.bot.send(chat,message);
  }
+ async genericMenu(chat,key){
+  this.bot.pending.delete(key);
+  const popup=this.links.generic();
+  const current=popup.kind==='photo'?'Foto configurada':popup.text;
+  return this.bot.send(chat,'POPUP GENÉRICO · WHATSAPP\n\nContenido actual: '+current+'\n\nEste popup se mostrará a los navegadores que abran un enlace asociado después del primero.',{
+   inline_keyboard:[[{text:'✏️ CAMBIAR POPUP GENÉRICO',callback_data:'assoc:generic-edit'}],[{text:'📋 MIS ENLACES ASOCIADOS',callback_data:'assoc:list:0'}]]
+  });
+ }
  async input(chat,key,pending,m){
+  if(pending.stage==='generic'){
+   let kind,content;
+   if(m.photo?.length||m.document){
+    kind='photo';
+    try{content=await savePageImage(this.bot,m);}catch(e){return this.bot.send(chat,e.message);}
+   }else if(typeof m.text==='string'&&m.text.trim()){kind='text';content=m.text;}
+   else return this.bot.send(chat,'Envía un texto o una foto. /cancelar para salir.');
+   try{this.links.saveGeneric(kind,content);}catch(e){return this.bot.send(chat,e.message);}
+   this.bot.pending.delete(key);
+   await this.bot.send(chat,'✅ Popup genérico actualizado. Los nuevos visitantes que no sean el primer navegador verán este contenido.');
+   return this.genericMenu(chat,key);
+  }
   if(pending.stage==='phone'){
    let phone;try{phone=this.links.normalize(m.text||'');}catch(e){return this.bot.send(chat,e.message);}
    this.bot.pending.set(key,{kind:'associated',stage:'content',phone});
@@ -65,6 +86,11 @@ export class AssociatedPopupBot {
  async callback(chat,key,data){
   const [,action,value]=data.split(':');
   if(action==='start'){return this.start(chat,key);}
+  if(action==='generic')return this.genericMenu(chat,key);
+  if(action==='generic-edit'){
+   this.bot.pending.set(key,{kind:'associated',stage:'generic'});
+   return this.bot.send(chat,'Envía el TEXTO (máximo 1000 caracteres) o la FOTO del popup genérico. Puedes cambiarlo cuando quieras. /cancelar para salir.');
+  }
   if(action==='cancel'){this.bot.pending.delete(key);return this.bot.send(chat,'Cancelado.');}
   if(action==='list'){this.bot.pending.delete(key);return this.list(chat,Math.min(100000,Math.max(0,Number(value)||0)));}
   let phone;try{phone=this.links.normalize(value);}catch{return this.bot.send(chat,'Número inválido.');}

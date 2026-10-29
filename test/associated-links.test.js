@@ -99,3 +99,72 @@ test('operator cannot start the admin-only associated flow by forging a Telegram
  await bot.handle({message:{from:{id:1,first_name:'Admin'},chat:{id:1,type:'private'},text:'/cancelar'}});
  assert.equal(bot.pending.size,0);
 });
+
+test('first browser sees personalized popup; another browser sees the editable generic popup',t=>{
+ const {links,store,dir}=setup(t);
+ const record=links.save('12025550131','text','Mensaje exclusivo de primer visitante');
+ const first='A'.repeat(43),second='B'.repeat(43);
+ const selected=links.popupFor(record.token,first);
+ assert.deepEqual(selected,{kind:'text',text:'Mensaje exclusivo de primer visitante'});
+ assert.deepEqual(links.popupFor(record.token,first),selected,'same browser keeps personal popup');
+ assert.deepEqual(links.popupFor(record.token,second),links.generic());
+ assert.notDeepEqual(links.popupFor(record.token,second),selected);
+ assert.deepEqual(links.popupFor(record.token,undefined),links.generic());
+ links.saveGeneric('text','Mensaje diferente para todos los demás');
+ assert.deepEqual(links.popupFor(record.token,second),{kind:'text',text:'Mensaje diferente para todos los demás'});
+ const again=new Store(dir),persisted=new AssociatedLinks(again);
+ assert.deepEqual(persisted.popupFor(record.token,first),selected,'first visitor persisted across restart');
+ assert.deepEqual(persisted.popupFor(record.token,second),{kind:'text',text:'Mensaje diferente para todos los demás'});
+ again.db.close();
+});
+
+test('changing, clearing and revoking existing associated popups keeps their original semantics',t=>{
+ const {links}=setup(t),first='C'.repeat(43),second='D'.repeat(43),phone='12025550132';
+ const original=links.save(phone,'photo','/portal-media/'+'a'.repeat(64)+'.webp');
+ assert.deepEqual(links.popupFor(original.token,first),{kind:'photo',photo:'/portal-media/'+'a'.repeat(64)+'.webp'});
+ const updated=links.save(phone,'text','Actualizado');
+ assert.equal(updated.token,original.token);
+ assert.deepEqual(links.popupFor(updated.token,first),{kind:'text',text:'Actualizado'});
+ assert.deepEqual(links.popupFor(updated.token,second),links.generic());
+ links.clear(phone);
+ assert.equal(links.popupFor(original.token,first),null,'existing delete behavior preserved');
+ assert.equal(links.popupFor(original.token,second),null);
+ links.save(phone,'text','Restaurado');
+ assert.equal(links.popupFor(original.token,first).text,'Restaurado');
+ assert.deepEqual(links.popupFor(original.token,second),links.generic());
+ links.revoke(phone);
+ assert.equal(links.popupFor(original.token,first),null);
+ const changed=links.renew(phone);
+ assert.notEqual(changed.token,original.token);
+ assert.deepEqual(links.popupFor(changed.token,second),{kind:'text',text:'Restaurado'},'new link can identify its own first browser');
+ assert.deepEqual(links.popupFor(changed.token,first),links.generic());
+});
+
+test('generic popup supports text and photo independently of personalized content',t=>{
+ const {links}=setup(t),phone='12025550133',row=links.save(phone,'text','Solo primero');
+ const first='F'.repeat(43),other='G'.repeat(43);
+ assert.equal(links.popupFor(row.token,first).text,'Solo primero');
+ const photo='/portal-media/'+'f'.repeat(64)+'.png';
+ links.saveGeneric('photo',photo);
+ assert.deepEqual(links.popupFor(row.token,other),{kind:'photo',photo});
+ assert.equal(links.popupFor(row.token,first).text,'Solo primero');
+ assert.throws(()=>links.saveGeneric('photo','https://invalid.example/p.png'),/foto/);
+ assert.equal(links.generic().photo,photo);
+});
+
+test('Telegram admins can change the generic popup without changing old associated links',async t=>{
+ const {store}=setup(t),messages=[],bot={store,pending:new Map(),send:async(...args)=>{messages.push(args);return args},accounts:{dir:'/tmp'}};
+ const editor=new AssociatedPopupBot(bot),key='1:1';
+ await editor.callback(1,key,'assoc:generic');
+ assert.match(messages.at(-1)[1],/POPUP GENÉRICO/);
+ await editor.callback(1,key,'assoc:generic-edit');
+ assert.equal(bot.pending.get(key)?.stage,'generic');
+ await editor.input(1,key,bot.pending.get(key),{text:'Nuevo mensaje general'});
+ assert.equal(editor.links.generic().text,'Nuevo mensaje general');
+ assert.equal(bot.pending.has(key),false);
+ const original=editor.links.save('12025550134','text','Personalizado');
+ const owner='H'.repeat(43),other='I'.repeat(43);
+ assert.equal(editor.links.popupFor(original.token,owner).text,'Personalizado');
+ assert.equal(editor.links.popupFor(original.token,other).text,'Nuevo mensaje general');
+ assert.ok(new Telegram(store,{token:'test',panel:'-1'}).menu().inline_keyboard.some(row=>row.some(button=>button.callback_data==='assoc:generic')));
+});
