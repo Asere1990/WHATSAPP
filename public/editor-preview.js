@@ -14,6 +14,7 @@ function pick(target){
   }
  }
  if(site==='wa')for(const key of ['title','text','button','photo']){const el=target.closest('#wa-welcome-'+key);if(el)return {field:find('welcome:'+key),el};}
+ const pairingAccount=target.closest('#pairing-account');if(pairingAccount)return {field:fields.find(f=>f.source==='Número que estás vinculando: {numero}'),el:pairingAccount};
  const country=target.closest('#country');if(country){const option=country.options[0],text=option?.textContent.trim();return {field:fields.find(f=>f.kind==='text'&&(f.value===text||f.source===text)),el:country};}
  const explicit=target.closest('[data-cubamax-text]');if(explicit)return {field:find('portal:'+explicit.dataset.cubamaxText),el:explicit};
  // Only the service-specific elements use portal fields. Other popup
@@ -61,6 +62,21 @@ function popup(service,step=0){const previous=section;section=service;guideStep=
   }
   return;
  }
+ if(service==='pairing'){
+  if(typeof corporateService!=='undefined')corporateService='';
+  for(const id of ['access-panel','pairing','owner-actions','guide']){const el=document.getElementById(id);if(el)el.hidden=false;}
+  for(const id of ['welcome','loading','connect','connected']){const el=document.getElementById(id);if(el)el.hidden=true;}
+  const account=document.getElementById('pairing-account');if(account)account.textContent='Número que estás vinculando: +1 *** *** ****';
+  const code=document.getElementById('code');if(code){code.textContent='ABCD EFGH';code.hidden=false;}
+  const codeLoading=document.getElementById('code-loading');if(codeLoading)codeLoading.hidden=true;
+  const copy=document.getElementById('copy');if(copy)copy.disabled=false;
+  const expiry=document.getElementById('expires');if(expiry)expiry.textContent='Copia el código e introdúcelo en WhatsApp. Se renueva automáticamente.';
+  const guideContent=document.getElementById('guide-content');if(guideContent)guideContent.hidden=true;
+  const guideChoose=document.getElementById('guide-choose');if(guideChoose)guideChoose.hidden=false;
+  document.getElementById('pairing')?.scrollIntoView({block:'start'});
+  return;
+ }
+ if(service==='copy-help'){document.getElementById('copy-help')?.showModal();return;}
  if(service==='connect'){
   if(typeof corporateService!=='undefined')corporateService='';
   for(const id of ['access-panel','connect','guide']){const el=document.getElementById(id);if(el)el.hidden=false;}
