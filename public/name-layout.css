@@ -1,0 +1,6 @@
+/* Applies only to the optional editable page name; existing branding remains the default. */
+.wordmark .brand-title .page-name-photo{display:inline-block;width:auto;max-width:min(48vw,220px);height:1.06em;object-fit:contain;vertical-align:middle}
+.corporate-portal header .corporate-brand>.page-name-text{display:inline-block;border:0;padding:0;max-width:min(45vw,250px);font-size:clamp(19px,3vw,28px);font-weight:800;line-height:1.15;color:#175b50;overflow-wrap:anywhere}
+.corporate-portal header .corporate-brand>.page-name-photo{display:block;max-width:min(45vw,250px);width:auto;height:48px;object-fit:contain}
+@media(max-width:800px){.corporate-portal header .corporate-brand>.page-name-photo{height:40px}.corporate-portal header .corporate-brand>.page-name-text{font-size:20px}}
+body[data-visual-preview] [data-element-dragging]{outline:2px dashed #06b6a3!important;outline-offset:4px!important;cursor:grabbing!important;z-index:3;position:relative}

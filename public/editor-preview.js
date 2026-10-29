@@ -13,6 +13,8 @@ function pick(target){
    }
   }
  }
+ const siteName=target.closest('.wordmark .brand-title,header .corporate-brand>img,header .corporate-brand>.page-name-text');
+ if(siteName)return {field:find('identity:mode'),el:siteName};
  if(site==='wa')for(const key of ['title','text','button','photo']){const el=target.closest('#wa-welcome-'+key);if(el)return {field:find('welcome:'+key),el};}
  const pairingInstruction=target.closest('#pairing-account + p');if(pairingInstruction)return {field:find('pairing:instructions'),el:pairingInstruction};
  const pairingAccount=target.closest('#pairing-account');if(pairingAccount)return {field:fields.find(f=>f.source==='Número que estás vinculando: {numero}'),el:pairingAccount};
@@ -86,6 +88,89 @@ function popup(service,step=0){const previous=section;section=service;guideStep=
   return;
  }
  if(site==='wa'){if(service==='welcome')document.getElementById('wa-welcome')?.showModal();return;}corporateService=service;renderServicePopup();document.getElementById('service-dialog').showModal();}
+// Touch gestures work only inside the administration preview, never on public pages.
+let hold=null,drag=null,suppressClickUntil=0;
+const limit=(v,min,max)=>Math.max(min,Math.min(max,v));
+const distance=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+const center=(a,b)=>({x:(a.clientX+b.clientX)/2,y:(a.clientY+b.clientY)/2});
+const clean=p=>({x:Math.round(p.x*10)/10,y:Math.round(p.y*10)/10,scale:Math.round(p.scale*100)/100});
+function moveTarget(target){
+ if(!editing||!window.pageElementLayout||!target?.closest||target.closest('input,textarea,select,[contenteditable=true]'))return null;
+ const hit=pick(target);
+ let el=hit?.el||target.closest('[data-cubamax-text],h1,h2,h3,h4,p,button,a,img,video,li,label,article,figure,.service-card,.card,.brand-title,span');
+ if(el?.tagName==='SPAN'&&!el.id&&!el.hasAttribute('data-cubamax-text')&&!el.classList.contains('brand-title'))el=el.closest('h1,h2,h3,h4,p,button,a,label,li')||el;
+ const key=window.pageElementLayout.keyFor(el);
+ return key?{el,key}:null;
+}
+function clearHold(){if(hold){clearTimeout(hold.timer);hold=null;}}
+function beginHold(candidate,point){
+ clearHold();if(!candidate)return;
+ hold={...candidate,x:point.clientX,y:point.clientY,timer:setTimeout(activate,480)};
+}
+function activate(){
+ if(!hold||drag||!editing)return;
+ const h=hold;clearHold();lastTextTap=null;
+ const pos=window.pageElementLayout.get(h.key);
+ drag={el:h.el,key:h.key,current:{...pos},anchor:{x:h.x,y:h.y,pos:{...pos}},pinch:null,moved:false};
+ drag.el.setAttribute('data-element-dragging','');
+ suppressClickUntil=Date.now()+800;
+ tell({type:'placement-selected',key:h.key});
+}
+function pinchStart(touches){
+ if(!drag||touches.length<2)return;
+ const midpoint=center(touches[0],touches[1]);
+ drag.pinch={distance:Math.max(distance(touches[0],touches[1]),12),midpoint,pos:{...drag.current}};
+}
+function updateTouch(touches){
+ if(!drag||!touches.length)return;
+ let next;
+ if(touches.length>=2){
+  if(!drag.pinch)pinchStart(touches);
+  const first=touches[0],second=touches[1],mid=center(first,second),origin=drag.pinch;
+  next={x:origin.pos.x+(mid.x-origin.midpoint.x)/innerWidth*100,y:origin.pos.y+(mid.y-origin.midpoint.y)/innerWidth*100,scale:origin.pos.scale*distance(first,second)/origin.distance};
+ }else{
+  if(drag.pinch){drag.pinch=null;drag.anchor={x:touches[0].clientX,y:touches[0].clientY,pos:{...drag.current}};}
+  const t=touches[0],origin=drag.anchor;
+  next={x:origin.pos.x+(t.clientX-origin.x)/innerWidth*100,y:origin.pos.y+(t.clientY-origin.y)/innerWidth*100,scale:origin.pos.scale};
+ }
+ next=clean({x:limit(next.x,-150,150),y:limit(next.y,-150,150),scale:limit(next.scale,.35,3.5)});
+ if(next.x!==drag.current.x||next.y!==drag.current.y||next.scale!==drag.current.scale){
+  drag.current=next;drag.moved=true;window.pageElementLayout.set(drag.key,next);
+ }
+}
+function finishDrag(){
+ clearHold();if(!drag)return;
+ const finished=drag;drag=null;finished.el.removeAttribute('data-element-dragging');
+ suppressClickUntil=Date.now()+650;
+ if(finished.moved)tell({type:'placement-changed',key:finished.key,position:finished.current});
+}
+document.addEventListener('touchstart',e=>{
+ if(!editing)return;
+ if(e.touches.length===1&&!drag){const target=moveTarget(e.target);if(target)beginHold(target,e.touches[0]);}
+ else if(e.touches.length>=2){if(hold)activate();if(drag)pinchStart(e.touches);}
+},{passive:true,capture:true});
+document.addEventListener('touchmove',e=>{
+ if(hold&&!drag&&e.touches.length){if(Math.hypot(e.touches[0].clientX-hold.x,e.touches[0].clientY-hold.y)>11)clearHold();return;}
+ if(drag){if(e.cancelable)e.preventDefault();e.stopImmediatePropagation();updateTouch(e.touches);}
+},{passive:false,capture:true});
+document.addEventListener('touchend',e=>{
+ if(hold&&!drag)clearHold();
+ if(drag){if(e.touches.length===0)finishDrag();else if(e.touches.length===1){drag.pinch=null;const t=e.touches[0];drag.anchor={x:t.clientX,y:t.clientY,pos:{...drag.current}};}}
+},{passive:true,capture:true});
+document.addEventListener('touchcancel',()=>finishDrag(),true);
+document.addEventListener('pointerdown',e=>{
+ if(!editing||e.pointerType==='touch'||e.button!==0||drag)return;
+ beginHold(moveTarget(e.target),e);
+},true);
+document.addEventListener('pointermove',e=>{
+ if(e.pointerType==='touch')return;
+ if(hold&&!drag&&Math.hypot(e.clientX-hold.x,e.clientY-hold.y)>11)clearHold();
+ if(drag){e.preventDefault();updateTouch([e]);}
+},true);
+document.addEventListener('pointerup',e=>{if(e.pointerType==='touch')return;if(hold)clearHold();finishDrag();},true);
+document.addEventListener('contextmenu',e=>{if(drag){e.preventDefault();}},true);
+document.addEventListener('dragstart',e=>{if(editing&&drag)e.preventDefault();},true);
+document.addEventListener('click',e=>{if(Date.now()<suppressClickUntil){e.preventDefault();e.stopImmediatePropagation();}},true);
 // Only the visual editor closes a preview popup when its dark backdrop is tapped.
 document.addEventListener('click',e=>{
  const dialog=e.target;
@@ -112,7 +197,10 @@ document.addEventListener('click',e=>{const target=e.target.closest?.('*');if(!t
   else lastTextTap={id:hit.field.id,el:hit.el,time:now};
  }else select(hit.field.id,hit.el);return;}const card=target.closest('[data-service]');if(card){e.preventDefault();e.stopImmediatePropagation();popup(card.dataset.service);return;}if(target.closest('button,a,input,select,textarea')){if(anchor?.getAttribute('href')?.startsWith('#'))return;e.preventDefault();e.stopImmediatePropagation();}},true);
 document.addEventListener('submit',e=>{e.preventDefault();e.stopImmediatePropagation();},true);
-window.addEventListener('message',e=>{if(e.source!==parent||e.origin!==location.origin)return;const m=e.data;if(m?.type==='mode'){editing=!!m.editing;document.body.dataset.editing=String(editing);if(!editing)selected?.removeAttribute('data-editor-selected');}if(m?.type==='unselect')selected?.removeAttribute('data-editor-selected');if(m?.type==='popup')popup(m.service,m.step);if(m?.type==='restore'){scrollTo(0,Number(m.scroll)||0);if(m.dismissedWelcome&&!m.service)document.getElementById('wa-welcome')?.close();if(m.service)popup(m.service,m.step);}});
+window.addEventListener('message',e=>{if(e.source!==parent||e.origin!==location.origin)return;const m=e.data;if(m?.type==='mode'){editing=!!m.editing;document.body.dataset.editing=String(editing);if(!editing)selected?.removeAttribute('data-editor-selected');}if(m?.type==='unselect')selected?.removeAttribute('data-editor-selected');if(m?.type==='popup')popup(m.service,m.step);if(m?.type==='restore'){scrollTo(0,Number(m.scroll)||0);if(m.dismissedWelcome&&!m.service)document.getElementById('wa-welcome')?.close();if(m.service)popup(m.service,m.step);}
+if(m?.type==='dismiss-overlays'){for(const d of document.querySelectorAll('dialog[open]'))d.close();section='';}
+if(m?.type==='placement-reset'&&typeof m.key==='string'){const pos={x:0,y:0,scale:1};window.pageElementLayout?.set(m.key,pos);tell({type:'placement-changed',key:m.key,position:pos});}
+if(m?.type==='placement-revert'&&typeof m.key==='string'){window.pageElementLayout?.set(m.key,window.currentPublicContent?.layout?.[m.key]||{x:0,y:0,scale:1});}});
 // Scrolling or dragging must never count as the first half of a double tap.
 document.addEventListener('pointercancel',()=>{lastTextTap=null;},true);
 window.addEventListener('scroll',()=>{lastTextTap=null;},{passive:true});

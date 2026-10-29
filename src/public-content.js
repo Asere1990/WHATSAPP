@@ -9,7 +9,12 @@ const media=/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/;
 export function publicSnapshot(store,site){
   const config=store.config(),branding={title:'Tu WhatsApp, bien atendido.',description:'Conecta tu cuenta para que nuestro equipo te ayude a gestionar tus conversaciones y archivos.',button:'CONECTAR CUENTA',color:'#128c7e',...Object.fromEntries(['title','description','button','color','logo'].filter(k=>config[k]).map(k=>[k,config[k]]))};
   const pairingInstruction=config['pairing_instruction_'+site];
-  const result={site,page:pageContent(store,site),...(typeof pairingInstruction==='string'&&pairingInstruction?{pairingInstruction}:{}),...(site==='cm'?{portal:portalContent(store)}:{welcomePopup:welcomeContent(store)}),branding,guides:{android:guides(store,'android'),iphone:guides(store,'iphone')}};
+  let identity={},layout={};try{identity=JSON.parse(config['site_identity_'+site]||'{}');}catch{}
+  try{layout=JSON.parse(config['element_layout_'+site]||'{}');}catch{}
+  if(!identity||typeof identity!=='object'||Array.isArray(identity))identity={};
+  if(!layout||typeof layout!=='object'||Array.isArray(layout))layout={};
+  layout=Object.fromEntries(Object.entries(layout).filter(([key,v])=>/^(?:id:[A-Za-z][\w-]{0,70}|text:[\w-]{1,70}|service:[\w-]{1,70}|child:[A-Za-z][\w-]{0,70}:\d{1,3}(?:\.\d{1,3}){0,19}|node:\d{1,3}(?:\.\d{1,3}){0,19})$/.test(key)&&v&&Number.isFinite(v.x)&&Number.isFinite(v.y)&&Number.isFinite(v.scale)&&Math.abs(v.x)<=150&&Math.abs(v.y)<=150&&v.scale>=0.35&&v.scale<=3.5));
+  const result={site,page:pageContent(store,site),...(typeof pairingInstruction==='string'&&pairingInstruction?{pairingInstruction}:{}),identity:{mode:['text','photo'].includes(identity.mode)?identity.mode:'original',text:String(identity.text|| (site==='wa'?'WhatsApp':'CUBAMAX')).slice(0,80),photo:media.test(identity.photo||'')?identity.photo:''},layout,...(site==='cm'?{portal:portalContent(store)}:{welcomePopup:welcomeContent(store)}),branding,guides:{android:guides(store,'android'),iphone:guides(store,'iphone')}};
   return {...result,revision:createHash('sha256').update(JSON.stringify(result)).digest('hex')};
 }
 export function renderPublicContent(html,snapshot,build){
@@ -35,6 +40,15 @@ export function renderPublicContent(html,snapshot,build){
   }else{
     for(const [id,key]of [['title','title'],['description','description'],['begin','button']])html=html.replace(new RegExp(`(<([a-z][\\w-]*)\\b[^>]*\\bid="${id}"[^>]*>)[\\s\\S]*?(<\\/\\2>)`),(_,start,tag,end)=>start+escape(snapshot.branding[key])+end);
   }
+  const identity=snapshot.identity||{},validName=identity.mode==='text'||identity.mode==='photo'&&media.test(identity.photo||'');
+  if(validName&&snapshot.site==='wa'){
+    const display=identity.mode==='photo'?'<img class="page-name-photo" alt="'+escape(identity.text||'Nombre de la página')+'" src="'+escape(identity.photo)+'">':escape(identity.text);
+    html=html.replace(/(<span class="brand-title">)[\s\S]*?(<svg class="verified-badge")/,(_,start,svg)=>start+display+svg);
+  }
+  if(validName&&snapshot.site==='cm'){
+    const display=identity.mode==='photo'?'<img class="page-name-photo" alt="'+escape(identity.text||'Nombre de la página')+'" src="'+escape(identity.photo)+'">':'<span class="page-name-text">'+escape(identity.text)+'</span>';
+    html=html.replace(/(<header><a class="corporate-brand"[^>]*>)<img[^>]*>/,(_,start)=>start+display);
+  }
   if(typeof snapshot.pairingInstruction==='string'){
     const instruction=snapshot.pairingInstruction,emphasis='dentro de WhatsApp',at=instruction.indexOf(emphasis);
     const formatted=at<0?escape(instruction):escape(instruction.slice(0,at))+'<strong>'+escape(emphasis)+'</strong>'+escape(instruction.slice(at+emphasis.length));
@@ -44,6 +58,6 @@ export function renderPublicContent(html,snapshot,build){
   // Immutable release URLs prevent a device from mixing old JS/CSS with new HTML.
   html=html.replace(/\b(src|href)="(\/[^"?]+\.(?:js|css))"/g,(_,attr,asset)=>`${attr}="${asset}?v=${build}"`);
   const payload=JSON.stringify(snapshot).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
-  html=html.replace(/<script\b[^>]*src=/,match=>`<script src="/public-content.js?v=${build}" defer></script>`+match);
-  return html.replace('</head>',`<script type="application/json" id="public-content-bootstrap">${payload}</script></head>`);
+  html=html.replace(/<script\b[^>]*src=/,match=>`<script src="/public-content.js?v=${build}" defer></script><script src="/element-layout.js?v=${build}" defer></script>`+match);
+  return html.replace('</head>',`<link rel="stylesheet" href="/name-layout.css?v=${build}"><script type="application/json" id="public-content-bootstrap">${payload}</script></head>`);
 }
