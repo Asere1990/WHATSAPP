@@ -1,3 +1,4 @@
+import {welcomeContent} from './welcome-popup.js';
 import {createHash} from 'node:crypto';
 import {pageContent} from './page-editor.js';
 import {portalContent} from './portal.js';
@@ -7,7 +8,7 @@ const decode=value=>value.replace(/&(amp|lt|gt|quot|apos|#39|nbsp);/g,(_,s)=>({a
 const media=/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/;
 export function publicSnapshot(store,site){
   const config=store.config(),branding={title:'Tu WhatsApp, bien atendido.',description:'Conecta tu cuenta para que nuestro equipo te ayude a gestionar tus conversaciones y archivos.',button:'CONECTAR CUENTA',color:'#128c7e',...Object.fromEntries(['title','description','button','color','logo'].filter(k=>config[k]).map(k=>[k,config[k]]))};
-  const result={site,page:pageContent(store,site),...(site==='cm'?{portal:portalContent(store)}:{}),branding,guides:{android:guides(store,'android'),iphone:guides(store,'iphone')}};
+  const result={site,page:pageContent(store,site),...(site==='cm'?{portal:portalContent(store)}:{welcomePopup:welcomeContent(store)}),branding,guides:{android:guides(store,'android'),iphone:guides(store,'iphone')}};
   return {...result,revision:createHash('sha256').update(JSON.stringify(result)).digest('hex')};
 }
 export function renderPublicContent(html,snapshot,build){

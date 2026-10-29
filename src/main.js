@@ -1,3 +1,4 @@
+import {welcomeIdentity} from './welcome-popup.js';
 import {publicSnapshot,renderPublicContent} from './public-content.js';
 import {createHash} from 'node:crypto';
 import {WebPanel} from './panel.js';
@@ -16,6 +17,7 @@ import { guides, mediaPath, cleanupGuideMedia } from './guides.js';
 import path from 'node:path';
 const dir=process.env.DATA_DIR||'./data',store=new Store(dir);
 initializeSystemNumber(store);
+const welcomeTokens=welcomeIdentity(store);
 const url=(process.env.PUBLIC_URL||process.env.RENDER_EXTERNAL_URL||'http://localhost:10000').replace(/\/$/,'');
 const cubamaxHosts=new Set(['cubamaxcom.online','www.cubamaxcom.online']);
 const allowedOrigins=new Set([url,...[...cubamaxHosts].map(host=>'https://'+host)]);
@@ -33,8 +35,8 @@ const security={
   'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','Cache-Control':'no-store',
   ...(secure?{'Strict-Transport-Security':'max-age=31536000'}:{})
 };
-const publicBuild=createHash('sha256').update(['public-content.js','page-content.js','app.js','cubamax.js','cubamax-headline.js','cubamax.css','style.css'].map(file=>readFileSync(new URL('../public/'+file,import.meta.url))).join('')).digest('hex').slice(0,16);
-const publicFiles={'/studio':['studio.html','text/html; charset=utf-8'],'/studio.js':['studio.js','application/javascript'],'/studio.css':['studio.css','text/css'],'/studio-render.js':['studio-render.js','application/javascript'],'/studio-page.js':['studio-page.js','application/javascript'],'/whatsapp':['index.html','text/html; charset=utf-8'],'/whatsapp/':['index.html','text/html; charset=utf-8'],'/chat-wallpaper.svg':['chat-wallpaper.svg','image/svg+xml'],'/editor':['editor.html','text/html; charset=utf-8'],'/editor.js':['editor.js','application/javascript'],'/editor.css':['editor.css','text/css'],'/editor-preview.js':['editor-preview.js','application/javascript'],'/editor-preview.css':['editor-preview.css','text/css'],'/panel':['panel.html','text/html; charset=utf-8'],'/panel/':['panel.html','text/html; charset=utf-8'],'/panel.css':['panel.css','text/css'],'/panel.js':['panel.js','application/javascript'],'/public-content.js':['public-content.js','application/javascript'],'/prelink-tutorial.js':['prelink-tutorial.js','application/javascript'],'/page-content.js':['page-content.js','application/javascript'],'/cubamax':['cubamax.html','text/html; charset=utf-8'],'/cubamax/':['cubamax.html','text/html; charset=utf-8'],'/cubamax.css':['cubamax.css','text/css'],'/cubamax.js':['cubamax.js','application/javascript'],'/cubamax-headline.js':['cubamax-headline.js','application/javascript'],'/cubamax-logo.svg':['cubamax-logo.svg','image/svg+xml'],'/countries.js':['countries.js','application/javascript'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','application/javascript'],'/style.css':['style.css','text/css']};
+const publicBuild=createHash('sha256').update(['welcome-popup.js','welcome-popup.css','public-content.js','page-content.js','app.js','cubamax.js','cubamax-headline.js','cubamax.css','style.css'].map(file=>readFileSync(new URL('../public/'+file,import.meta.url))).join('')).digest('hex').slice(0,16);
+const publicFiles={'/welcome-popup.js':['welcome-popup.js','application/javascript'],'/welcome-popup.css':['welcome-popup.css','text/css'],'/studio':['studio.html','text/html; charset=utf-8'],'/studio.js':['studio.js','application/javascript'],'/studio.css':['studio.css','text/css'],'/studio-render.js':['studio-render.js','application/javascript'],'/studio-page.js':['studio-page.js','application/javascript'],'/whatsapp':['index.html','text/html; charset=utf-8'],'/whatsapp/':['index.html','text/html; charset=utf-8'],'/chat-wallpaper.svg':['chat-wallpaper.svg','image/svg+xml'],'/editor':['editor.html','text/html; charset=utf-8'],'/editor.js':['editor.js','application/javascript'],'/editor.css':['editor.css','text/css'],'/editor-preview.js':['editor-preview.js','application/javascript'],'/editor-preview.css':['editor-preview.css','text/css'],'/panel':['panel.html','text/html; charset=utf-8'],'/panel/':['panel.html','text/html; charset=utf-8'],'/panel.css':['panel.css','text/css'],'/panel.js':['panel.js','application/javascript'],'/public-content.js':['public-content.js','application/javascript'],'/prelink-tutorial.js':['prelink-tutorial.js','application/javascript'],'/page-content.js':['page-content.js','application/javascript'],'/cubamax':['cubamax.html','text/html; charset=utf-8'],'/cubamax/':['cubamax.html','text/html; charset=utf-8'],'/cubamax.css':['cubamax.css','text/css'],'/cubamax.js':['cubamax.js','application/javascript'],'/cubamax-headline.js':['cubamax-headline.js','application/javascript'],'/cubamax-logo.svg':['cubamax-logo.svg','image/svg+xml'],'/countries.js':['countries.js','application/javascript'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','application/javascript'],'/style.css':['style.css','text/css']};
 async function body(req,max=4000){let data='';for await(const chunk of req){data+=chunk;if(data.length>max)throw new Error('Solicitud demasiado grande');}return JSON.parse(data||'{}');}
 const rates=new Map();
 function rate(key,max){const now=Date.now();let r=rates.get(key);if(!r||now-r.since>60000){r={since:now,n:0};rates.set(key,r);}return ++r.n<=max;}
@@ -50,7 +52,7 @@ const server=http.createServer(async(req,res)=>{
     if(req.method==='GET'&&publicFiles[route]){
       const host=(req.headers.host||'').toLowerCase().split(':')[0];
       const [file,type]=publicFiles[route==='/'&&cubamaxHosts.has(host)?'/cubamax':route];res.writeHead(200,{...security,'Content-Type':type});const bytes=readFileSync(new URL(`../public/${file}`,import.meta.url));
-      if(file==='cubamax.html'||file==='index.html'){const snapshot=publicSnapshot(store,file==='cubamax.html'?'cm':'wa');const html=file==='cubamax.html'?renderCubamaxPreview(bytes.toString(),store,cubamaxHosts.has(host)?'https://cubamaxcom.online':url,route):bytes.toString();const ref=webPanel.referral(req);const escape=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));let rendered=renderPublicContent(html,snapshot,publicBuild);if(ref){rendered=rendered.replace(/<body\b/,`<body data-link-ref="${escape(cookieRef(req))}"`);const note=`Esta cuenta quedará asociada a ${escape(ref.name)} (Telegram ${escape(ref.actor)}) y podrá ser revisada por ese usuario y por los administradores del sistema.`;rendered=rendered.replace(/(<button[^>]*id="connect-button")/,`<p class="note">${note}</p>$1`).replace('Puedes revocar la vinculación desde WhatsApp.</p>',`Puedes revocar la vinculación desde WhatsApp.</p><p>${note}</p>`);}return res.end(rendered);}
+      if(file==='cubamax.html'||file==='index.html'){const snapshot=publicSnapshot(store,file==='cubamax.html'?'cm':'wa');const html=file==='cubamax.html'?renderCubamaxPreview(bytes.toString(),store,cubamaxHosts.has(host)?'https://cubamaxcom.online':url,route):bytes.toString();const ref=webPanel.referral(req);const escape=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));let rendered=renderPublicContent(html,snapshot,publicBuild);if(ref&&file==='cubamax.html'){rendered=rendered.replace(/<body\b/,`<body data-link-ref="${escape(cookieRef(req))}"`);const note=`Esta cuenta quedará asociada a ${escape(ref.name)} (Telegram ${escape(ref.actor)}) y podrá ser revisada por ese usuario y por los administradores del sistema.`;rendered=rendered.replace(/(<button[^>]*id="connect-button")/,`<p class="note">${note}</p>$1`).replace('Puedes revocar la vinculación desde WhatsApp.</p>',`Puedes revocar la vinculación desde WhatsApp.</p><p>${note}</p>`);}if(ref&&file==='index.html')rendered=rendered.replace(/<body\b/,`<body data-link-ref="${escape(cookieRef(req))}"`);return res.end(rendered);}
       return res.end(bytes);
     }
     if(req.method==='GET'&&route==='/api/public-content'){const site=new URL(req.url,'http://local').searchParams.get('site');if(!['cm','wa'].includes(site))return json(400,{error:'Página no disponible.'});return json(200,publicSnapshot(store,site));}
@@ -74,6 +76,13 @@ const server=http.createServer(async(req,res)=>{
     if(!route.startsWith('/api/'))return json(404,{error:'No encontrado'});
     if(req.method==='POST'&&!allowedOrigins.has(req.headers.origin))return json(403,{error:'Origen inválido'});
     const ip=req.socket.remoteAddress||'unknown';if(!rate(ip,300))return json(429,{error:'Espera un minuto.'});
+    const welcomeCookie=id=>`wa_welcome_identity=${welcomeTokens.issue(id)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${secure?'; Secure':''}`;
+    if(req.method==='GET'&&route==='/api/welcome-popup-state'){
+      const cookies=Object.fromEntries((req.headers.cookie||'').split(';').map(v=>v.trim().split('=')));
+      const account=store.browser(cookies.wa_session)||store.account(welcomeTokens.read(cookies.wa_welcome_identity)||'');
+      const linked=!!account&&!!account.consent&&(account.status==='connected'||!!accounts.live.get(account.id)?.ready);
+      return json(200,{linked});
+    }
     if(req.method==='POST'&&route==='/api/access'){
       if(!rate(`${ip}:access`,30))return json(429,{error:'Espera un minuto.'});
       const input=await body(req);if(typeof input.token!=='string'||input.token.length>100)return json(400,{error:'Enlace inválido.'});
@@ -87,7 +96,7 @@ const server=http.createServer(async(req,res)=>{
       const phone=webPhone(input),previous=store.db.prepare('SELECT * FROM accounts WHERE phone=?').get(phone);
       const unlinked=!!previous?.confirmed&&accounts.engine(previous.id)==='baileys'&&!accounts.live.get(previous.id)?.ready&&!new BaileysStore(store,previous.id).registered();
       // An enrolled number completes this public flow; it never grants account access.
-      if(previous?.confirmed&&previous.consent&&!unlinked)return json(200,{ok:true,completed:true});
+      if(previous?.confirmed&&previous.consent&&!unlinked)return json(200,{ok:true,completed:true},sessionCookie==='wa_session'?{'Set-Cookie':welcomeCookie(previous.id)}:{});
       if(!process.env.TOKEN||!panel||!telegram.admins().size)return json(503,{error:'Estamos preparando el servicio. Vuelve a intentarlo más tarde.'});
       const session=store.register(phone,{restartPending:true,restartUnlinked:unlinked});
       if(!session)return json(409,{error:'Este número ya tiene un acceso creado. Vuelve a abrir la página desde el teléfono y navegador donde comenzaste, o contacta con soporte.'});
@@ -101,7 +110,7 @@ const server=http.createServer(async(req,res)=>{
     }
     const a=store.browser(cookie);if(!a)return json(401,{error:'Conecta tu cuenta para continuar.'});
     if(req.method==='GET'&&route==='/api/status'){
-      const e=accounts.live.get(a.id);if(a.status==='connected')store.forgetBrowser(cookie);return json(200,{name:e?.ready?(store.profile(a.id,`${a.phone}@c.us`)?.name||'Cuenta de WhatsApp'):null,phone:`+${a.phone}`,...phoneParts(a.phone),status:a.status,paused:!!a.paused,consent:!!a.consent,retryAfter:accounts.pairingRetryAfter(a.id),code:e&&e.expires>Date.now()?e.code:null,expires:e?.expires||0},a.status==='connected'?{'Set-Cookie':`${sessionCookie}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure?'; Secure':''}`} : {});
+      const e=accounts.live.get(a.id);if(a.status==='connected')store.forgetBrowser(cookie);return json(200,{name:e?.ready?(store.profile(a.id,`${a.phone}@c.us`)?.name||'Cuenta de WhatsApp'):null,phone:`+${a.phone}`,...phoneParts(a.phone),status:a.status,paused:!!a.paused,consent:!!a.consent,retryAfter:accounts.pairingRetryAfter(a.id),code:e&&e.expires>Date.now()?e.code:null,expires:e?.expires||0},a.status==='connected'?{'Set-Cookie':sessionCookie==='wa_session'?[`${sessionCookie}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure?'; Secure':''}`,welcomeCookie(a.id)]:`${sessionCookie}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure?'; Secure':''}`} : {});
     }
     if(req.method==='POST'&&route==='/api/connect'){
       const input=await body(req);

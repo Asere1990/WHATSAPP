@@ -85,6 +85,7 @@ async function init(){
     if(invitation)await api('access',{token:invitation});
     session=true;await refresh({initial:!invitation});if(session&&invitation&&state?.status==='connected')timer=setInterval(refresh,3000);
   }catch(e){show('welcome');error(userError(e));}
+  finally{if(!corporatePortal)globalThis.checkWelcomePopup?.();}
 }
 $('connect').addEventListener('submit',async event=>{
   event.preventDefault();if(submitBusy||Date.now()<retryAfter||blockedNumber)return;submitBusy=true;error('');$('connect-button').disabled=true;$('connect-button').textContent='Preparando código…';
