@@ -79,3 +79,46 @@ test('generic layout layer resolves anchored elements and preserves existing tra
   assert.equal(child.style.translate,'');
   assert.equal(child.style.scale,'');
 });
+
+test('WhatsApp header items remain four independently editable and positionable elements',t=>{
+  const {store,editor}=setup(t),base=editor.data('admin','wa'),fields=new Map(base.fields.map(f=>[f.id,f]));
+  assert.equal(fields.get('brand:logo').group,'identity');
+  assert.equal(fields.get('identity:text').group,'identity');
+  assert.equal(fields.get('brand:subtitle').group,'identity');
+  assert.equal(fields.get('brand:verified').group,'identity');
+  const original=editor.preview('admin','wa','header');
+  for(const id of ['wa-brand-logo','wa-brand-name','wa-brand-description','wa-verified-badge'])assert.match(original,new RegExp('id="'+id+'"'));
+  assert.match(original,/<span id="wa-brand-name">WhatsApp<\/span>/);
+  assert.match(original,/<svg id="wa-verified-badge" class="verified-badge"/);
+  const cmBefore=publicSnapshot(store,'cm').revision,waBefore=publicSnapshot(store,'wa').revision;
+  const changed=editor.save('admin',{site:'wa',version:base.version,revision:base.base,changes:[
+    {id:'identity:text',value:'Mi marca'},
+    {id:'identity:mode',value:'text'},
+    {id:'brand:subtitle',value:'Una descripción independiente'},
+    {id:'brand:verified',value:'hidden'},
+    {id:'placement:id:wa-brand-logo',value:JSON.stringify({x:0,y:0,scale:.8})},
+    {id:'placement:id:wa-brand-name',value:JSON.stringify({x:5,y:0,scale:1.2})},
+    {id:'placement:id:wa-brand-description',value:JSON.stringify({x:0,y:3,scale:1})},
+    {id:'placement:id:wa-verified-badge',value:JSON.stringify({x:-2,y:0,scale:1.5})}
+  ]});
+  assert.equal(publicSnapshot(store,'wa').revision,waBefore);
+  const preview=editor.preview('admin','wa','header');
+  assert.match(preview,/<span id="wa-brand-name">Mi marca<\/span>/);
+  assert.match(preview,/<span id="wa-brand-description" class="brand-sub">Una descripción independiente<\/span>/);
+  assert.match(preview,/<svg id="wa-verified-badge" class="verified-badge" hidden/);
+  assert.match(preview,/"id:wa-brand-name":\{"x":5,"y":0,"scale":1.2\}/);
+  assert.match(preview,/"id:wa-verified-badge":\{"x":-2,"y":0,"scale":1.5\}/);
+  editor.publish('admin',{site:'wa',version:changed.version});
+  const snapshot=publicSnapshot(store,'wa');
+  assert.equal(snapshot.header.badge,'hidden');
+  assert.equal(snapshot.header.subtitle,'Una descripción independiente');
+  assert.equal(snapshot.layout['id:wa-brand-logo'].scale,.8);
+  assert.equal(snapshot.layout['id:wa-brand-name'].scale,1.2);
+  assert.equal(snapshot.layout['id:wa-brand-description'].y,3);
+  assert.equal(snapshot.layout['id:wa-verified-badge'].scale,1.5);
+  assert.equal(publicSnapshot(store,'cm').revision,cmBefore);
+});
+test('WhatsApp header rejects invalid icon settings',t=>{
+  const {editor}=setup(t),d=editor.data('admin','wa');
+  assert.throws(()=>editor.save('admin',{site:'wa',version:d.version,revision:d.base,changes:[{id:'brand:verified',value:'anything'}]}),/Visibilidad/);
+});

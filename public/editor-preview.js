@@ -13,7 +13,17 @@ function pick(target){
    }
   }
  }
- const siteName=target.closest('.wordmark .brand-title,header .corporate-brand>img,header .corporate-brand>.page-name-text');
+ if(site==='wa'){
+  const badge=target.closest('#wa-verified-badge');if(badge)return {field:find('brand:verified'),el:badge};
+  const logo=target.closest('#wa-brand-logo');if(logo)return {field:find('brand:logo'),el:logo};
+  const subtitle=target.closest('#wa-brand-description');if(subtitle)return {field:find('brand:subtitle'),el:subtitle};
+  const title=target.closest('#wa-brand-name,.wordmark .brand-title');
+  if(title){
+   const name=title.id==='wa-brand-name'?title:title.querySelector?.('#wa-brand-name');
+   if(name)return {field:find(globalThis.currentPublicContent?.identity?.mode==='photo'?'identity:photo':'identity:text'),el:name};
+  }
+ }
+ const siteName=target.closest('header .corporate-brand>img,header .corporate-brand>.page-name-text');
  if(siteName)return {field:find('identity:mode'),el:siteName};
  if(site==='wa')for(const key of ['title','text','button','photo']){const el=target.closest('#wa-welcome-'+key);if(el)return {field:find('welcome:'+key),el};}
  const pairingInstruction=target.closest('#pairing-account + p');if(pairingInstruction)return {field:find('pairing:instructions'),el:pairingInstruction};
@@ -169,7 +179,7 @@ document.addEventListener('pointermove',e=>{
  if(drag){e.preventDefault();updateTouch([e]);}
 },true);
 document.addEventListener('pointerup',e=>{if(e.pointerType==='touch')return;if(hold)clearHold();finishDrag();},true);
-document.addEventListener('contextmenu',e=>{if(drag){e.preventDefault();}},true);
+document.addEventListener('contextmenu',e=>{if(editing&&(drag||hold||e.target.closest?.('a')))e.preventDefault();},true);
 document.addEventListener('dragstart',e=>{if(editing&&drag)e.preventDefault();},true);
 document.addEventListener('click',e=>{if(Date.now()<suppressClickUntil){e.preventDefault();e.stopImmediatePropagation();}},true);
 // Only the visual editor closes a preview popup when its dark backdrop is tapped.

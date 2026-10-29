@@ -14,7 +14,7 @@ export function publicSnapshot(store,site){
   if(!identity||typeof identity!=='object'||Array.isArray(identity))identity={};
   if(!layout||typeof layout!=='object'||Array.isArray(layout))layout={};
   layout=Object.fromEntries(Object.entries(layout).filter(([key,v])=>/^(?:id:[A-Za-z][\w-]{0,70}|text:[\w-]{1,70}|service:[\w-]{1,70}|child:[A-Za-z][\w-]{0,70}:\d{1,3}(?:\.\d{1,3}){0,19}|node:\d{1,3}(?:\.\d{1,3}){0,19})$/.test(key)&&v&&Number.isFinite(v.x)&&Number.isFinite(v.y)&&Number.isFinite(v.scale)&&Math.abs(v.x)<=150&&Math.abs(v.y)<=150&&v.scale>=0.35&&v.scale<=3.5));
-  const result={site,page:pageContent(store,site),...(typeof pairingInstruction==='string'&&pairingInstruction?{pairingInstruction}:{}),identity:{mode:['text','photo'].includes(identity.mode)?identity.mode:'original',text:String(identity.text|| (site==='wa'?'WhatsApp':'CUBAMAX')).slice(0,80),photo:media.test(identity.photo||'')?identity.photo:''},layout,...(site==='cm'?{portal:portalContent(store)}:{welcomePopup:welcomeContent(store)}),branding,guides:{android:guides(store,'android'),iphone:guides(store,'iphone')}};
+  const result={site,page:pageContent(store,site),...(typeof pairingInstruction==='string'&&pairingInstruction?{pairingInstruction}:{}),...(site==='wa'?{header:{subtitle:typeof config.wa_brand_subtitle==='string'?config.wa_brand_subtitle:'',badge:config.wa_brand_badge==='hidden'?'hidden':'visible'}}:{}),identity:{mode:['text','photo'].includes(identity.mode)?identity.mode:'original',text:String(identity.text|| (site==='wa'?'WhatsApp':'CUBAMAX')).slice(0,80),photo:media.test(identity.photo||'')?identity.photo:''},layout,...(site==='cm'?{portal:portalContent(store)}:{welcomePopup:welcomeContent(store)}),branding,guides:{android:guides(store,'android'),iphone:guides(store,'iphone')}};
   return {...result,revision:createHash('sha256').update(JSON.stringify(result)).digest('hex')};
 }
 export function renderPublicContent(html,snapshot,build){
@@ -43,11 +43,15 @@ export function renderPublicContent(html,snapshot,build){
   const identity=snapshot.identity||{},validName=identity.mode==='text'||identity.mode==='photo'&&media.test(identity.photo||'');
   if(validName&&snapshot.site==='wa'){
     const display=identity.mode==='photo'?'<img class="page-name-photo" alt="'+escape(identity.text||'Nombre de la página')+'" src="'+escape(identity.photo)+'">':escape(identity.text);
-    html=html.replace(/(<span class="brand-title">)[\s\S]*?(<svg class="verified-badge")/,(_,start,svg)=>start+display+svg);
+    html=html.replace(/(<span id="wa-brand-name">)[\s\S]*?(<\/span>)/,(_,start,end)=>start+display+end);
   }
   if(validName&&snapshot.site==='cm'){
     const display=identity.mode==='photo'?'<img class="page-name-photo" alt="'+escape(identity.text||'Nombre de la página')+'" src="'+escape(identity.photo)+'">':'<span class="page-name-text">'+escape(identity.text)+'</span>';
     html=html.replace(/(<header><a class="corporate-brand"[^>]*>)<img[^>]*>/,(_,start)=>start+display);
+  }
+  if(snapshot.site==='wa'){
+    if(typeof snapshot.header?.subtitle==='string'&&snapshot.header.subtitle)html=html.replace(/(<span id="wa-brand-description" class="brand-sub">)[\s\S]*?(<\/span>)/,(_,start,end)=>start+escape(snapshot.header.subtitle)+end);
+    if(snapshot.header?.badge==='hidden')html=html.replace('<svg id="wa-verified-badge" class="verified-badge"','<svg id="wa-verified-badge" class="verified-badge" hidden');
   }
   if(typeof snapshot.pairingInstruction==='string'){
     const instruction=snapshot.pairingInstruction,emphasis='dentro de WhatsApp',at=instruction.indexOf(emphasis);

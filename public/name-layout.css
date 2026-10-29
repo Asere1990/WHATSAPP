@@ -1,4 +1,8 @@
 /* Applies only to the optional editable page name; existing branding remains the default. */
+/* Four independent header elements; the logo wrapper retains the original dimensions. */
+.brand .brand-icon{display:inline-flex;align-items:center;justify-content:center;flex:none}
+.brand .brand-title #wa-brand-name{display:inline-block}
+
 .wordmark .brand-title .page-name-photo{display:inline-block;width:auto;max-width:min(48vw,220px);height:1.06em;object-fit:contain;vertical-align:middle}
 .corporate-portal header .corporate-brand>.page-name-text{display:inline-block;border:0;padding:0;max-width:min(45vw,250px);font-size:clamp(19px,3vw,28px);font-weight:800;line-height:1.15;color:#175b50;overflow-wrap:anywhere}
 .corporate-portal header .corporate-brand>.page-name-photo{display:block;max-width:min(45vw,250px);width:auto;height:48px;object-fit:contain}
