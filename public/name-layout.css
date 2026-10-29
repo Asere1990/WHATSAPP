@@ -14,7 +14,7 @@ body[data-visual-preview] [data-element-dragging]{outline:2px dashed #06b6a3!imp
    to their common text container; a draft reload keeps the same grid anchors. */
 body:not(.corporate-portal)>header .brand{
   display:grid;
-  grid-template-columns:46px minmax(0,1fr);
+  grid-template-columns:52px minmax(0,1fr);
   gap:12px;
   align-items:center;
   min-width:0;
@@ -25,16 +25,16 @@ body:not(.corporate-portal)>header .brand{
 body:not(.corporate-portal)>header .brand #wa-brand-logo{
   grid-column:1;
   grid-row:1;
-  width:46px;
-  height:46px;
+  width:52px;
+  height:52px;
   display:flex;
   align-items:center;
   justify-content:center;
   flex:none;
 }
 body:not(.corporate-portal)>header .brand #wa-brand-logo img{
-  width:46px;
-  height:46px;
+  width:52px;
+  height:52px;
   flex:none;
   object-fit:contain;
 }
@@ -67,8 +67,10 @@ body:not(.corporate-portal)>header .brand #wa-verified-badge{
   width:.7em;
   height:.7em;
   display:block;
-  align-self:center;
+  align-self:end;
   justify-self:start;
+  position:relative;
+  top:.12em;
   flex:none;
 }
 body:not(.corporate-portal)>header .brand #wa-brand-description{
@@ -84,15 +86,36 @@ body:not(.corporate-portal)>header .brand #wa-brand-description{
 }
 @media(max-width:800px){
   body:not(.corporate-portal)>header .brand{
-    grid-template-columns:38px minmax(0,1fr);
+    grid-template-columns:43px minmax(0,1fr);
     gap:12px;
   }
   body:not(.corporate-portal)>header .brand #wa-brand-logo{
-    width:38px;
-    height:38px;
+    width:43px;
+    height:43px;
   }
   body:not(.corporate-portal)>header .brand #wa-brand-logo img{
-    width:38px;
-    height:38px;
+    width:43px;
+    height:43px;
+  }
+}
+
+
+/* The fallback WhatsApp glyph follows the photo logo dimensions exactly. */
+body:not(.corporate-portal)>header .brand #wa-brand-logo .mark{
+  width:52px;
+  height:52px;
+}
+body:not(.corporate-portal)>header .brand #wa-brand-logo .mark svg{
+  width:36px;
+  height:36px;
+}
+@media(max-width:800px){
+  body:not(.corporate-portal)>header .brand #wa-brand-logo .mark{
+    width:43px;
+    height:43px;
+  }
+  body:not(.corporate-portal)>header .brand #wa-brand-logo .mark svg{
+    width:30px;
+    height:30px;
   }
 }
