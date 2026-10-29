@@ -7,3 +7,23 @@ test('images, popup layout and guide videos publish through existing content sto
 test('uploads validate actual image bytes, use immutable local paths and reject SVG scripts',async t=>{const {editor}=setup(t),{Readable}=await import('node:stream'),{default:sharp}=await import('sharp');const jpeg=await sharp({create:{width:10,height:10,channels:3,background:'#0a8066'}}).jpeg().toBuffer(),request=Readable.from([jpeg]);request.url='/api/panel/editor/upload';const result=await editor.upload(request);assert.match(result.asset,/^\/portal-media\/[a-f0-9]{64}\.jpg$/);const svg=Readable.from([Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>')]);svg.url='/api/panel/editor/upload';await assert.rejects(editor.upload(svg),/Formato|Envía/);});
 
 test('authorization screen and copied-code popup are editable in both websites',t=>{const {editor}=setup(t);for(const site of ['wa','cm']){const data=editor.data('1',site);for(const text of ['Autoriza en WhatsApp','Copiar código','Código copiado','ENTENDIDO','Número que estás vinculando: {numero}'])assert.ok(data.fields.some(f=>f.source===text),site+': '+text);}});
+
+test('pairing instructions edit as one complete sentence independently on both sites',t=>{
+ const {store,editor}=setup(t),original='Introduce este código dentro de WhatsApp para vincular nuestro gestor.',replacement='Escribe este código dentro de WhatsApp y confirma la vinculación.';
+ for(const site of ['cm','wa']){
+  const data=editor.data('1',site),field=data.fields.find(f=>f.id==='pairing:instructions');
+  assert.equal(field.value,original);
+  assert.equal(data.fields.filter(f=>['Introduce este código','dentro de WhatsApp','para vincular nuestro gestor.'].includes(f.source)).length,0);
+  const prior=publicSnapshot(store,site).revision,other=site==='cm'?'wa':'cm',otherBefore=publicSnapshot(store,other).revision;
+  const edited=editor.save('1',{site,version:data.version,revision:data.base,changes:[{id:field.id,value:replacement}]});
+  assert.equal(editor.data('1',site).fields.find(f=>f.id===field.id).value,replacement);
+  assert.equal(publicSnapshot(store,site).revision,prior);
+  const preview=editor.preview('1',site,'unit-test');
+  assert.match(preview,/Escribe este código <strong>dentro de WhatsApp<\/strong> y confirma la vinculación\./);
+  assert.match(preview,/<p data-whole-pairing-instruction="">/);
+  editor.publish('1',{site,version:edited.version});
+  assert.equal(publicSnapshot(store,site).pairingInstruction,replacement);
+  assert.equal(publicSnapshot(store,other).revision,otherBefore);
+  assert.match(editor.preview('1',site,'unit-test'),/Escribe este código <strong>dentro de WhatsApp<\/strong> y confirma la vinculación\./);
+ }
+});

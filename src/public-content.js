@@ -8,7 +8,8 @@ const decode=value=>value.replace(/&(amp|lt|gt|quot|apos|#39|nbsp);/g,(_,s)=>({a
 const media=/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/;
 export function publicSnapshot(store,site){
   const config=store.config(),branding={title:'Tu WhatsApp, bien atendido.',description:'Conecta tu cuenta para que nuestro equipo te ayude a gestionar tus conversaciones y archivos.',button:'CONECTAR CUENTA',color:'#128c7e',...Object.fromEntries(['title','description','button','color','logo'].filter(k=>config[k]).map(k=>[k,config[k]]))};
-  const result={site,page:pageContent(store,site),...(site==='cm'?{portal:portalContent(store)}:{welcomePopup:welcomeContent(store)}),branding,guides:{android:guides(store,'android'),iphone:guides(store,'iphone')}};
+  const pairingInstruction=config['pairing_instruction_'+site];
+  const result={site,page:pageContent(store,site),...(typeof pairingInstruction==='string'&&pairingInstruction?{pairingInstruction}:{}),...(site==='cm'?{portal:portalContent(store)}:{welcomePopup:welcomeContent(store)}),branding,guides:{android:guides(store,'android'),iphone:guides(store,'iphone')}};
   return {...result,revision:createHash('sha256').update(JSON.stringify(result)).digest('hex')};
 }
 export function renderPublicContent(html,snapshot,build){
@@ -33,6 +34,11 @@ export function renderPublicContent(html,snapshot,build){
     for(const [service,asset]of Object.entries(p.cards))html=html.replace(new RegExp(`(<button\\b[^>]*data-service="${service}"[^>]*>)`),(_,tag)=>tag.replace('service-card','service-card has-image')+`<img class="service-card-photo" src="${escape(image(asset))}" data-public-source="${escape(asset)}" alt="" loading="lazy">`);
   }else{
     for(const [id,key]of [['title','title'],['description','description'],['begin','button']])html=html.replace(new RegExp(`(<([a-z][\\w-]*)\\b[^>]*\\bid="${id}"[^>]*>)[\\s\\S]*?(<\\/\\2>)`),(_,start,tag,end)=>start+escape(snapshot.branding[key])+end);
+  }
+  if(typeof snapshot.pairingInstruction==='string'){
+    const instruction=snapshot.pairingInstruction,emphasis='dentro de WhatsApp',at=instruction.indexOf(emphasis);
+    const formatted=at<0?escape(instruction):escape(instruction.slice(0,at))+'<strong>'+escape(emphasis)+'</strong>'+escape(instruction.slice(at+emphasis.length));
+    html=html.replace(/(<p id="pairing-account"[^>]*><\/p>\s*)<p>[\s\S]*?<\/p>/,(_,before)=>before+'<p data-whole-pairing-instruction="">'+formatted+'</p>');
   }
   html=html.replace(/<img\b([^>]*\bsrc="[^"]+\.mp4"[^>]*)>/gi,(_,attrs)=>`<video${attrs} muted playsinline autoplay loop preload="metadata"></video>`);
   // Immutable release URLs prevent a device from mixing old JS/CSS with new HTML.

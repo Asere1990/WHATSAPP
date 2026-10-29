@@ -18,7 +18,7 @@
   return replacement===undefined?source:source.replace(trimmed,()=>replacement);
  }
  function apply(root){
-  if(root.nodeType===3){if(root.parentElement?.closest('script,style,svg,[data-cubamax-text]'))return;const previous=rendered.get(root);if(previous!==root.nodeValue||!originals.has(root))originals.set(root,initialSources.get(root.nodeValue.trim())||root.nodeValue);const value=textValue(originals.get(root));if(value!==root.nodeValue)root.nodeValue=value;rendered.set(root,value);return;}
+  if(root.nodeType===3){if(root.parentElement?.closest('script,style,svg,[data-cubamax-text],[data-whole-pairing-instruction]'))return;const previous=rendered.get(root);if(previous!==root.nodeValue||!originals.has(root))originals.set(root,initialSources.get(root.nodeValue.trim())||root.nodeValue);const value=textValue(originals.get(root));if(value!==root.nodeValue)root.nodeValue=value;rendered.set(root,value);return;}
   if(root.nodeType!==1&&root!==document)return;
   if(root.nodeType===1){
    const sources=attributes.get(root)||{};attributes.set(root,sources);

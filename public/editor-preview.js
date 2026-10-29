@@ -14,6 +14,7 @@ function pick(target){
   }
  }
  if(site==='wa')for(const key of ['title','text','button','photo']){const el=target.closest('#wa-welcome-'+key);if(el)return {field:find('welcome:'+key),el};}
+ const pairingInstruction=target.closest('#pairing-account + p');if(pairingInstruction)return {field:find('pairing:instructions'),el:pairingInstruction};
  const pairingAccount=target.closest('#pairing-account');if(pairingAccount)return {field:fields.find(f=>f.source==='Número que estás vinculando: {numero}'),el:pairingAccount};
  const country=target.closest('#country');if(country){const option=country.options[0],text=option?.textContent.trim();return {field:fields.find(f=>f.kind==='text'&&(f.value===text||f.source===text)),el:country};}
  const explicit=target.closest('[data-cubamax-text]');if(explicit)return {field:find('portal:'+explicit.dataset.cubamaxText),el:explicit};
