@@ -48,12 +48,20 @@
     el.style.translate=p.x||p.y?p.x+'vw '+p.y+'vw':'';
     el.style.scale=p.scale!==1?String(p.scale):'';
   }
+  // Prior editor releases saved header offsets using child/node or inner-logo
+  // keys. The header now has four stable IDs; old structural keys may point
+  // to a different element after a draft reload. Keep their stored values,
+  // but do not apply them to the new WhatsApp header.
+  function obsoleteWhatsAppHeaderPlacement(key,el){
+    if(window.currentPublicContent?.site!=='wa'||!(el?.closest?.('header')||el?.closest?.('header .brand')))return false;
+    return key==='id:logo'||key==='id:mark'||key.startsWith('child:')||key.startsWith('node:');
+  }
   function get(key){return normalize(pending.get(key)||stored()[key]||regular);}
   function set(key,position){if(!valid.test(key||''))return;const value=normalize(position);pending.set(key,value);draw(resolve(key),value);}
   function applyAll(){
     const saved=stored();
-    for(const [key,position] of Object.entries(saved))if(valid.test(key))draw(resolve(key),pending.get(key)||position);
-    for(const [key,position] of pending)if(!Object.hasOwn(saved,key))draw(resolve(key),position);
+    for(const [key,position] of Object.entries(saved))if(valid.test(key)){const el=resolve(key);if(!obsoleteWhatsAppHeaderPlacement(key,el))draw(el,pending.get(key)||position);}
+    for(const [key,position] of pending)if(!Object.hasOwn(saved,key)){const el=resolve(key);if(!obsoleteWhatsAppHeaderPlacement(key,el))draw(el,position);}
   }
   window.pageElementLayout={keyFor,resolve,get,set,applyAll};
   applyAll();

@@ -8,3 +8,91 @@
 .corporate-portal header .corporate-brand>.page-name-photo{display:block;max-width:min(45vw,250px);width:auto;height:48px;object-fit:contain}
 @media(max-width:800px){.corporate-portal header .corporate-brand>.page-name-photo{height:40px}.corporate-portal header .corporate-brand>.page-name-text{font-size:20px}}
 body[data-visual-preview] [data-element-dragging]{outline:2px dashed #06b6a3!important;outline-offset:4px!important;cursor:grabbing!important;z-index:3;position:relative}
+
+
+/* WHATSAPP header: fixed alignment slots. Movements belong to the four IDs, not
+   to their common text container; a draft reload keeps the same grid anchors. */
+body:not(.corporate-portal)>header .brand{
+  display:grid;
+  grid-template-columns:46px minmax(0,1fr);
+  gap:12px;
+  align-items:center;
+  min-width:0;
+  flex:0 1 auto;
+  width:max-content;
+  max-width:calc(100% - 6px);
+}
+body:not(.corporate-portal)>header .brand #wa-brand-logo{
+  grid-column:1;
+  grid-row:1;
+  width:46px;
+  height:46px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:none;
+}
+body:not(.corporate-portal)>header .brand #wa-brand-logo img{
+  width:46px;
+  height:46px;
+  flex:none;
+  object-fit:contain;
+}
+body:not(.corporate-portal)>header .brand .wordmark{
+  display:grid;
+  grid-column:2;
+  grid-row:1;
+  grid-template-columns:minmax(0,max-content) auto;
+  grid-template-rows:auto auto;
+  column-gap:6px;
+  row-gap:7px;
+  align-content:center;
+  align-items:center;
+  min-width:0;
+  max-width:100%;
+}
+body:not(.corporate-portal)>header .brand .brand-title{display:contents}
+body:not(.corporate-portal)>header .brand #wa-brand-name{
+  grid-column:1;
+  grid-row:1;
+  display:block;
+  min-width:0;
+  line-height:1;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+body:not(.corporate-portal)>header .brand #wa-verified-badge{
+  grid-column:2;
+  grid-row:1;
+  width:.7em;
+  height:.7em;
+  display:block;
+  align-self:center;
+  justify-self:start;
+  flex:none;
+}
+body:not(.corporate-portal)>header .brand #wa-brand-description{
+  grid-column:1/-1;
+  grid-row:2;
+  min-width:0;
+  max-width:100%;
+  margin:0;
+  justify-self:start;
+  align-self:start;
+  line-height:1.4;
+  overflow-wrap:break-word;
+}
+@media(max-width:800px){
+  body:not(.corporate-portal)>header .brand{
+    grid-template-columns:38px minmax(0,1fr);
+    gap:12px;
+  }
+  body:not(.corporate-portal)>header .brand #wa-brand-logo{
+    width:38px;
+    height:38px;
+  }
+  body:not(.corporate-portal)>header .brand #wa-brand-logo img{
+    width:38px;
+    height:38px;
+  }
+}
