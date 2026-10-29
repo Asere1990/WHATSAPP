@@ -158,6 +158,7 @@ document.addEventListener('touchend',e=>{
  if(drag){if(e.touches.length===0)finishDrag();else if(e.touches.length===1){drag.pinch=null;const t=e.touches[0];drag.anchor={x:t.clientX,y:t.clientY,pos:{...drag.current}};}}
 },{passive:true,capture:true});
 document.addEventListener('touchcancel',()=>finishDrag(),true);
+document.addEventListener('gesturestart',e=>{if(editing&&(hold||drag)&&e.cancelable)e.preventDefault();},{passive:false});
 document.addEventListener('pointerdown',e=>{
  if(!editing||e.pointerType==='touch'||e.button!==0||drag)return;
  beginHold(moveTarget(e.target),e);
