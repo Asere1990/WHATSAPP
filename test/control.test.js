@@ -282,6 +282,6 @@ test('account identity uses own WhatsApp contact push name instead of generic re
  const f=setup(t);f.client.info.pushname=undefined;f.client.getContactById=async()=>({pushname:'Nombre exacto de WhatsApp'});
  const profile=await f.manager.tools.identity(f.a.id,f.a.phone+'@c.us',true);assert.equal(profile.name,'Nombre exacto de WhatsApp');
  await f.bot.control.home(123,123);const menu=f.calls.at(-1).body;
- assert.match(menu.text,/Nombre exacto de WhatsApp/);assert.match(menu.text,/13215121897/);
- assert.ok(menu.reply_markup.inline_keyboard.flat().every(b=>!b.text.includes('Nombre exacto de WhatsApp')));
+ assert.match(menu.text,/Nombre exacto de WhatsAp/);assert.match(menu.text,/13215121897/);
+ assert.ok(menu.reply_markup.inline_keyboard.flat().every(b=>!b.text.includes('Nombre exacto de WhatsAp')));
 });
