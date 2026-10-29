@@ -86,6 +86,17 @@ function popup(service,step=0){const previous=section;section=service;guideStep=
   return;
  }
  if(site==='wa'){if(service==='welcome')document.getElementById('wa-welcome')?.showModal();return;}corporateService=service;renderServicePopup();document.getElementById('service-dialog').showModal();}
+// Only the visual editor closes a preview popup when its dark backdrop is tapped.
+document.addEventListener('click',e=>{
+ const dialog=e.target;
+ if(dialog?.tagName!=='DIALOG'||!dialog.open)return;
+ const rect=dialog.getBoundingClientRect();
+ if(e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom)return;
+ e.preventDefault();e.stopImmediatePropagation();dialog.close();
+ section='';lastTextTap=null;
+ if(site==='cm'&&typeof corporateService!=='undefined')corporateService='';
+ tell({type:'popup-closed',dialog:dialog.id});
+},true);
 document.addEventListener('click',e=>{const target=e.target.closest?.('*');if(!target)return;
  if(section==='guide-iphone'||section==='guide-android'){
   if(target.closest('#prelink-close')){e.preventDefault();e.stopImmediatePropagation();document.getElementById('prelink-tutorial')?.close();return;}
@@ -101,7 +112,7 @@ document.addEventListener('click',e=>{const target=e.target.closest?.('*');if(!t
   else lastTextTap={id:hit.field.id,el:hit.el,time:now};
  }else select(hit.field.id,hit.el);return;}const card=target.closest('[data-service]');if(card){e.preventDefault();e.stopImmediatePropagation();popup(card.dataset.service);return;}if(target.closest('button,a,input,select,textarea')){if(anchor?.getAttribute('href')?.startsWith('#'))return;e.preventDefault();e.stopImmediatePropagation();}},true);
 document.addEventListener('submit',e=>{e.preventDefault();e.stopImmediatePropagation();},true);
-window.addEventListener('message',e=>{if(e.source!==parent||e.origin!==location.origin)return;const m=e.data;if(m?.type==='mode'){editing=!!m.editing;document.body.dataset.editing=String(editing);if(!editing)selected?.removeAttribute('data-editor-selected');}if(m?.type==='unselect')selected?.removeAttribute('data-editor-selected');if(m?.type==='popup')popup(m.service,m.step);if(m?.type==='restore'){scrollTo(0,Number(m.scroll)||0);if(m.service)popup(m.service,m.step);}});
+window.addEventListener('message',e=>{if(e.source!==parent||e.origin!==location.origin)return;const m=e.data;if(m?.type==='mode'){editing=!!m.editing;document.body.dataset.editing=String(editing);if(!editing)selected?.removeAttribute('data-editor-selected');}if(m?.type==='unselect')selected?.removeAttribute('data-editor-selected');if(m?.type==='popup')popup(m.service,m.step);if(m?.type==='restore'){scrollTo(0,Number(m.scroll)||0);if(m.dismissedWelcome&&!m.service)document.getElementById('wa-welcome')?.close();if(m.service)popup(m.service,m.step);}});
 // Scrolling or dragging must never count as the first half of a double tap.
 document.addEventListener('pointercancel',()=>{lastTextTap=null;},true);
 window.addEventListener('scroll',()=>{lastTextTap=null;},{passive:true});
