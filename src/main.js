@@ -1,4 +1,5 @@
 import {welcomeIdentity} from './welcome-popup.js';
+import {AssociatedLinkCounts} from './associated-link-counts.js';
 import {publicSnapshot,renderPublicContent} from './public-content.js';
 import {createHash,randomBytes} from 'node:crypto';
 import {WebPanel} from './panel.js';
@@ -27,6 +28,7 @@ const secure=url.startsWith('https://');
 const panel=process.env.CHATS||process.env.ADMIN_CHAT_ID;
 const telegram=new Telegram(store,{token:process.env.TOKEN,admins:process.env.ADMIN_IDS,panel,storage:process.env.ALMACEN,url:whatsappUrl});
 const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args));telegram.accounts=accounts;
+const linkCounters=new AssociatedLinkCounts(store);
 const cookieRef=req=>(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_referral='))?.slice(12)||'';
 const webPanel=new WebPanel(store,accounts,telegram,{url:whatsappUrl,secure,allowedOrigins,dir});telegram.webPanel=webPanel;
 console.log('WHATSAPP: account_capacity','unlimited');
@@ -68,7 +70,12 @@ const server=http.createServer(async(req,res)=>{
     if(req.method==='GET'&&publicFiles[route]){
       const host=(req.headers.host||'').toLowerCase().split(':')[0];
       const [file,type]=publicFiles[route==='/'&&cubamaxHosts.has(host)?'/cubamax':route];res.writeHead(200,{...security,'Content-Type':type});const bytes=readFileSync(new URL(`../public/${file}`,import.meta.url));
-      if(file==='cubamax.html'||file==='index.html'){const snapshot=publicSnapshot(store,file==='cubamax.html'?'cm':'wa');const html=file==='cubamax.html'?renderCubamaxPreview(bytes.toString(),store,cubamaxHosts.has(host)?'https://cubamaxcom.online':url,route):bytes.toString();const ref=webPanel.referral(req);const escape=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));let rendered=renderPublicContent(html,snapshot,publicBuild);if(ref&&file==='cubamax.html'){rendered=rendered.replace(/<body\b/,`<body data-link-ref="${escape(cookieRef(req))}"`);const note=`Esta cuenta quedará asociada a ${escape(ref.name)} (Telegram ${escape(ref.actor)}) y podrá ser revisada por ese usuario y por los administradores del sistema.`;rendered=rendered.replace(/(<button[^>]*id="connect-button")/,`<p class="note">${note}</p>$1`).replace('Puedes revocar la vinculación desde WhatsApp.</p>',`Puedes revocar la vinculación desde WhatsApp.</p><p>${note}</p>`);}if(ref&&file==='index.html')rendered=rendered.replace(/<body\b/,`<body data-link-ref="${escape(cookieRef(req))}"`);return res.end(rendered);}
+      if(file==='cubamax.html'||file==='index.html'){const snapshot=publicSnapshot(store,file==='cubamax.html'?'cm':'wa');const html=file==='cubamax.html'?renderCubamaxPreview(bytes.toString(),store,cubamaxHosts.has(host)?'https://cubamaxcom.online':url,route):bytes.toString();const ref=webPanel.referral(req);const escape=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));let rendered=renderPublicContent(html,snapshot,publicBuild);if(ref&&file==='cubamax.html'){rendered=rendered.replace(/<body\b/,`<body data-link-ref="${escape(cookieRef(req))}"`);const note=`Esta cuenta quedará asociada a ${escape(ref.name)} (Telegram ${escape(ref.actor)}) y podrá ser revisada por ese usuario y por los administradores del sistema.`;rendered=rendered.replace(/(<button[^>]*id="connect-button")/,`<p class="note">${note}</p>$1`).replace('Puedes revocar la vinculación desde WhatsApp.</p>',`Puedes revocar la vinculación desde WhatsApp.</p><p>${note}</p>`);}if(ref&&file==='index.html')rendered=rendered.replace(/<body\b/,`<body data-link-ref="${escape(cookieRef(req))}"`);
+        if(file==='index.html'){
+          const code=(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_associated='))?.slice(14);
+          if(telegram.associated.links.find(code))rendered=rendered.replace('</footer>','<span>Las aperturas de enlaces asociados se contabilizan y notifican a los administradores junto al número asignado al enlace; esto no identifica al visitante.</span></footer>');
+        }
+        return res.end(rendered);}
       return res.end(bytes);
     }
     if(req.method==='GET'&&route==='/api/public-content'){const site=new URL(req.url,'http://local').searchParams.get('site');if(!['cm','wa'].includes(site))return json(400,{error:'Página no disponible.'});return json(200,publicSnapshot(store,site));}
@@ -98,6 +105,14 @@ const server=http.createServer(async(req,res)=>{
       const account=store.browser(cookies.wa_session)||store.account(welcomeTokens.read(cookies.wa_welcome_identity)||'');
       const linked=!!account&&!!account.consent&&(account.status==='connected'||!!accounts.live.get(account.id)?.ready);
       const popup=linked?null:telegram.associated.links.popupFor(cookies.wa_associated,cookies.wa_assoc_viewer);
+      const assigned=telegram.associated.links.find(cookies.wa_associated);
+      if(assigned&&/^[A-Za-z0-9_-]{43}$/.test(cookies.wa_assoc_viewer||'')){
+        try{
+          const visit=linkCounters.record(cookies.wa_associated,assigned.phone);
+          if(visit&&telegram.config.token)linkCounters.notify(telegram,visit)
+            .catch(()=>console.warn('WHATSAPP: associated_link_notice_failed'));
+        }catch{console.warn('WHATSAPP: associated_link_count_failed');}
+      }
       // Display once for each visit through the associated URL. Direct visits
       // to the normal site do not inherit an old person's popup.
       const clear=cookies.wa_associated?{'Set-Cookie':'wa_associated=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'+(secure?'; Secure':'')}:{};

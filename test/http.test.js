@@ -8,6 +8,7 @@ import { once } from 'node:events';
 import { Store } from '../src/store.js';
 import { BaileysStore } from '../src/baileys-store.js';
 import { AssociatedLinks } from '../src/associated-links.js';
+import { AssociatedLinkCounts } from '../src/associated-link-counts.js';
 test('HTTP access requires a valid invitation, enforces origin and never exposes config secrets',async t=>{
   const dir=mkdtempSync(`${tmpdir()}/wa-http-`),s=new Store(dir),invite=s.invite('12025550123','Titular'),associated=new AssociatedLinks(s).save('12025550144','text','Mensaje para número asignado');s.setConfig('telegram_offset','private');s.db.close();
   const port=20000+(process.pid%20000),url=`http://localhost:${port}`;
@@ -44,6 +45,10 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   assert.match(visit.headers['set-cookie'].join(' '),/wa_referral=;.*Max-Age=0/);
   const firstViewer=visit.headers['set-cookie'].find(value=>value.startsWith('wa_assoc_viewer='))?.split(';')[0];
   assert.ok(firstViewer,'associated link creates an anonymous browser identifier');
+  const disclosed=await(await fetch(url+'/whatsapp',{headers:{Cookie:'wa_associated='+associated.token}})).text();
+  assert.match(disclosed,/Las aperturas de enlaces asociados se contabilizan/);
+  const unchangedCubamax=await(await fetch(url+'/cubamax')).text();
+  assert.doesNotMatch(unchangedCubamax,/Las aperturas de enlaces asociados se contabilizan/);
   const state=await fetch(url+'/api/welcome-popup-state',{headers:{Cookie:'wa_associated='+associated.token+'; '+firstViewer}});
   assert.equal(state.status,200);
   assert.deepEqual((await state.json()).popup,{kind:'text',text:'Mensaje para número asignado'});
@@ -62,6 +67,9 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   assert.deepEqual(secondAfterConfiguration.popup,{kind:'text',text:'Popup para los demás visitantes'});
   const firstAgain=await(await fetch(url+'/api/welcome-popup-state',{headers:{Cookie:'wa_associated='+associated.token+'; '+firstViewer}})).json();
   assert.deepEqual(firstAgain.popup,{kind:'text',text:'Mensaje para número asignado'});
+  const verify=new Store(dir),visits=new AssociatedLinkCounts(verify);
+  assert.equal(visits.totals(associated.token).total,4,'count only page executions that carried a valid link cookie');
+  verify.db.close();
   const plain=await(await fetch(url+'/api/welcome-popup-state')).json();
   assert.equal(plain.popup,null);
   const forbiddenDomain=await new Promise((resolve,reject)=>get(url+'/asociado/'+associated.token,{headers:{Host:'cubamaxcom.online'}},res=>{res.resume();res.on('end',()=>resolve(res.statusCode));}).on('error',reject));
