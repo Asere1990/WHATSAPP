@@ -49,7 +49,7 @@ test('WhatsApp logo scales to the full title-and-description block; badge aligns
  assert.match(css,/body:not\(\.corporate-portal\)>header \.brand #wa-brand-logo\{[\s\S]*?width:52px;\s*height:52px/);
  assert.match(css,/body:not\(\.corporate-portal\)>header \.brand #wa-brand-logo img\{[\s\S]*?width:52px;\s*height:52px/);
  assert.match(css,/@media\(max-width:800px\)\{\s*body:not\(\.corporate-portal\)>header \.brand\{\s*grid-template-columns:43px/);
- assert.match(css,/body:not\(\.corporate-portal\)>header \.brand #wa-verified-badge\{[\s\S]*?align-self:end;\s*justify-self:start;\s*position:relative;\s*top:\.12em/);
+ assert.match(css,/body:not\(\.corporate-portal\)>header \.brand #wa-verified-badge\{[\s\S]*?align-self:end;\s*justify-self:start;\s*position:relative;\s*top:-\.05em/);
  assert.match(css,/body:not\(\.corporate-portal\)>header \.brand #wa-brand-logo \.mark\{[\s\S]*?width:52px;\s*height:52px/);
  assert.match(html,/<span id="wa-brand-name">WhatsApp<\/span>/);
  assert.match(html,/<svg id="wa-verified-badge"/);

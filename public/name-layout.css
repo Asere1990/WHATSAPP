@@ -70,7 +70,7 @@ body:not(.corporate-portal)>header .brand #wa-verified-badge{
   align-self:end;
   justify-self:start;
   position:relative;
-  top:.12em;
+  top:-.05em;
   flex:none;
 }
 body:not(.corporate-portal)>header .brand #wa-brand-description{
