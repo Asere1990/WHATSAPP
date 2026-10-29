@@ -19,7 +19,7 @@ function pick(target){
 let lastTextTap=null;
 function popup(service){if(site!=='cm')return;corporateService=service;renderServicePopup();document.getElementById('service-dialog').showModal();}
 document.addEventListener('click',e=>{const target=e.target.closest?.('*');if(!target)return;if(target.closest('#service-close,.dialog-close'))return;const anchor=target.closest('a');if(!editing){if(anchor&&!anchor.getAttribute('href')?.startsWith('#'))e.preventDefault();if(target.closest('#service-continue,#begin,#connect-button')){e.preventDefault();e.stopImmediatePropagation();}return;}const hit=pick(target);if(hit?.field){e.preventDefault();e.stopImmediatePropagation();
- if(site==='cm'&&hit.field.kind==='text'){
+ if(hit.field.kind==='text'){
   const now=Date.now(),previous=lastTextTap;
   if(previous&&previous.id===hit.field.id&&previous.el===hit.el&&now-previous.time<=450){lastTextTap=null;select(hit.field.id,hit.el);}
   else lastTextTap={id:hit.field.id,el:hit.el,time:now};
