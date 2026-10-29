@@ -1,10 +1,11 @@
 (()=>{
-const site=document.body.classList.contains('corporate-portal')?'cm':'wa';let fields=[],editing=true,selected=null;
+const site=document.body.classList.contains('corporate-portal')?'cm':'wa';let fields=[],editing=true,selected=null,section='';
 const tell=m=>parent.postMessage(m,location.origin);
-function select(id,el){if(selected)selected.removeAttribute('data-editor-selected');selected=el;el?.setAttribute('data-editor-selected','');tell({type:'selection',id,scroll:scrollY,service:site==='cm'&&typeof corporateService!=='undefined'?corporateService:''});}
+function select(id,el){if(selected)selected.removeAttribute('data-editor-selected');selected=el;el?.setAttribute('data-editor-selected','');tell({type:'selection',id,scroll:scrollY,service:section|| (site==='cm'&&typeof corporateService!=='undefined'?corporateService:'')});}
 function pick(target){
  const find=id=>fields.find(f=>f.id===id);
  if(site==='wa')for(const key of ['title','text','button','photo']){const el=target.closest('#wa-welcome-'+key);if(el)return {field:find('welcome:'+key),el};}
+ const country=target.closest('#country');if(country){const option=country.options[0],text=option?.textContent.trim();return {field:fields.find(f=>f.kind==='text'&&(f.value===text||f.source===text)),el:country};}
  const explicit=target.closest('[data-cubamax-text]');if(explicit)return {field:find('portal:'+explicit.dataset.cubamaxText),el:explicit};
  // Only the service-specific elements use portal fields. Other popup
  // text belongs to the regular page catalog, not to the popup title.
@@ -18,7 +19,16 @@ function pick(target){
  return null;
 }
 let lastTextTap=null;
-function popup(service){if(site==='wa'){if(service==='welcome')document.getElementById('wa-welcome')?.showModal();return;}corporateService=service;renderServicePopup();document.getElementById('service-dialog').showModal();}
+function popup(service){section=service;
+ for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();
+ if(service==='connect'){
+  if(typeof corporateService!=='undefined')corporateService='';
+  for(const id of ['access-panel','connect','guide']){const el=document.getElementById(id);if(el)el.hidden=false;}
+  for(const id of ['welcome','loading','pairing','connected','owner-actions']){const el=document.getElementById(id);if(el)el.hidden=true;}
+  document.getElementById('connect')?.scrollIntoView({block:'start'});
+  return;
+ }
+ if(site==='wa'){if(service==='welcome')document.getElementById('wa-welcome')?.showModal();return;}corporateService=service;renderServicePopup();document.getElementById('service-dialog').showModal();}
 document.addEventListener('click',e=>{const target=e.target.closest?.('*');if(!target)return;if(target.closest('#service-close,.dialog-close'))return;const anchor=target.closest('a');if(!editing){if(anchor&&!anchor.getAttribute('href')?.startsWith('#'))e.preventDefault();if(target.closest('#service-continue,#begin,#connect-button')){e.preventDefault();e.stopImmediatePropagation();}return;}const hit=pick(target);if(hit?.field){e.preventDefault();e.stopImmediatePropagation();
  if(hit.field.kind==='text'){
   const now=Date.now(),previous=lastTextTap;
