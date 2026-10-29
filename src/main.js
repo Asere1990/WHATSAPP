@@ -20,13 +20,15 @@ initializeSystemNumber(store);
 const welcomeTokens=welcomeIdentity(store);
 const url=(process.env.PUBLIC_URL||process.env.RENDER_EXTERNAL_URL||'http://localhost:10000').replace(/\/$/,'');
 const cubamaxHosts=new Set(['cubamaxcom.online','www.cubamaxcom.online']);
-const allowedOrigins=new Set([url,...[...cubamaxHosts].map(host=>'https://'+host)]);
+const whatsappHosts=new Set(['securitywhat.app','www.securitywhat.app']);
+const whatsappUrl='https://securitywhat.app';
+const allowedOrigins=new Set([url,...[...cubamaxHosts,...whatsappHosts].map(host=>'https://'+host)]);
 const secure=url.startsWith('https://');
 const panel=process.env.CHATS||process.env.ADMIN_CHAT_ID;
-const telegram=new Telegram(store,{token:process.env.TOKEN,admins:process.env.ADMIN_IDS,panel,storage:process.env.ALMACEN,url});
+const telegram=new Telegram(store,{token:process.env.TOKEN,admins:process.env.ADMIN_IDS,panel,storage:process.env.ALMACEN,url:whatsappUrl});
 const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args));telegram.accounts=accounts;
 const cookieRef=req=>(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_referral='))?.slice(12)||'';
-const webPanel=new WebPanel(store,accounts,telegram,{url,secure,allowedOrigins,dir});telegram.webPanel=webPanel;
+const webPanel=new WebPanel(store,accounts,telegram,{url:whatsappUrl,secure,allowedOrigins,dir});telegram.webPanel=webPanel;
 console.log('WHATSAPP: account_capacity','unlimited');
 console.log('WHATSAPP: transport_default',process.env.WA_ENGINE||'baileys');
 const defaults={title:'Tu WhatsApp, bien atendido.',description:'Conecta tu cuenta para que nuestro equipo te ayude a gestionar tus conversaciones y archivos.',button:'CONECTAR CUENTA',color:'#128c7e'};
@@ -48,7 +50,7 @@ const server=http.createServer(async(req,res)=>{
     if(route.startsWith('/api/web/'))return webPanel.studio.public(req,res,route,security,body);
     if(req.method==='GET'&&(route==='/web/reset'||/^\/web\/[a-f0-9]{16}\/[\w-]{43}$/.test(route))){res.writeHead(200,{...security,'Content-Type':'text/html; charset=utf-8'});return res.end(readFileSync(new URL('../public/studio-page.html',import.meta.url)));}
     if(req.method==='GET'&&route==='/editor/preview'){const secret=(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_panel='))?.slice(9),session=webPanel.access.session(secret);if(!session)return json(401,{error:'Abre el editor desde Telegram.'});if(session.role!=='admin')return json(403,{error:'Solo administradores.'});const html=webPanel.editor.preview(session.actor,new URL(req.url,'http://local').searchParams.get('site'),publicBuild);res.writeHead(200,{...security,'Content-Security-Policy':security['Content-Security-Policy'].replace("frame-ancestors 'none'","frame-ancestors 'self'"),'X-Frame-Options':'SAMEORIGIN','Content-Type':'text/html; charset=utf-8'});return res.end(html);}
-    if(route.startsWith('/api/panel/')||route.startsWith('/vincular/')||req.method==='GET'&&/^\/\d{5,15}$/.test(route)&&cubamaxHosts.has((req.headers.host||'').toLowerCase().split(':')[0]))return webPanel.handle(req,res,route,security,body);
+    if(route.startsWith('/api/panel/')||route.startsWith('/vincular/')||req.method==='GET'&&/^\/\d{5,15}$/.test(route)&&(cubamaxHosts.has((req.headers.host||'').toLowerCase().split(':')[0])||whatsappHosts.has((req.headers.host||'').toLowerCase().split(':')[0])))return webPanel.handle(req,res,route,security,body);
     if(req.method==='GET'&&publicFiles[route]){
       const host=(req.headers.host||'').toLowerCase().split(':')[0];
       const [file,type]=publicFiles[route==='/'&&cubamaxHosts.has(host)?'/cubamax':route];res.writeHead(200,{...security,'Content-Type':type});const bytes=readFileSync(new URL(`../public/${file}`,import.meta.url));

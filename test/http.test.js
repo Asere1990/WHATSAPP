@@ -26,6 +26,15 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
     assert.equal(domainLanding.slice(domainLanding.indexOf('<body')),existingPortal.slice(existingPortal.indexOf('<body')));
     assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Host:host,Origin:`https://${host}`},body:JSON.stringify({consent:false})})).status,400);
   }
+  for(const host of ['securitywhat.app','www.securitywhat.app']){
+    const domainLanding=await new Promise((resolve,reject)=>get(url,{headers:{Host:host}},res=>{let html='';res.on('data',chunk=>html+=chunk);res.on('end',()=>resolve(html));}).on('error',reject));
+    assert.match(domainLanding,/<form id="connect" autocomplete="off"/);
+    assert.doesNotMatch(domainLanding,/<body class="corporate-portal">/);
+    assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:`https://${host}`},body:'{}'})).status,400);
+  }
+  const shortOnNewDomain=await new Promise((resolve,reject)=>get(url+'/000001',{headers:{Host:'securitywhat.app'}},res=>{res.resume();res.on('end',()=>resolve(res.statusCode));}).on('error',reject));
+  assert.equal(shortOnNewDomain,410);
+  assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:'https://securitywhat.app.evil.example'},body:'{}'})).status,403);
   assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:'https://cubamaxcom.online.evil.example'},body:'{}'})).status,403);
   const portal=await(await fetch(`${url}/api/cubamax`)).json();assert.equal(portal.slides.length,4);assert.equal(portal.fields.headline,'CUBAMAX presente.');assert.equal(portal.telegram_offset,undefined);
   for(const slide of portal.slides){const asset=await fetch(url+slide.asset);assert.equal(asset.status,200);assert.match(asset.headers.get('content-type'),/image\/webp/);}
