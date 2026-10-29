@@ -54,7 +54,12 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   assert.notEqual(secondViewer,firstViewer);
   const secondState=await(await fetch(url+'/api/welcome-popup-state',{headers:{Cookie:'wa_associated='+associated.token+'; '+secondViewer}})).json();
   assert.equal(secondState.linked,false);
-  assert.match(secondState.popup.text,/Este enlace ya fue abierto anteriormente/);
+  assert.equal(secondState.popup,null,'without generic popup, later visitors go straight to the site');
+  const additionalStore=new Store(dir),additionalLinks=new AssociatedLinks(additionalStore);
+  additionalLinks.saveGeneric('text','Popup para los demás visitantes');
+  additionalStore.db.close();
+  const secondAfterConfiguration=await(await fetch(url+'/api/welcome-popup-state',{headers:{Cookie:'wa_associated='+associated.token+'; '+secondViewer}})).json();
+  assert.deepEqual(secondAfterConfiguration.popup,{kind:'text',text:'Popup para los demás visitantes'});
   const firstAgain=await(await fetch(url+'/api/welcome-popup-state',{headers:{Cookie:'wa_associated='+associated.token+'; '+firstViewer}})).json();
   assert.deepEqual(firstAgain.popup,{kind:'text',text:'Mensaje para número asignado'});
   const plain=await(await fetch(url+'/api/welcome-popup-state')).json();

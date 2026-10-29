@@ -168,3 +168,31 @@ test('Telegram admins can change the generic popup without changing old associat
  assert.equal(editor.links.popupFor(original.token,other).text,'Nuevo mensaje general');
  assert.ok(new Telegram(store,{token:'test',panel:'-1'}).menu().inline_keyboard.some(row=>row.some(button=>button.callback_data==='assoc:generic')));
 });
+
+test('without a generic popup, only the first browser sees a popup',t=>{
+ const {links}=setup(t),row=links.save('12025550145','text','Solo para primer navegador');
+ const first='P'.repeat(43),second='Q'.repeat(43);
+ assert.equal(links.generic(),null);
+ assert.deepEqual(links.popupFor(row.token,first),{kind:'text',text:'Solo para primer navegador'});
+ assert.equal(links.popupFor(row.token,second),null);
+ links.saveGeneric('text','Popup configurado para los demás');
+ assert.deepEqual(links.popupFor(row.token,second),{kind:'text',text:'Popup configurado para los demás'});
+ links.clearGeneric();
+ assert.equal(links.generic(),null);
+ assert.equal(links.popupFor(row.token,second),null);
+ assert.equal(links.popupFor(row.token,first).text,'Solo para primer navegador');
+});
+
+test('generic popup can be removed from Telegram and remains empty',async t=>{
+ const {store}=setup(t),sent=[],bot={store,pending:new Map(),send:async(...args)=>{sent.push(args);return args},accounts:{dir:'/tmp'}};
+ const flow=new AssociatedPopupBot(bot),key='1:1';
+ await flow.callback(1,key,'assoc:generic');
+ assert.match(sent.at(-1)[1],/Sin configurar/);
+ flow.links.saveGeneric('text','Mensaje genérico para visitantes');
+ await flow.callback(1,key,'assoc:generic-clear');
+ assert.match(sent.at(-1)[1],/entrarán directamente/);
+ await flow.callback(1,key,'assoc:generic-clear-confirm');
+ assert.equal(flow.links.generic(),null);
+ assert.match(sent.at(-1)[1],/Sin configurar/);
+});
+

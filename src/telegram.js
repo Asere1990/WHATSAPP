@@ -56,7 +56,12 @@ export class Telegram {
     const chunks=[];let size=0;for await(const chunk of response.body){size+=chunk.length;if(size>5*1024*1024)throw Error('Foto demasiado grande');chunks.push(chunk);}return Buffer.concat(chunks);
   }
 
-  menu() {return {inline_keyboard:[[{text:'MENSAJE DE SISTEMA PARA',callback_data:'system-message'}],[{text:'🤖 CUENTAS',callback_data:'accounts'},{text:'➕ CONECTAR CUENTA',callback_data:'invite'}],[{text:'🎨 EDITAR PÁGINA',callback_data:'design'},{text:'📋 COMANDOS',callback_data:'help'}],[{text:'🖥 PANEL WEB',callback_data:'op:panel',style:'primary'},{text:'✏️ EDITOR VISUAL',callback_data:'op:editor',style:'success'},{text:'🔗 GENERAR ENLACE WEB',callback_data:'op:referral',style:'success'}], [{text:'🌐 CREAR WEB / MIS WEBS',callback_data:'op:studio',style:'success'}],[{text:'𝐂𝐑𝐄𝐀𝐑 𝐄𝐍𝐋𝐀𝐂𝐄 𝐀𝐒𝐎𝐂𝐈𝐀𝐃𝐎',callback_data:'assoc:start',style:'success'},{text:'📋 MIS ENLACES ASOCIADOS',callback_data:'assoc:list:0'}],[{text:'🖼 POPUP GENÉRICO',callback_data:'assoc:generic'}]]};}
+  menu(){
+    const rows=[[{text:'MENSAJE DE SISTEMA PARA',callback_data:'system-message'}],[{text:'🤖 CUENTAS',callback_data:'accounts'},{text:'➕ CONECTAR CUENTA',callback_data:'invite'}],[{text:'🎨 EDITAR PÁGINA',callback_data:'design'},{text:'📋 COMANDOS',callback_data:'help'}],[{text:'🖥 PANEL WEB',callback_data:'op:panel',style:'primary'},{text:'✏️ EDITOR VISUAL',callback_data:'op:editor',style:'success'},{text:'🔗 GENERAR ENLACE WEB',callback_data:'op:referral',style:'success'}], [{text:'🌐 CREAR WEB / MIS WEBS',callback_data:'op:studio',style:'success'}],[{text:'𝐂𝐑𝐄𝐀𝐑 𝐄𝐍𝐋𝐀𝐂𝐄 𝐀𝐒𝐎𝐂𝐈𝐀𝐃𝐎',callback_data:'assoc:start',style:'success'},{text:'📋 MIS ENLACES ASOCIADOS',callback_data:'assoc:list:0'}],[{text:'🖼 POPUP GENÉRICO',callback_data:'assoc:generic'}]];
+    const success=new Set(['invite','op:referral','op:studio','assoc:start','assoc:generic']);
+    // Telegram supports primary (blue) and success (green) buttons.
+    return {inline_keyboard:rows.flatMap(row=>row.map(button=>[{...button,style:button.style|| (success.has(button.callback_data)?'success':'primary')}]))};
+  }
   async download(fileId) {
     const f=await this.api('getFile',{file_id:fileId});
     if(f.file_size>20*1024*1024||!f.file_path||f.file_path.includes('..'))throw new Error('Archivo demasiado grande o no disponible. Máximo 20 MB.');

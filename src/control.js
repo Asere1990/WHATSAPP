@@ -18,13 +18,12 @@ export class Control {
   async home(chat,actor,page=0){
     this.composing.delete(this.key(chat,actor));this.outgoingDrafts.delete(this.key(chat,actor));
     const selectedSystem=systemPhone(this.bot.store),accounts=this.bot.store.all().filter(a=>a.consent&&this.bot.accounts.live.get(a.id)?.ready).sort((a,b)=>Number(b.phone===selectedSystem)-Number(a.phone===selectedSystem)),connected=accounts.length;
-    const pageItems=accounts.slice(page*10,page*10+10),rows=[],lines=[`<b>WHATSAPP · MENÚ PRINCIPAL</b>\nCuentas conectadas: ${connected}\n`];
+    const pageItems=accounts.slice(page*10,page*10+10),rows=[],lines=[`<b>WHATSAPP · MENÚ PRINCIPAL</b>\nCuentas conectadas: ${connected}\n\n<b>CUENTAS DISPONIBLES</b>\nEscribe el número de una cuenta (1, 2, 3…) para abrirla.\n`];
     for(const [i,a]of pageItems.entries()){
       const profile=await this.bot.accounts.tools.identity(a.id,`${a.phone}@c.us`,!!this.bot.accounts.live.get(a.id)?.ready);
       lines.push(`${page*10+i+1}. ${personLink({...profile,name:profile.name.slice(0,24)})}\n${escapeHTML(profile.country)} · ${connectionLabel(this.bot.accounts,a)}${a.phone===selectedSystem?' · SISTEMA':''}${a.paused?' · Pausada':''}`);
-      rows.push([this.button(chat,actor,`${page*10+i+1}. ${profile.name.slice(0,28)} · +${a.phone}${a.phone===selectedSystem?' · SISTEMA':''}`,{kind:'account',id:a.id})]);
     }
-    const nav=[];if(page)nav.push(this.button(chat,actor,'◀️ ANTERIOR',{kind:'home',page:page-1}));if((page+1)*10<accounts.length)nav.push(this.button(chat,actor,'SIGUIENTE ▶️',{kind:'home',page:page+1}));if(nav.length)rows.push(nav);
+    const nav=[];if(page)nav.push(this.button(chat,actor,'◀️ ANTERIOR',{kind:'home',page:page-1}));if((page+1)*10<accounts.length)nav.push(this.button(chat,actor,'SIGUIENTE ▶️',{kind:'home',page:page+1}));if(nav.length)rows.push(...nav.map(button=>[{...button,style:'primary'}]));
     rows.push(...this.bot.menu().inline_keyboard);
     this.views.set(this.key(chat,actor),{kind:'accounts',items:accounts.map(a=>a.id),expires:Date.now()+1800000});
     return this.text(chat,lines.join('\n\n')+(accounts.length?'':'No hay cuentas conectadas en este momento.'),rows);

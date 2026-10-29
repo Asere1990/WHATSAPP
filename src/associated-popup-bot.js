@@ -26,9 +26,9 @@ export class AssociatedPopupBot {
  async genericMenu(chat,key){
   this.bot.pending.delete(key);
   const popup=this.links.generic();
-  const current=popup.kind==='photo'?'Foto configurada':popup.text;
-  return this.bot.send(chat,'POPUP GENÉRICO · WHATSAPP\n\nContenido actual: '+current+'\n\nEste popup se mostrará a los navegadores que abran un enlace asociado después del primero.',{
-   inline_keyboard:[[{text:'✏️ CAMBIAR POPUP GENÉRICO',callback_data:'assoc:generic-edit'}],[{text:'📋 MIS ENLACES ASOCIADOS',callback_data:'assoc:list:0'}]]
+  const current=popup?(popup.kind==='photo'?'Foto configurada':popup.text):'Sin configurar. Las demás personas entrarán directamente a la web.';
+  return this.bot.send(chat,'POPUP GENÉRICO · WHATSAPP\n\nContenido actual: '+current+'\n\nSolo se mostrará al segundo navegador y a los posteriores si lo configuras.',{
+   inline_keyboard:[[{text:'✏️ CAMBIAR POPUP GENÉRICO',callback_data:'assoc:generic-edit'}],...(popup?[[{text:'🗑 ELIMINAR POPUP GENÉRICO',callback_data:'assoc:generic-clear'}]]:[]),[{text:'📋 MIS ENLACES ASOCIADOS',callback_data:'assoc:list:0'}]]
   });
  }
  async input(chat,key,pending,m){
@@ -87,6 +87,8 @@ export class AssociatedPopupBot {
   const [,action,value]=data.split(':');
   if(action==='start'){return this.start(chat,key);}
   if(action==='generic')return this.genericMenu(chat,key);
+  if(action==='generic-clear')return this.bot.send(chat,'¿Eliminar el popup genérico? Los visitantes posteriores entrarán directamente a la página.',{inline_keyboard:[[{text:'SÍ, ELIMINAR',callback_data:'assoc:generic-clear-confirm'}],[{text:'CANCELAR',callback_data:'assoc:generic'}]]});
+  if(action==='generic-clear-confirm'){this.links.clearGeneric();return this.genericMenu(chat,key);}
   if(action==='generic-edit'){
    this.bot.pending.set(key,{kind:'associated',stage:'generic'});
    return this.bot.send(chat,'Envía el TEXTO (máximo 1000 caracteres) o la FOTO del popup genérico. Puedes cambiarlo cuando quieras. /cancelar para salir.');

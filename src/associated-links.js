@@ -70,13 +70,14 @@ export class AssociatedLinks {
   let saved={};try{saved=JSON.parse(this.store.config().wa_associated_generic_popup||'{}');}catch{}
   if(saved.kind==='photo'&&goodImage.test(saved.content||''))return {kind:'photo',photo:saved.content};
   if(saved.kind==='text'&&typeof saved.content==='string'&&saved.content.trim())return {kind:'text',text:saved.content};
-  return {kind:'text',text:'Este enlace ya fue abierto anteriormente. Puedes continuar utilizando la página.'};
+  return null; // Sin popup genérico configurado: abrir la página directamente.
  }
  saveGeneric(kind,content){
   const valid=this.validate(kind,content);
   this.store.setConfig('wa_associated_generic_popup',JSON.stringify({kind,content:valid}));
   return this.generic();
  }
+ clearGeneric(){this.store.setConfig('wa_associated_generic_popup','');return null;}
  popupFor(token,viewer){
   const personal=this.popup(token);
   if(!personal)return null;

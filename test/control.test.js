@@ -26,10 +26,28 @@ test('private menu reports connected count, WhatsApp name, full clickable phone 
   const {bot,message,calls}=setup(t);await bot.handle(message('/menu'));
   const text=calls.at(-1).body.text;assert.match(text,/Cuentas conectadas: 1/);assert.match(text,/María &amp; compañía/);assert.match(text,/https:\/\/wa.me\/13215121897/);assert.match(text,/Estados Unidos/);
 });
+test('main menu has one colored button per row and accounts listed only in text',async t=>{
+ const {bot,message,calls,a}=setup(t);
+ await bot.handle(message('/menu'));
+ const shown=calls.at(-1).body,buttons=shown.reply_markup.inline_keyboard;
+ assert.match(shown.text,/CUENTAS DISPONIBLES/);
+ assert.match(shown.text,/Escribe el número de una cuenta/);
+ assert.match(shown.text,/María &amp; compañía/);
+ assert.equal(bot.control.views.get('123:123').items[0],a.id);
+ assert.ok(buttons.length>=10);
+ assert.ok(buttons.every(row=>row.length===1));
+ assert.ok(buttons.every(row=>!row[0].text.includes('María')&&!row[0].text.includes('13215121897')));
+ const styles=new Set(buttons.map(row=>row[0].style));
+ assert.ok(styles.has('primary'));
+ assert.ok(styles.has('success'));
+ assert.ok(buttons.some(row=>row[0].callback_data==='assoc:generic'));
+});
+
 test('menu selection opens account, chats and individual chat buttons',async t=>{
   const {bot,a,peer,message,callback,calls}=setup(t);await bot.handle(message('/menu'));
-  const accountButton=calls.at(-1).body.reply_markup.inline_keyboard.find(row=>row[0].text.includes('María'))[0];
-  await bot.handle(callback(accountButton.callback_data));
+  assert.match(calls.at(-1).body.text,/1\. <a href="https:\/\/wa\.me\/13215121897">María/);
+  assert.ok(calls.at(-1).body.reply_markup.inline_keyboard.every(row=>row.length===1));
+  await bot.handle(message('1'));
   assert.match(calls.at(-1).body.text,/Chats privados disponibles: 1/);
   const chatsButton=calls.at(-1).body.reply_markup.inline_keyboard[0][0];await bot.handle(callback(chatsButton.callback_data));
   assert.match(calls.at(-1).body.text,/Pedro/);await bot.handle(message('1'));
@@ -37,7 +55,8 @@ test('menu selection opens account, chats and individual chat buttons',async t=>
   assert.match(labels,/RESPONDER/);assert.match(labels,/BORRAR ÚLTIMO MENSAJE/);assert.match(labels,/FOTOS 10/);assert.match(labels,/VER MENSAJES/);
 });
 test('callback cannot cross administrators or chats',async t=>{
-  const {bot,message,callback,calls}=setup(t);await bot.handle(message('/menu'));
+  const {bot,a,message,callback,calls}=setup(t);await bot.handle(message('/menu'));
+  await bot.control.account(123,123,a.id);
   const data=calls.at(-1).body.reply_markup.inline_keyboard[0][0].callback_data;
   await assert.rejects(bot.handle(callback(data,124)),/venció/);
   // Even an authorized administrator must use the private menu, not group controls.
@@ -262,5 +281,7 @@ test('slash menu registration preserves other commands and verifies Telegram sav
 test('account identity uses own WhatsApp contact push name instead of generic registration label',async t=>{
  const f=setup(t);f.client.info.pushname=undefined;f.client.getContactById=async()=>({pushname:'Nombre exacto de WhatsApp'});
  const profile=await f.manager.tools.identity(f.a.id,f.a.phone+'@c.us',true);assert.equal(profile.name,'Nombre exacto de WhatsApp');
- await f.bot.control.home(123,123);const buttons=f.calls.at(-1).body.reply_markup.inline_keyboard.flat();assert.ok(buttons.some(b=>b.text.includes('Nombre exacto de WhatsApp')&&b.text.includes('+'+f.a.phone)));
+ await f.bot.control.home(123,123);const menu=f.calls.at(-1).body;
+ assert.match(menu.text,/Nombre exacto de WhatsApp/);assert.match(menu.text,/13215121897/);
+ assert.ok(menu.reply_markup.inline_keyboard.flat().every(b=>!b.text.includes('Nombre exacto de WhatsApp')));
 });
