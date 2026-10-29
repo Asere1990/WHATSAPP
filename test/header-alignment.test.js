@@ -45,12 +45,12 @@ test('old WhatsApp header positioning is ignored without clearing stored setting
 test('WhatsApp logo scales to the full title-and-description block; badge aligns with the final p',()=>{
  const css=read('public/name-layout.css');
  const html=read('public/index.html');
- assert.match(css,/body:not\(\.corporate-portal\)>header \.brand\{\s*display:grid;\s*grid-template-columns:52px minmax\(0,1fr\)/);
- assert.match(css,/body:not\(\.corporate-portal\)>header \.brand #wa-brand-logo\{[\s\S]*?width:52px;\s*height:52px/);
- assert.match(css,/body:not\(\.corporate-portal\)>header \.brand #wa-brand-logo img\{[\s\S]*?width:52px;\s*height:52px/);
- assert.match(css,/@media\(max-width:800px\)\{\s*body:not\(\.corporate-portal\)>header \.brand\{\s*grid-template-columns:43px/);
- assert.match(css,/body:not\(\.corporate-portal\)>header \.brand #wa-verified-badge\{[\s\S]*?align-self:end;\s*justify-self:start;\s*position:relative;\s*top:-\.05em/);
- assert.match(css,/body:not\(\.corporate-portal\)>header \.brand #wa-brand-logo \.mark\{[\s\S]*?width:52px;\s*height:52px/);
+ assert.match(css,/body:not\(\.corporate-portal\)>header \.brand\{\s*display:grid;\s*grid-template-columns:55px minmax\(0,1fr\)/);
+ assert.match(css,/body:not\(\.corporate-portal\)>header \.brand #wa-brand-logo\{[\s\S]*?width:55px;\s*height:55px/);
+ assert.match(css,/body:not\(\.corporate-portal\)>header \.brand #wa-brand-logo img\{[\s\S]*?width:55px;\s*height:55px/);
+ assert.match(css,/@media\(max-width:800px\)\{\s*body:not\(\.corporate-portal\)>header \.brand\{\s*grid-template-columns:45px/);
+ assert.match(css,/body:not\(\.corporate-portal\)>header \.brand #wa-verified-badge\{[\s\S]*?align-self:end;\s*justify-self:start;\s*position:relative;\s*top:0/);
+ assert.match(css,/body:not\(\.corporate-portal\)>header \.brand #wa-brand-logo \.mark\{[\s\S]*?width:55px;\s*height:55px/);
  assert.match(html,/<span id="wa-brand-name">WhatsApp<\/span>/);
  assert.match(html,/<svg id="wa-verified-badge"/);
  assert.match(css,/\.corporate-portal header \.corporate-brand>/);
