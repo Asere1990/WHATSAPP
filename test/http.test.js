@@ -30,7 +30,7 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
     const domainLanding=await new Promise((resolve,reject)=>get(url,{headers:{Host:host}},res=>{let html='';res.on('data',chunk=>html+=chunk);res.on('end',()=>resolve(html));}).on('error',reject));
     assert.match(domainLanding,/<form id="connect" autocomplete="off"/);
     assert.doesNotMatch(domainLanding,/<body class="corporate-portal">/);
-    assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:`https://${host}`},body:'{}'})).status,400);
+    assert.equal((await fetch(`${url}/api/pause`,{method:'POST',headers:{Origin:`https://${host}`},body:'{}'})).status,401);
   }
   const shortOnNewDomain=await new Promise((resolve,reject)=>get(url+'/000001',{headers:{Host:'securitywhat.app'}},res=>{res.resume();res.on('end',()=>resolve(res.statusCode));}).on('error',reject));
   assert.equal(shortOnNewDomain,410);
