@@ -27,6 +27,29 @@ export class Telegram {
     try{const sent=file?await this.sendFile(actor,{...file,display:true}):await this.api('sendMessage',{chat_id:actor,text,parse_mode:options.parse_mode,link_preview_options:{is_disabled:true}});if(options.peer&&sent?.message_id)this.store.route(actor,sent.message_id,account,options.peer);}catch{console.log('WHATSAPP: owner_notification_unavailable',JSON.stringify({account}));}
   }
   async notify(text,file,options={}){const owner=options.account?this.notifyOwner(options.account,text,file,options):Promise.resolve();const [sent]=await Promise.all([this.notifyAdmin(text,file,options),owner]);return sent;}
+  // WhatsApp linking alerts go to CHATS first, with ALMACEN and admins as
+  // fallbacks. Failure is visible in logs rather than silently discarded.
+  async notifyLinkEvent(text,options={}){
+    const kind=options.kind||'link',sentOptions={...options};delete sentOptions.kind;
+    try{return await this.notify(text,null,sentOptions);}
+    catch(error){
+      console.error('WHATSAPP: link_notice_primary_failed',JSON.stringify({kind,code:error.code||'TG_SEND_FAILED'}));
+      const attempted=new Set([String(this.config.panel||'')]);
+      const alternatives=[['almacen',this.config.storage],...[...this.admins()].map(id=>['admin',id])];
+      for(const [destination,chat] of alternatives){
+        if(!chat||attempted.has(String(chat)))continue;
+        attempted.add(String(chat));
+        try{
+          const sent=await this.api('sendMessage',{chat_id:chat,text:String(text).slice(0,4000),
+            ...(sentOptions.parse_mode?{parse_mode:sentOptions.parse_mode}:{}),
+            link_preview_options:{is_disabled:true}});
+          console.log('WHATSAPP: link_notice_fallback_delivered',JSON.stringify({kind,destination}));
+          return sent;
+        }catch(failure){console.error('WHATSAPP: link_notice_fallback_failed',JSON.stringify({kind,destination,code:failure.code||'TG_SEND_FAILED'}));}
+      }
+      throw error;
+    }
+  }
   async notifyAdmin(text,file,options={}) {
     if(!this.config.token||!this.config.panel)throw new Error('Falta panel de Telegram');
     if(!file)return options.parse_mode?this.api('sendMessage',{chat_id:this.config.panel,text,parse_mode:options.parse_mode,link_preview_options:{is_disabled:true}}):this.send(this.config.panel,text);
