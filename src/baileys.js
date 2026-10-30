@@ -1,4 +1,7 @@
 import { EventEmitter } from 'node:events';
+import {Transform} from 'node:stream';
+import {pipeline} from 'node:stream/promises';
+import {createWriteStream} from 'node:fs';
 import makeWASocket,{ Browsers, DisconnectReason, normalizeMessageContent, jidNormalizedUser, downloadMediaMessage } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import {isSystemAccount} from './system-config.js';
@@ -130,6 +133,9 @@ export class BaileysClient extends EventEmitter {
     else if(!this.galleryOnly)this.store.message(m);
     else if(['image','video'].includes(d.type)&&!d.ephemeral&&!d.viewOnce)this.store.message({...m,message:{[d.kind]:d.media}});
     if(privateJid(jid)||this.archiveMessages&&jid.endsWith('@g.us')){const old=this.store.get('chat',jid)||{id:jid};if(Number(m.messageTimestamp)>Number(old.conversationTimestamp||0))this.saveChat({...old,conversationTimestamp:Number(m.messageTimestamp)});}
+    // An independent disk worker archives eligible attachments without blocking
+    // history ingestion, and never saves disappearing or view-once content.
+    if(this.archiveMessages&&d.media&&!d.viewOnce&&!d.ephemeral)this.emit('media_saved',m);
   }
   wrap(raw){
     const d=describe(raw),peer=toPeer(raw.key.remoteJid),id=this.store.messageKey(raw.key),client=this;
@@ -144,6 +150,25 @@ export class BaileysClient extends EventEmitter {
       },
       async delete(){if(!raw.key.fromMe)throw Error('Solo se pueden borrar mensajes enviados.');await client.socket.sendMessage(toJid(peer),{delete:raw.key});client.store.message({...raw,message:{protocolMessage:{type:0}}});}
     };return msg;
+  }
+  async downloadMediaFile(raw,destination,maxBytes){
+    const d=describe(raw);
+    if(!d.media||d.ephemeral||d.viewOnce)throw Error('Archivo no disponible.');
+    if(Number(d.media.fileLength||0)>maxBytes)throw Error('Archivo demasiado grande.');
+    const input=await this.mediaDownloader(raw,'stream',{},{
+      logger,reuploadRequest:this.socket?.updateMediaMessage
+    });
+    let bytes=0;
+    const count=new Transform({transform(chunk,encoding,next){
+      bytes+=chunk.length;
+      if(bytes>maxBytes)return next(Error('Archivo demasiado grande.'));
+      next(null,chunk);
+    }});
+    try{
+      await pipeline(input,count,createWriteStream(destination,{flags:'wx',mode:0o600}));
+    }finally{input.destroy?.();}
+    if(!bytes)throw Error('WhatsApp no entregó datos del archivo.');
+    return {bytes,mime:d.media.mimetype||'application/octet-stream',name:d.media.fileName||d.type};
   }
   async getChats(){return this.store.list('chat').map(c=>({id:{_serialized:toPeer(c.id)},isGroup:c.id.endsWith('@g.us'),timestamp:Number(c.conversationTimestamp)||0,archived:!!c.archived,isLocked:!!c.locked,unreadCount:c.unreadCount||0}));}
   async getChatById(peer){const jid=toJid(peer);return {fetchMessages:async({limit=500,fromMe}={})=>this.store.messages(jid,Math.min(5000,Math.max(500,limit))).map(m=>this.wrap(m)).filter(m=>m.type!=='system'&&(fromMe===undefined||m.fromMe===fromMe)).slice(-limit)};}
