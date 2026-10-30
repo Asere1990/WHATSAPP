@@ -4,6 +4,12 @@ import pino from 'pino';
 import {isSystemAccount} from './system-config.js';
 import { BaileysStore } from './baileys-store.js';
 const logger=pino({level:'silent'});
+// Spread concurrent account reconnects after transient network failures.
+export function reconnectDelay(account,attempt,status){
+ const hash=String(account||'').split('').reduce((v,c)=>((v*31+c.charCodeAt(0))>>>0),0);
+ const base=status===DisconnectReason.restartRequired?750:Math.min(90000,1000*2**Math.min(attempt+1,7));
+ return base+Math.floor(base*(hash%29)/100)+(hash%1100);
+}
 export const toJid=peer=>jidNormalizedUser(String(peer).replace(/@c\.us$/,'@s.whatsapp.net'));
 export const toPeer=jid=>jidNormalizedUser(String(jid||'')).replace(/@s\.whatsapp\.net$/,'@c.us');
 const privateJid=jid=>/^\d+@(s\.whatsapp\.net|lid)$/.test(jid);
@@ -19,7 +25,7 @@ export function describe(raw){
 }
 export class BaileysClient extends EventEmitter {
   constructor({store,id,phone,pair=false,galleryOnly=process.env.WA_GALLERY_ONLY!=='false',socketFactory=makeWASocket,mediaDownloader=downloadMediaMessage}){
-    super();this.sourceStore=store;this.galleryOnly=galleryOnly;this.kind='baileys';this.store=new BaileysStore(store,id);this.archiveMessages=store.config().panel_archive==='1';if(this.archiveMessages)this.store.enableArchive();this.account=id;this.phone=phone;this.pair=pair;this.socketFactory=socketFactory;this.mediaDownloader=mediaDownloader;this.closed=false;this.generation=0;this.retries=0;this.info={};this.codeRequested=false;this.events=Promise.resolve();
+    super();this.sourceStore=store;this.galleryOnly=galleryOnly;this.kind='baileys';this.store=new BaileysStore(store,id);this.archiveMessages=store.config().panel_archive==='1';if(this.archiveMessages)this.store.enableArchive();this.account=id;this.phone=phone;this.pair=pair;this.socketFactory=socketFactory;this.mediaDownloader=mediaDownloader;this.closed=false;this.generation=0;this.retries=0;this.info={};this.codeRequested=false;this.events=Promise.resolve();this.panelFocusPeer=null;this.panelFocusUntil=0;this.historyDue=0;this.historyPumpActive=false;
   }
   async initialize(){
     if(!this.pair&&!this.store.registered()){this.emit('qr');return;}
@@ -27,8 +33,12 @@ export class BaileysClient extends EventEmitter {
   }
   async connect(){
     if(this.closed)return;
-    this.stopHistory();
-    const epoch=++this.generation,{state,saveCreds}=this.store.auth();
+    this.stopHistory();clearTimeout(this.retryTimer);this.retryTimer=null;
+    const epoch=++this.generation;
+    // Close the previous socket before replacing it; stale events are ignored
+    // because they belong to a different generation.
+    try{this.socket?.end?.(undefined);}catch{}
+    const {state,saveCreds}=this.store.auth();
     const sock=this.socketFactory({auth:state,logger,browser:Browsers.ubuntu('Chrome'),markOnlineOnConnect:false,syncFullHistory:true,
       getMessage:async key=>this.store.get('message',this.store.messageKey(key))?.message,
       shouldSyncHistoryMessage:()=>true,generateHighQualityLinkPreview:false});
@@ -79,7 +89,7 @@ export class BaileysClient extends EventEmitter {
       this.retries=0;const user=this.socket.user||{};this.info={wid:{user:toJid(user.id).split('@')[0]},pushname:user.name||this.store.authValue('creds','self')?.me?.name};
       this.emit('authenticated');this.emit('ready');
       if(this.archiveMessages){const counts=this.store.db.prepare("SELECT COUNT(*) AS total,SUM(json_type(value,'$.message.conversation') IS NOT NULL OR json_type(value,'$.message.extendedTextMessage') IS NOT NULL) AS texts,SUM(json_type(value,'$.message.audioMessage') IS NOT NULL) AS audios FROM baileys_data WHERE account=? AND kind='message'").get(this.account);console.log('WHATSAPP: panel_history_index',JSON.stringify({account:this.account,...counts}));}
-      this.historyOnline=true;this.scheduleHistory(60000);
+      this.historyOnline=true;this.scheduleHistory(this.panelFocusUntil>Date.now()?15000:90000);
     }
     if(update.connection==='close'){
       this.stopHistory();
@@ -89,7 +99,7 @@ export class BaileysClient extends EventEmitter {
       if(status===DisconnectReason.loggedOut){this.store.clearCredentials();this.emit('disconnected','LOGOUT');return;}
       if(status===DisconnectReason.connectionReplaced){this.emit('disconnected','CONFLICT');return;}
       // Restart after pairing and transient network failures; never retry sends.
-      if(this.retries++<5){this.emit('reconnecting');this.retryTimer=setTimeout(()=>this.connect().catch(error=>this.emit('transport_error',error)),status===DisconnectReason.restartRequired?250:Math.min(30000,1000*2**this.retries));this.retryTimer.unref();}
+      if(this.retries++<8){this.emit('reconnecting');this.retryTimer=setTimeout(()=>this.connect().catch(error=>this.emit('transport_error',error)),reconnectDelay(this.account,this.retries-1,status));this.retryTimer.unref();}
       else this.emit('disconnected','NETWORK');
     }
   }
@@ -140,19 +150,50 @@ export class BaileysClient extends EventEmitter {
   async gallery(peer,offset=0){if(!this.galleryOnly)return {messages:this.store.messages(toJid(peer),5000).map(m=>this.wrap(m)).filter(m=>m.hasMedia),complete:false,pages:1};const jid=toJid(peer),messages=this.store.galleryPage(jid,offset).map(m=>this.wrap(m)).reverse();return {messages,counts:this.store.galleryCounts(jid),nextOffset:messages.length===100?offset+100:null,complete:false,pages:1};}
   async getProfilePicUrl(peer,{type='image'}={}){return this.socket.profilePictureUrl(toJid(peer),type);}
   async getBlockedContacts(){return this.socket.fetchBlocklist();}
-  stopHistory(){this.historyOnline=false;clearTimeout(this.historyTimer);this.historyTimer=null;}
-  scheduleHistory(delay=60000){
-    if(this.closed||!this.historyOnline||!this.galleryOnly||this.historyTimer)return;
-    this.historyTimer=setTimeout(()=>{this.historyTimer=null;this.pumpHistory().catch(()=>{this.scheduleHistory(60000);});},delay);this.historyTimer.unref();
+  stopHistory(){this.historyOnline=false;clearTimeout(this.historyTimer);this.historyTimer=null;this.historyDue=0;}
+  setPanelFocus(peer=null,active=false,now=Date.now()){
+    const previous=this.panelFocusPeer,wasActive=this.panelFocusUntil>now;
+    this.panelFocusPeer=active&&peer?toJid(peer):null;
+    this.panelFocusUntil=active?now+60000:0;
+    // An actively viewed account can start sooner, but never bypasses the
+    // per-conversation history cooldown/backoff stored in SQLite.
+    if(active&&(!wasActive||previous!==this.panelFocusPeer)&&this.historyOnline&&this.galleryOnly)
+      this.scheduleHistory(5000);
+  }
+  scheduleHistory(delay=90000){
+    if(this.closed||!this.historyOnline||!this.galleryOnly)return;
+    const due=Date.now()+delay;
+    if(this.historyTimer){
+      if(this.historyDue<=due)return;
+      clearTimeout(this.historyTimer);
+    }
+    this.historyDue=due;
+    this.historyTimer=setTimeout(()=>{
+      this.historyTimer=null;this.historyDue=0;
+      this.pumpHistory().catch(()=>{this.scheduleHistory(90000);});
+    },delay);
+    this.historyTimer.unref();
   }
   async pumpHistory(now=Date.now()){
-    if(this.closed||!this.historyOnline||!this.galleryOnly)return;
-    const epoch=this.generation;
-    // One background request per minute; persisted cursors/cooldowns survive restarts.
-    const pending=this.store.list('cursor',2147483647).filter(c=>privateJid(c.key?.remoteJid)||this.archiveMessages&&c.key?.remoteJid?.endsWith('@g.us')).map(cursor=>({cursor,state:this.store.get('history-sync',cursor.key.remoteJid)||{}})).sort((a,b)=>(a.state.next||0)-(b.state.next||0));
-    const item=pending.find(({state})=>!state.next||state.next<=now);
-    if(item)try{await this.syncHistory(item.cursor.key.remoteJid,now);}catch{ /* A history failure must never disconnect a healthy account. */ }
-    if(this.generation===epoch)this.scheduleHistory(60000);
+    if(this.closed||!this.historyOnline||!this.galleryOnly||this.historyPumpActive)return;
+    this.historyPumpActive=true;
+    const epoch=this.generation,focused=this.panelFocusUntil>now;
+    try{
+      // One request at a time per account; the focused chat is checked first,
+      // while all other chats retain their existing cooldown and get turns.
+      const peers=focused&&this.panelFocusPeer?new Set(this.store.peers(this.panelFocusPeer)):null;
+      const pending=this.store.list('cursor',2147483647)
+        .filter(c=>privateJid(c.key?.remoteJid)||this.archiveMessages&&c.key?.remoteJid?.endsWith('@g.us')||peers?.has(c.key?.remoteJid))
+        .map(cursor=>({cursor,state:this.store.get('history-sync',cursor.key.remoteJid)||{}}))
+        .sort((a,b)=>(a.state.next||0)-(b.state.next||0));
+      const due=pending.filter(({state})=>!state.next||state.next<=now);
+      const item=(peers?due.find(({cursor})=>peers.has(cursor.key.remoteJid)):null)||due[0];
+      if(item)try{await this.syncHistory(item.cursor.key.remoteJid,now);}catch{ /* Do not disconnect a healthy account for missing history. */ }
+    }finally{
+      this.historyPumpActive=false;
+      if(this.generation===epoch&&!this.closed&&this.historyOnline)
+        this.scheduleHistory(focused?45000:90000);
+    }
   }
   async syncHistory(peer,now=Date.now()){
     const jid=toJid(peer),backfill=this.archiveMessages?this.store.get('archive-backfill',jid):null,oldest=backfill?.active?backfill.cursor:this.store.get('cursor',jid)||this.store.oldestMessage(jid);if(!oldest)return false;

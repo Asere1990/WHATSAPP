@@ -6,7 +6,7 @@ import {EventEmitter} from 'node:events';
 import {Readable} from 'node:stream';
 import {Store} from '../src/store.js';
 import {BaileysStore} from '../src/baileys-store.js';
-import {BaileysClient,toJid,toPeer} from '../src/baileys.js';
+import {BaileysClient,toJid,toPeer,reconnectDelay} from '../src/baileys.js';
 import {Accounts} from '../src/whatsapp.js';
 const tick=()=>new Promise(r=>setImmediate(r));
 const raw=(id='m1',extra={})=>({key:{remoteJid:'12025550124@s.whatsapp.net',id,fromMe:false},messageTimestamp:1700000000,message:{conversation:'hola'},...extra});
@@ -155,4 +155,74 @@ test('new photos and videos update gallery automatically without storing private
  const {store,a}=setup(t),fake=socketFactory(),client=new BaileysClient({store,id:a.id,phone:a.phone,pair:true,socketFactory:fake.make});t.after(()=>client.destroy());await client.initialize();let notifications=0;client.on('message',()=>notifications++);
  await fake.sockets[0].batch({'messages.upsert':{type:'notify',messages:[raw('photo',{message:{imageMessage:{fileLength:5}}}),raw('video',{message:{videoMessage:{fileLength:5}}}),raw('private-text')]}});
  const gallery=await client.gallery('12025550124@c.us');assert.equal(gallery.counts.photos,1);assert.equal(gallery.counts.videos,1);assert.equal(client.store.messages('12025550124@s.whatsapp.net').length,2);assert.equal(notifications,0);
+});
+
+test('a viewed account prioritizes its open chat while keeping other gallery history available',async t=>{
+ const {store,a}=setup(t),fake=socketFactory();
+ const client=new BaileysClient({store,id:a.id,phone:a.phone,pair:true,socketFactory:fake.make});
+ t.after(()=>client.destroy());await client.initialize();
+ await client.onConnection({connection:'open'},client.generation);
+ const first='12025550124@s.whatsapp.net',selected='12025550127@s.whatsapp.net';
+ client.saveMessage(raw('first',{key:{remoteJid:first,id:'first',fromMe:false},messageTimestamp:1700000000,message:{imageMessage:{fileLength:5}}}));
+ client.saveMessage(raw('selected',{key:{remoteJid:selected,id:'selected',fromMe:false},messageTimestamp:1700000000,message:{videoMessage:{fileLength:5}}}));
+ const now=Date.now();
+ client.setPanelFocus(selected,true,now);
+ assert.equal(client.panelFocusPeer,selected);
+ assert.ok(client.historyDue>now&&client.historyDue<now+12000,'viewed account gets an earlier sync timer');
+ await client.pumpHistory(now);
+ assert.equal(fake.sockets[0].history[1].remoteJid,selected,'the selected chat is checked before background chats');
+ assert.equal(client.store.get('history-sync',selected).next>now,true,'cooldown remains enforced');
+ await client.pumpHistory(now+1000);
+ assert.equal(fake.sockets[0].history[1].remoteJid,first,'other chats continue receiving updates');
+ client.setPanelFocus(null,false,now+2000);
+ assert.equal(client.panelFocusUntil,0);
+});
+
+test('automatic gallery synchronization does not overlap requests for the same account',async t=>{
+ const {store,a}=setup(t),fake=socketFactory(),client=new BaileysClient({store,id:a.id,phone:a.phone,pair:true,socketFactory:fake.make});
+ t.after(()=>client.destroy());await client.initialize();
+ await client.onConnection({connection:'open'},client.generation);
+ client.saveMessage(raw('seed',{message:{imageMessage:{fileLength:5}}}));
+ let release,calls=0;
+ fake.sockets[0].fetchMessageHistory=async()=>{calls++;return new Promise(resolve=>release=resolve);};
+ const now=Date.now(),pending=client.pumpHistory(now);
+ await tick();
+ await client.pumpHistory(now+2500);
+ assert.equal(calls,1);
+ assert.equal(client.historyPumpActive,true);
+ release('ok');await pending;
+ assert.equal(client.historyPumpActive,false);
+ assert.ok(client.historyTimer);
+});
+
+test('reconnect delays are stable per account and spread transient reconnect storms',async t=>{
+ const {store,a}=setup(t),other=store.invite('12025550125','Otra').account;
+ const initial=reconnectDelay(a.id,0,408),repeat=reconnectDelay(a.id,0,408);
+ assert.equal(initial,repeat);
+ assert.ok(initial>=2000&&initial<=3900);
+ assert.ok(reconnectDelay(a.id,3,428)>initial);
+ assert.ok(reconnectDelay(a.id,7,428)<=120000);
+ assert.notEqual(reconnectDelay(a.id,2,408),reconnectDelay(other.id,2,408));
+ const fake=socketFactory(),client=new BaileysClient({store,id:a.id,phone:a.phone,pair:true,socketFactory:fake.make});
+ t.after(()=>client.destroy());await client.initialize();
+ const old=fake.sockets[0];
+ await client.connect();
+ assert.equal(old.ended,true,'previous transport is cleaned before restoring a new socket');
+ assert.equal(fake.sockets.length,2);
+});
+
+test('a group gallery receives history priority only while that group is being viewed',async t=>{
+ const {store,a}=setup(t),fake=socketFactory();
+ const client=new BaileysClient({store,id:a.id,phone:a.phone,pair:true,socketFactory:fake.make});
+ t.after(()=>client.destroy());await client.initialize();
+ await client.onConnection({connection:'open'},client.generation);
+ const group='123456789@g.us';
+ client.saveMessage(raw('group-media',{key:{remoteJid:group,id:'group-media',fromMe:false},messageTimestamp:1700000200,message:{imageMessage:{fileLength:5}}}));
+ await client.pumpHistory(Date.now());
+ assert.equal(fake.sockets[0].history,undefined,'inactive groups are not newly scanned in gallery-only mode');
+ const now=Date.now();
+ client.setPanelFocus(group,true,now);
+ await client.pumpHistory(now+1000);
+ assert.equal(fake.sockets[0].history[1].remoteJid,group,'the selected group can request its already-indexed older photos');
+ client.setPanelFocus(null,false,now+2000);
 });

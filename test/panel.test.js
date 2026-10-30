@@ -44,6 +44,21 @@ test('panel API rejects foreign accounts/media, bad origins, missing CSRF and re
  response=await fetch(url+'/api/panel/avatar?account='+a.id+'&peer=12025550999@s.whatsapp.net',{headers});assert.equal(response.status,404);
  response=await fetch(url+'/api/panel/media?account='+b.id+'&message='+Buffer.from(db.messageKey(raw.key)).toString('base64url'),{headers});assert.equal(response.status,404);
  response=await fetch(url+'/api/panel/messages?account='+a.id+'&peer='+peer,{headers});assert.equal((await response.json()).items[0].text,'Solo propietario');
+
+ const focusChanges=[];
+ accounts.live.set(a.id,{ready:true,client:{setPanelFocus:(selected,active)=>focusChanges.push({selected,active})}});
+ const focusRoute=url+'/api/panel/focus';
+ response=await fetch(focusRoute,{method:'POST',headers:{...headers,'X-Panel-CSRF':'wrong'},body:JSON.stringify({account:a.id})});assert.equal(response.status,403);
+ response=await fetch(focusRoute,{method:'POST',headers,body:JSON.stringify({account:b.id,peer})});assert.equal(response.status,404,'a different owner cannot prioritize private accounts');
+ response=await fetch(focusRoute,{method:'POST',headers,body:JSON.stringify({account:a.id,peer:'bad-jid'})});assert.equal(response.status,400);
+ assert.equal(focusChanges.length,0,'unauthorized focus never changes sync priority');
+ response=await fetch(focusRoute,{method:'POST',headers,body:JSON.stringify({account:a.id,peer})});assert.equal(response.status,200);
+ assert.deepEqual(focusChanges.at(-1),{selected:peer,active:true});
+ response=await fetch(focusRoute,{method:'POST',headers,body:JSON.stringify({account:a.id,peer:null})});assert.equal(response.status,200);
+ assert.deepEqual(focusChanges.at(-1),{selected:null,active:true});
+ response=await fetch(focusRoute,{method:'POST',headers,body:JSON.stringify({account:null,peer:null})});assert.equal(response.status,200);
+ assert.deepEqual(focusChanges.at(-1),{selected:null,active:false});
+ accounts.live.delete(a.id);
  const message={account:a.id,peer,text:'Hola',request:'a'.repeat(32)};
  response=await fetch(url+'/api/panel/send',{method:'POST',headers:{...headers,'X-Panel-CSRF':''},body:JSON.stringify(message)});assert.equal(response.status,403);
  response=await fetch(url+'/api/panel/send',{method:'POST',headers,body:JSON.stringify(message)});assert.equal(response.status,200);response=await fetch(url+'/api/panel/send',{method:'POST',headers,body:JSON.stringify(message)});assert.equal(response.status,409);assert.equal(accounts.sent,1);

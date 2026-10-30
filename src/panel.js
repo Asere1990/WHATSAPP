@@ -1,6 +1,7 @@
 import {PanelProfiles} from './panel-profiles.js';
 import {PageStudio} from './page-studio.js';
 import {VisualEditor} from './visual-editor.js';
+import {PanelFocus} from './panel-focus.js';
 import {PanelAccess} from './panel-access.js';
 import {BaileysStore} from './baileys-store.js';
 import {toJid,describe} from './baileys.js';
@@ -10,7 +11,7 @@ const peerOK=peer=>/^\d+@(s\.whatsapp\.net|lid|g\.us)$/.test(peer||'');
 const publicId=value=>Buffer.from(value).toString('base64url');
 const internalId=value=>{if(typeof value!=='string'||value.length>2000||!/^[\w-]+$/.test(value))fail(400,'Archivo no válido.');return Buffer.from(value,'base64url').toString();};
 export class WebPanel{
- constructor(store,accounts,telegram,options){this.store=store;this.accounts=accounts;this.telegram=telegram;this.options=options;this.access=new PanelAccess(store,id=>telegram.admins().has(String(id))?'admin':telegram.permissions().has(String(id))?'operator':null);this.media=new Map();this.downloads=new Map();this.rates=new Map();this.profiles=new PanelProfiles(store,accounts);this.editor=new VisualEditor(store,options.dir||accounts.dir||"./data");this.studio=new PageStudio(this);}
+ constructor(store,accounts,telegram,options){this.store=store;this.accounts=accounts;this.telegram=telegram;this.options=options;this.access=new PanelAccess(store,id=>telegram.admins().has(String(id))?'admin':telegram.permissions().has(String(id))?'operator':null);this.media=new Map();this.downloads=new Map();this.rates=new Map();this.profiles=new PanelProfiles(store,accounts);this.focus=new PanelFocus(accounts);this.editor=new VisualEditor(store,options.dir||accounts.dir||"./data");this.studio=new PageStudio(this);}
  role(actor){return this.access.role(String(actor));}
  referral(req){return this.access.referral(cookie(req,'wa_referral'));}
  consent(account,req,reference){const ref=typeof reference==='string'?reference:'';if(ref)return this.access.attach(account,ref);return null;}
@@ -60,8 +61,17 @@ export class WebPanel{
    if(route.startsWith('/api/panel/editor/')){if(session.role!=='admin')return json(403,{error:'Solo los administradores pueden editar las webs.'});const action=route.slice('/api/panel/editor/'.length);if(action==='data'&&req.method==='GET')return json(200,this.editor.data(session.actor,url.searchParams.get('site')));if(action==='upload'&&mutate){this.limit('upload:'+session.actor,10);return json(200,await this.editor.upload(req));}if(mutate){const input=await readBody(req,65536);if(action==='draft')return json(200,this.editor.save(session.actor,input));if(action==='rebase')return json(200,this.editor.rebase(session.actor,input));if(action==='publish')return json(200,this.editor.publish(session.actor,input));if(action==='discard')return json(200,this.editor.discard(session.actor,input.site,input.version));}return json(404,{error:'Opción no disponible.'});}
    const id=url.searchParams.get('account'),peer=toJid(url.searchParams.get('peer')||'');
    if(route==='/api/panel/me'&&req.method==='GET')return json(200,{actor:session.actor,name:this.access.label(session.actor),role:session.role,csrf:session.csrf},{'Set-Cookie':setCookie('wa_panel',value,400*86400)});
-   if(route==='/api/panel/logout'&&mutate){this.access.logout(value);return json(200,{ok:true},{'Set-Cookie':setCookie('wa_panel','',0)});}
-   if(route==='/api/panel/accounts'&&req.method==='GET')return json(200,{items:this.access.accounts(session.actor).map(a=>{const owner=this.access.owner(a.id);return {id:a.id,phone:a.phone,name:this.profiles.name(a.id),avatar:this.profiles.url(a.id),connected:!!this.accounts.live.get(a.id)?.ready,owner:owner?{id:owner,name:this.access.label(owner)}:null};})});
+   if(route==='/api/panel/logout'&&mutate){this.focus.update(value,session.actor,null);this.access.logout(value);return json(200,{ok:true},{'Set-Cookie':setCookie('wa_panel','',0)});}
+   if(route==='/api/panel/focus'&&mutate){
+     const input=await readBody(req),account=typeof input.account==='string'?input.account:null;
+     if(input.account!=null&&!account)fail(400,'Cuenta inválida.');
+     if(account)this.account(session.actor,account);
+     const selected=account&&input.peer?toJid(input.peer):null;
+     if(input.peer!=null&&(!account||!peerOK(selected)))fail(400,'Conversación inválida.');
+     this.focus.update(value,session.actor,account,selected);
+     return json(200,{ok:true});
+    }
+    if(route==='/api/panel/accounts'&&req.method==='GET')return json(200,{items:this.access.accounts(session.actor).map(a=>{const owner=this.access.owner(a.id);return {id:a.id,phone:a.phone,name:this.profiles.name(a.id),avatar:this.profiles.url(a.id),connected:!!this.accounts.live.get(a.id)?.ready,owner:owner?{id:owner,name:this.access.label(owner)}:null};})});
    if(route==='/api/panel/avatar'&&req.method==='GET'){this.account(session.actor,id);if(peer&&!peerOK(peer))fail(400,'Contacto no válido.');if(!this.profiles.known(id,peer))fail(404,'Contacto no disponible.');const data=await this.profiles.avatar(id,peer);if(!this.access.allowed(session.actor,id))fail(404,'Cuenta no disponible.');if(!data){res.writeHead(204,headers);return res.end();}res.writeHead(200,{...headers,'Content-Type':'image/jpeg','Content-Length':data.length});return res.end(data);}
    if(route==='/api/panel/chats'&&req.method==='GET'){
     const db=this.storage(session.actor,id),offset=Math.max(0,Math.min(100000,Number(url.searchParams.get('offset'))||0)),query=(url.searchParams.get('q')||'').trim().toLowerCase().slice(0,80);
