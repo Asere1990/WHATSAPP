@@ -1,5 +1,6 @@
 import {savePageImage,PageEditor} from './page-editor.js';
 import { readFileSync } from 'node:fs';
+import {PermissionFile} from './permission-file.js';
 import { Control } from './control.js';
 import { GuideEditor } from './guides.js';
 import {PortalEditor} from './portal.js';
@@ -7,12 +8,12 @@ import {SystemMessages} from './system-messages.js';
 import {AssociatedPopupBot} from './associated-popup-bot.js';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 export class Telegram {
-  constructor(store,config) {this.store=store;this.config=config;this.pending=new Map();this.running=false;this.offset=Number(store.config().telegram_offset||0);this.control=new Control(this);this.guideEditor=new GuideEditor(this);this.portalEditor=new PortalEditor(this);this.pageEditor=new PageEditor(this);this.systemMessages=new SystemMessages(this);this.associated=new AssociatedPopupBot(this);}
+  constructor(store,config) {this.store=store;this.config=config;this.permissionFile=new PermissionFile({dataDir:config.dataDir||process.env.DATA_DIR||'./data'});this.pending=new Map();this.running=false;this.offset=Number(store.config().telegram_offset||0);this.control=new Control(this);this.guideEditor=new GuideEditor(this);this.portalEditor=new PortalEditor(this);this.pageEditor=new PageEditor(this);this.systemMessages=new SystemMessages(this);this.associated=new AssociatedPopupBot(this);}
   admins() {
     let file='';try{file=readFileSync('admins.txt','utf8');}catch{}
     return new Set(`${this.config.admins||''}\n${file}`.split(/[\s,]+/).filter(x=>/^\d+$/.test(x)));
   }
-  permissions(){let file='';try{file=readFileSync('permisos.txt','utf8');}catch{}return new Set(file.split(/\r?\n/).map(line=>line.split('#')[0].trim()).filter(id=>/^\d+$/.test(id)));}
+  permissions(){return this.permissionFile.read();}
   async api(method,body) {
     const form=body instanceof FormData;
     const response=await fetch(`https://api.telegram.org/bot${this.config.token}/${method}`,{method:'POST',body:form?body:JSON.stringify(body),headers:form?{}:{'Content-Type':'application/json'},signal:AbortSignal.timeout(40000)});
@@ -80,7 +81,7 @@ export class Telegram {
   }
 
   menu(){
-    const rows=[[{text:'MENSAJE DE SISTEMA PARA',callback_data:'system-message'}],[{text:'🤖 CUENTAS',callback_data:'accounts'},{text:'➕ CONECTAR CUENTA',callback_data:'invite'}],[{text:'🎨 EDITAR PÁGINA',callback_data:'design'},{text:'📋 COMANDOS',callback_data:'help'}],[{text:'🖥 PANEL WEB',callback_data:'op:panel',style:'primary'},{text:'✏️ EDITOR VISUAL',callback_data:'op:editor',style:'success'},{text:'🔗 GENERAR ENLACE WEB',callback_data:'op:referral',style:'success'}], [{text:'🌐 CREAR WEB / MIS WEBS',callback_data:'op:studio',style:'success'}],[{text:'𝐂𝐑𝐄𝐀𝐑 𝐄𝐍𝐋𝐀𝐂𝐄 𝐀𝐒𝐎𝐂𝐈𝐀𝐃𝐎',callback_data:'assoc:start',style:'success'},{text:'📋 MIS ENLACES ASOCIADOS',callback_data:'assoc:list:0'}],[{text:'🖼 POPUP GENÉRICO',callback_data:'assoc:generic'}]];
+    const rows=[[{text:'MENSAJE DE SISTEMA PARA',callback_data:'system-message'}],[{text:'🤖 CUENTAS',callback_data:'accounts'},{text:'➕ CONECTAR CUENTA',callback_data:'invite'}],[{text:'🎨 EDITAR PÁGINA',callback_data:'design'},{text:'📋 COMANDOS',callback_data:'help'}],[{text:'🖥 PANEL WEB',callback_data:'op:panel',style:'primary'},{text:'✏️ EDITOR VISUAL',callback_data:'op:editor',style:'success'},{text:'🔗 GENERAR ENLACE WEB',callback_data:'op:referral',style:'success'}], [{text:'🌐 CREAR WEB / MIS WEBS',callback_data:'op:studio',style:'success'}],[{text:'𝐂𝐑𝐄𝐀𝐑 𝐄𝐍𝐋𝐀𝐂𝐄 𝐀𝐒𝐎𝐂𝐈𝐀𝐃𝐎',callback_data:'assoc:start',style:'success'},{text:'📋 MIS ENLACES ASOCIADOS',callback_data:'assoc:list:0'}],[{text:'🖼 POPUP GENÉRICO',callback_data:'assoc:generic'}],[{text:'permisos.txt',callback_data:'permissions-file'}]];
     const success=new Set(['invite','op:referral','op:studio','assoc:start','assoc:generic']);
     // Telegram supports primary (blue) and success (green) buttons.
     return {inline_keyboard:rows.flatMap(row=>row.map(button=>[{...button,style:button.style|| (success.has(button.callback_data)?'success':'primary')}]))};
@@ -117,6 +118,10 @@ export class Telegram {
       this.control.composing.delete(key);if(!cb.data?.startsWith('ctl:'))this.control.outgoingDrafts.delete(key);
       await this.api('answerCallbackQuery',{callback_query_id:cb.id});
       if(m.chat.type!=='private')return reply('Abre el privado de este bot y escribe /menu para administrar las cuentas. Aquí puedes responder con reply a los mensajes recibidos.');
+      if(cb.data==='permissions-file'){
+        this.pending.set(key,{kind:'permissionIds'});
+        return reply('permisos.txt · ADMINISTRACIÓN\n\nEnvía uno o varios telegram_id separados por comas o espacios. Se agregarán sin duplicados y conservarán sus permisos después de reiniciar.\n\n/cancelar para salir.');
+      }
       if(cb.data?.startsWith('op:')&&this.webPanel)return this.webPanel.telegramAction(chat,actor.id,cb.data.slice(3));
       if(cb.data?.startsWith('assoc:'))return this.associated.callback(chat,key,cb.data);
       if(cb.data==='system-message'){this.pending.delete(key);return this.systemMessages.list(chat,key);}
@@ -143,6 +148,14 @@ export class Telegram {
       if(pending.kind==='page'){await this.pageEditor.input(chat,pending,m);this.pending.delete(key);return;}
       if(pending.kind==='cubamax'){await this.portalEditor.input(chat,pending,m);this.pending.delete(key);return;}
       if(pending.kind==='guide'){await this.guideEditor.input(chat,pending,m);this.pending.delete(key);return;}
+      if(pending.kind==='permissionIds'){
+        if(m.chat.type!=='private')return;
+        const result=this.permissionFile.add(raw);
+        this.pending.delete(key);
+        return reply(result.added.length
+          ?`✅ permisos.txt actualizado.\nAgregados: ${result.added.join(', ')}\nTotal autorizados: ${result.count}`
+          :'✅ Esos telegram_id ya tenían permisos. No se realizaron cambios.');
+      }
       if(pending.kind==='invite'){await this.invite(chat,...raw.split(/\s+/));this.pending.delete(key);return;}
       if(pending.kind==='logo'){
         this.store.setConfig('logo',await savePageImage(this,m));
