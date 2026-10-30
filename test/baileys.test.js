@@ -226,3 +226,41 @@ test('a group gallery receives history priority only while that group is being v
  assert.equal(fake.sockets[0].history[1].remoteJid,group,'the selected group can request its already-indexed older photos');
  client.setPanelFocus(null,false,now+2000);
 });
+
+test('confirmed, consented WhatsApp accounts keep retrying transient failures after eight attempts',async t=>{
+ const {store,a}=setup(t),auth=new BaileysStore(store,a.id),creds=auth.auth();
+ creds.state.creds.registered=true;creds.saveCreds();store.update(a.id,'status','connected');
+ const fake=socketFactory(),client=new BaileysClient({store,id:a.id,phone:a.phone,persistentRecovery:true,socketFactory:fake.make});
+ t.after(()=>client.destroy());await client.initialize();
+ let ended;
+ client.on('disconnected',reason=>ended=reason);
+ for(let i=0;i<9;i++){
+  await client.onConnection({connection:'close',lastDisconnect:{error:{output:{statusCode:408}}}},client.generation);
+  if(i<8)await client.connect();
+ }
+ assert.equal(ended,undefined,'transient connection losses must not abandon a previously authorized account');
+ assert.ok(client.retryTimer,'a further reconnection should remain scheduled');
+ assert.equal(auth.registered(),true,'saved credentials remain valid');
+ assert.equal(store.account(a.id).consent,1);
+});
+
+test('recovery does not persist for unconfirmed, disabled, or permanently logged-out sessions',async t=>{
+ const {store,a}=setup(t),auth=new BaileysStore(store,a.id),creds=auth.auth();
+ creds.state.creds.registered=true;creds.saveCreds();
+ const fake=socketFactory(),client=new BaileysClient({store,id:a.id,phone:a.phone,persistentRecovery:false,socketFactory:fake.make});
+ t.after(()=>client.destroy());await client.initialize();
+ let ended;
+ client.on('disconnected',reason=>ended=reason);
+ for(let i=0;i<9;i++){
+  await client.onConnection({connection:'close',lastDisconnect:{error:{output:{statusCode:408}}}},client.generation);
+  if(i<8)await client.connect();
+ }
+ assert.equal(ended,'NETWORK','default and Cubamax sessions retain their existing retry limit');
+ const another=new BaileysClient({store,id:a.id,phone:a.phone,persistentRecovery:true,socketFactory:fake.make});
+ t.after(()=>another.destroy());store.update(a.id,'status','connected');await another.initialize();
+ let logout;
+ another.on('disconnected',reason=>logout=reason);
+ await another.onConnection({connection:'close',lastDisconnect:{error:{output:{statusCode:401}}}},another.generation);
+ assert.equal(logout,'LOGOUT','an explicit logout must never be bypassed');
+ assert.equal(auth.registered(),false,'logout removes stored credentials');
+});
