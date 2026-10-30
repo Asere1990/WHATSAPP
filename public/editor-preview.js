@@ -4,9 +4,9 @@ const tell=m=>parent.postMessage(m,location.origin);
 function select(id,el){if(selected)selected.removeAttribute('data-editor-selected');selected=el;el?.setAttribute('data-editor-selected','');tell({type:'selection',id,scroll:scrollY,service:section|| (site==='cm'&&typeof corporateService!=='undefined'?corporateService:''),step:guideStep});}
 function pick(target){
  const find=id=>fields.find(f=>f.id===id);
- if(section==='guide-iphone'||section==='guide-android'||site==='wa'&&(section==='prelink'||section.startsWith('prelink-'))){
+ if(section==='guide-iphone'||section==='guide-android'||site==='wa'&&(section==='main-guide'||section==='prelink'||section.startsWith('prelink-'))){
   const prelink=site==='wa'&&section.startsWith('prelink-'),device=section.slice(section.indexOf('-')+1);
-  const step=globalThis.currentPublicContent?.[prelink?'prelinkGuides':'guides']?.[device]?.[guideStep];
+  const step=globalThis.currentPublicContent?.[prelink?'prelinkGuides':site==='wa'?'mainGuides':'guides']?.[device]?.[guideStep];
   if(step){const prefix=prelink||site==='cm'?'prelink':'guide';
    for(const [part,kind] of [['title','title'],['text','text'],['image','asset'],['video','asset']]){
     const el=target.closest('#'+prefix+'-'+part);
@@ -50,7 +50,7 @@ function pick(target){
 let lastTextTap=null;
 function renderGuideStep(){
  const prelink=site==='wa'&&section.startsWith('prelink-'),device=section.slice(section.indexOf('-')+1);
- const steps=globalThis.currentPublicContent?.[prelink?'prelinkGuides':'guides']?.[device];
+ const steps=globalThis.currentPublicContent?.[prelink?'prelinkGuides':site==='wa'?'mainGuides':'guides']?.[device];
  if(!Array.isArray(steps)||!steps.length)return;
  guideStep=Math.max(0,Math.min(guideStep,steps.length-1));
  const prefix=prelink||site==='cm'?'prelink':'guide',get=name=>document.getElementById(prefix+'-'+name),step=steps[guideStep];
@@ -75,6 +75,13 @@ function popup(service,step=0){const previous=section;section=service;guideStep=
  }
  if(site==='wa'&&service==='prelink'){document.getElementById('prelink-tutorial')?.showModal();return;}
  if(site==='wa'&&(service==='prelink-iphone'||service==='prelink-android')){renderGuideStep();document.getElementById('prelink-tutorial')?.showModal();return;}
+ if(site==='wa'&&service==='main-guide'){
+  for(const id of ['welcome','loading','connect','pairing','connected','owner-actions']){const el=document.getElementById(id);if(el)el.hidden=true;}
+  const guide=document.getElementById('guide');if(guide)guide.hidden=false;
+  const chooser=document.getElementById('guide-choose'),content=document.getElementById('guide-content');
+  if(chooser)chooser.hidden=false;if(content)content.hidden=true;
+  guide?.scrollIntoView({block:'start'});return;
+ }
  if(service==='guide-iphone'||service==='guide-android'){
   if(site==='cm'){renderGuideStep();document.getElementById('prelink-tutorial')?.showModal();}
   else{
@@ -203,7 +210,7 @@ document.addEventListener('click',e=>{
  tell({type:'popup-closed',dialog:dialog.id});
 },true);
 document.addEventListener('click',e=>{const target=e.target.closest?.('*');if(!target)return;
- if(section==='guide-iphone'||section==='guide-android'||site==='wa'&&(section==='prelink'||section.startsWith('prelink-'))){
+ if(section==='guide-iphone'||section==='guide-android'||site==='wa'&&(section==='main-guide'||section==='prelink'||section.startsWith('prelink-'))){
   if(target.closest('#prelink-close')){e.preventDefault();e.stopImmediatePropagation();document.getElementById('prelink-tutorial')?.close();return;}
   const navigation=target.closest('#prelink-back,#prelink-next,#guide-back,#guide-next');
   if(navigation){e.preventDefault();e.stopImmediatePropagation();lastTextTap=null;guideStep+=navigation.id.endsWith('-back')?-1:1;renderGuideStep();return;}

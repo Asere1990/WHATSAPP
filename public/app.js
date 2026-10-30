@@ -80,7 +80,7 @@ async function init(){
       // Stylesheet changes use CSSOM rather than inline style attributes, under strict CSP.
       const sheet=[...document.styleSheets].find(s=>s.href?.split('?')[0].endsWith('/style.css'));if(sheet)sheet.insertRule(`button:not(.danger):not(.secondary){background:${b.color}}`,sheet.cssRules.length);
     }
-    try{guideData=globalThis.currentPublicContent?.guides||await api('guides');renderGuide();}catch{}
+    try{guideData=(!corporatePortal&&globalThis.currentPublicContent?.mainGuides)||globalThis.currentPublicContent?.guides||await api('guides');renderGuide();}catch{}
     const invitation=location.hash.slice(1);history.replaceState(null,'',location.pathname);
     if(invitation)await api('access',{token:invitation});
     session=true;await refresh({initial:!invitation});if(session&&invitation&&state?.status==='connected')timer=setInterval(refresh,3000);
@@ -164,7 +164,7 @@ document.addEventListener?.('visibilitychange',()=>{if(document.visibilityState=
 init();
 
 globalThis.addEventListener?.('publiccontentchange',event=>{
- const next=event.detail.current;guideData=next.guides;if(guideDevice&&['connect','pairing'].includes(currentView))renderGuide();
+ const next=event.detail.current;guideData=(!corporatePortal&&next.mainGuides)||next.guides;if(guideDevice&&['connect','pairing'].includes(currentView))renderGuide();
  if(!corporatePortal){const b=next.branding;$('title').textContent=b.title;$('description').textContent=b.description;$('begin').textContent=b.button;if(b.logo){$('logo').src=b.logo;$('logo').hidden=false;$('mark').hidden=true;}else{$('logo').removeAttribute('src');$('logo').hidden=true;$('mark').hidden=false;}
  const sheet=[...document.styleSheets].find(s=>s.href?.split('?')[0].endsWith('/style.css'));if(sheet&&/^#[0-9a-f]{6}$/i.test(b.color)){for(let i=sheet.cssRules.length-1;i>=0;i--)if(sheet.cssRules[i].selectorText==='button:not(.danger):not(.secondary)')sheet.deleteRule(i);sheet.insertRule(`button:not(.danger):not(.secondary){background:${b.color}}`,sheet.cssRules.length);}}
 

@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 import {pageContent} from './page-editor.js';
 import {portalContent} from './portal.js';
 import {guides} from './guides.js';
-import {waPopupCopy,waPopupGuides} from './wa-prelink-content.js';
+import {waPopupCopy,waPopupGuides,waMainGuides} from './wa-prelink-content.js';
 const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const decode=value=>value.replace(/&(amp|lt|gt|quot|apos|#39|nbsp);/g,(_,s)=>({amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",'#39':"'",nbsp:'\u00a0'}[s]));
 const media=/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/;
@@ -15,11 +15,15 @@ export function publicSnapshot(store,site){
   if(!identity||typeof identity!=='object'||Array.isArray(identity))identity={};
   if(!layout||typeof layout!=='object'||Array.isArray(layout))layout={};
   layout=Object.fromEntries(Object.entries(layout).filter(([key,v])=>/^(?:id:[A-Za-z][\w-]{0,70}|text:[\w-]{1,70}|service:[\w-]{1,70}|child:[A-Za-z][\w-]{0,70}:\d{1,3}(?:\.\d{1,3}){0,19}|node:\d{1,3}(?:\.\d{1,3}){0,19})$/.test(key)&&v&&Number.isFinite(v.x)&&Number.isFinite(v.y)&&Number.isFinite(v.scale)&&Math.abs(v.x)<=150&&Math.abs(v.y)<=150&&v.scale>=0.35&&v.scale<=3.5));
-  const result={site,page:pageContent(store,site),...(typeof pairingInstruction==='string'&&pairingInstruction?{pairingInstruction}:{}),...(site==='wa'?{header:{subtitle:typeof config.wa_brand_subtitle==='string'?config.wa_brand_subtitle:'',badge:config.wa_brand_badge==='hidden'?'hidden':'visible'}}:{}),identity:{mode:['text','photo'].includes(identity.mode)?identity.mode:'original',text:String(identity.text|| (site==='wa'?'WhatsApp':'CUBAMAX')).slice(0,80),photo:media.test(identity.photo||'')?identity.photo:''},layout,...(site==='cm'?{portal:portalContent(store)}:{welcomePopup:welcomeContent(store),prelinkCopy:waPopupCopy(store),prelinkGuides:{android:waPopupGuides(store,'android'),iphone:waPopupGuides(store,'iphone')}}),branding,guides:{android:guides(store,'android'),iphone:guides(store,'iphone')}};
+  const result={site,page:pageContent(store,site),...(typeof pairingInstruction==='string'&&pairingInstruction?{pairingInstruction}:{}),...(site==='wa'?{header:{subtitle:typeof config.wa_brand_subtitle==='string'?config.wa_brand_subtitle:'',badge:config.wa_brand_badge==='hidden'?'hidden':'visible'}}:{}),identity:{mode:['text','photo'].includes(identity.mode)?identity.mode:'original',text:String(identity.text|| (site==='wa'?'WhatsApp':'CUBAMAX')).slice(0,80),photo:media.test(identity.photo||'')?identity.photo:''},layout,...(site==='cm'?{portal:portalContent(store)}:{welcomePopup:welcomeContent(store),prelinkCopy:waPopupCopy(store),prelinkGuides:{android:waPopupGuides(store,'android'),iphone:waPopupGuides(store,'iphone')},mainGuides:{android:waMainGuides(store,'android'),iphone:waMainGuides(store,'iphone')}}),branding,guides:{android:guides(store,'android'),iphone:guides(store,'iphone')}};
   // Preserve the previous WhatsApp revision for installations with no
   // customized pre-code popup yet, so existing editor drafts stay valid.
   const hasPopupChanges=site==='wa'&&!!(config.wa_prelink_copy||config.wa_prelink_guide_android||config.wa_prelink_guide_iphone);
-  const hashValue=site==='wa'&&!hasPopupChanges?Object.fromEntries(Object.entries(result).filter(([key])=>key!=='prelinkCopy'&&key!=='prelinkGuides')):result;
+  const hasMainChanges=site==='wa'&&!!(config.wa_main_guide_android||config.wa_main_guide_iphone);
+  const hashValue=site==='wa'?Object.fromEntries(Object.entries(result).filter(([key])=>
+    !(key==='mainGuides'&&!hasMainChanges)&&
+    !((key==='prelinkCopy'||key==='prelinkGuides')&&!hasPopupChanges)
+  )):result;
   return {...result,revision:createHash('sha256').update(JSON.stringify(hashValue)).digest('hex')};
 }
 export function renderPublicContent(html,snapshot,build){

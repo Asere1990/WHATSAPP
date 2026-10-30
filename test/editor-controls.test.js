@@ -149,3 +149,22 @@ test('Cubamax editor retains its existing disabled-button and draft-first behavi
  await e.get('publish').onclick();
  assert.equal(e.calls.filter(x=>x.route==='editor/publish').length,1);
 });
+
+test('WhatsApp Secciones exposes editable main-page steps, not only the separate popup',async()=>{
+ const e=await editor('wa'),options=e.get('popup').children.map(x=>({value:x.value,label:x.textContent}));
+ const main=options.find(x=>x.value==='main-guide');
+ assert.equal(main?.label,'Página principal · Guía de pasos');
+ assert.equal(options.find(x=>x.value==='guide-iphone')?.label,'Página principal · Pasos iPhone');
+ assert.equal(options.find(x=>x.value==='guide-android')?.label,'Página principal · Pasos Android');
+ assert.ok(options.find(x=>x.value==='prelink-iphone'),'pre-code popup remains separately editable');
+ e.get('popup').value='main-guide';e.get('popup').onchange();
+ assert.match(e.get('status').textContent,/Guía de la página principal/);
+ const cm=await editor('cm');
+ const cmOptions=cm.get('popup').children.map(x=>({value:x.value,label:x.textContent}));
+ assert.equal(cmOptions.some(x=>x.value==='main-guide'),false);
+ assert.equal(cmOptions.find(x=>x.value==='guide-iphone')?.label,'Pasos · iPhone');
+});
+test('WhatsApp uploaded main-page guide photos use persistent portal media, Cubamax keeps original upload folder',()=>{
+ const src=readFileSync(new URL('../public/editor.js',import.meta.url),'utf8');
+ assert.match(src,/chosen\.startsWith\('guide:'\)\&\&data\.site==='cm'/);
+});

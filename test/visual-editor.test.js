@@ -124,7 +124,7 @@ test('WhatsApp popup media edits stay in WhatsApp and use existing portal assets
 
 test('unchanged WhatsApp popup defaults preserve existing published revision and saved drafts',t=>{
  const {store,editor}=setup(t),snapshot=publicSnapshot(store,'wa');
- const original=Object.fromEntries(Object.entries(snapshot).filter(([key])=>!['revision','prelinkCopy','prelinkGuides'].includes(key)));
+ const original=Object.fromEntries(Object.entries(snapshot).filter(([key])=>!['revision','prelinkCopy','prelinkGuides','mainGuides'].includes(key)));
  const hash=createHash('sha256').update(JSON.stringify(original)).digest('hex');
  assert.equal(snapshot.revision,hash,'existing WhatsApp drafts must not conflict just because the new popup editor was deployed');
  const first=editor.data('admin','wa');
@@ -133,4 +133,48 @@ test('unchanged WhatsApp popup defaults preserve existing published revision and
  assert.equal(editor.data('admin','wa').base,first.revision);
  assert.equal(draft.dirty,true);
  assert.equal(store.config().wa_prelink_copy,undefined);
+});
+
+test('WhatsApp main-page iPhone and Android steps have separate editable text and images',t=>{
+ const {store,editor,dir}=setup(t),cmBefore=publicSnapshot(store,'cm').revision;
+ const guideBefore=store.config().guide_iphone,popupBefore=publicSnapshot(store,'wa').prelinkGuides.iphone[0].title;
+ const initial=editor.data('admin','wa');
+ const title=initial.fields.find(f=>f.id.startsWith('guide:iphone:')&&f.id.endsWith(':title'));
+ const photo=initial.fields.find(f=>f.id.startsWith('guide:iphone:')&&f.id.endsWith(':asset'));
+ const android=initial.fields.find(f=>f.id.startsWith('guide:android:')&&f.id.endsWith(':title'));
+ assert.ok(title&&photo&&android);
+ assert.match(title.label,/Página principal/);
+ assert.equal(photo.group,'guide-iphone');
+ const name='c'.repeat(64)+'.jpg';mkdirSync(dir+'/portal-media');writeFileSync(dir+'/portal-media/'+name,Buffer.from('test image fixture'));
+ const staged=editor.save('admin',{site:'wa',version:initial.version,revision:initial.base,changes:[
+   {id:title.id,value:'Paso de iPhone editable'},
+   {id:photo.id,value:'/portal-media/'+name},
+   {id:android.id,value:'Paso de Android editable'}
+ ]});
+ assert.equal(staged.dirty,true);
+ assert.equal(publicSnapshot(store,'cm').revision,cmBefore);
+ assert.equal(store.config().guide_iphone,guideBefore);
+ editor.publish('admin',{site:'wa',version:staged.version});
+ const wa=publicSnapshot(store,'wa');
+ assert.equal(wa.mainGuides.iphone[0].title,'Paso de iPhone editable');
+ assert.equal(wa.mainGuides.iphone[0].asset,'/portal-media/'+name);
+ assert.equal(wa.mainGuides.android[0].title,'Paso de Android editable');
+ assert.equal(wa.prelinkGuides.iphone[0].title,popupBefore);
+ assert.equal(wa.guides.iphone[0].title,title.value);
+ assert.equal(store.config().guide_iphone,guideBefore,'shared guide remains unmodified');
+ assert.equal(publicSnapshot(store,'cm').revision,cmBefore,'Cubamax snapshot unchanged');
+ const reopened=new Store(dir);
+ assert.equal(publicSnapshot(reopened,'wa').mainGuides.iphone[0].title,'Paso de iPhone editable');
+ reopened.db.close();
+});
+test('Adding a main-page WhatsApp guide editor does not cause revision conflicts for saved drafts',t=>{
+ const {store,editor}=setup(t),first=editor.data('admin','wa');
+ const stored=editor.save('admin',{site:'wa',version:first.version,revision:first.base,changes:[{id:'brand:subtitle',value:'Conservado'}]});
+ const current=publicSnapshot(store,'wa');
+ assert.equal(store.config().wa_main_guide_iphone,undefined);
+ assert.equal(store.config().wa_main_guide_android,undefined);
+ const original=Object.fromEntries(Object.entries(current).filter(([key])=>!['revision','prelinkCopy','prelinkGuides','mainGuides'].includes(key)));
+ assert.equal(current.revision,createHash('sha256').update(JSON.stringify(original)).digest('hex'));
+ assert.equal(editor.data('admin','wa').conflict,false);
+ assert.equal(editor.data('admin','wa').version,stored.version);
 });

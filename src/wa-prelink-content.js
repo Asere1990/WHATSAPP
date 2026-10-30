@@ -32,3 +32,11 @@ export function waPopupGuides(store,device){
  if(raw)try{const steps=JSON.parse(raw);if(validSteps(steps))return steps;}catch{}
  return guides(store,device).map(step=>({...step}));
 }
+
+export function waMainGuides(store,device){
+ if(!['android','iphone'].includes(device))throw Error('Dispositivo inválido.');
+ const raw=store.config()['wa_main_guide_'+device];
+ if(raw)try{const steps=JSON.parse(raw);if(validSteps(steps))return steps;}catch{}
+ // Keep the current inline guide content until it is separately edited.
+ return guides(store,device).map(step=>({...step}));
+}
