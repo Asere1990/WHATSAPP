@@ -5,6 +5,7 @@ import {VisualEditor} from './visual-editor.js';
 import {PanelFocus} from './panel-focus.js';
 import {PanelAccess} from './panel-access.js';
 import {BaileysStore} from './baileys-store.js';
+import {galleryMetrics} from './gallery-metrics.js';
 import {toJid,describe} from './baileys.js';
 const cookie=(req,key)=>(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith(key+'='))?.slice(key.length+1)||'';
 const fail=(status,message)=>{const e=Error(message);e.status=status;throw e;};
@@ -65,7 +66,8 @@ export class WebPanel{
   const peers=db.peers(peer),filter=visibleChatFilter(db,peer,media);
   const rows=this.store.db.prepare("SELECT rowid,id,timestamp FROM baileys_data WHERE account=? AND kind='message' AND peer IN ("+peers.map(()=>'?').join(',')+") AND (timestamp<? OR (timestamp=? AND rowid<?))"+filter.sql+' ORDER BY timestamp DESC,rowid DESC LIMIT 61').all(id,...peers,at,at,row,...filter.params),page=rows.slice(0,60),items=[];
   for(const entry of page){const raw=db.projectSelfMessage(db.get('message',entry.id)),d=describe(raw);if(d.ephemeral||d.viewOnce||(filter.self&&d.type==='system'))continue;items.push({id:publicId(entry.id),logicalId:JSON.stringify([raw.key.id,!!raw.key.fromMe]),timestamp:Number(raw.messageTimestamp)||0,fromMe:!!raw.key.fromMe,sender:String(raw.pushName||raw.key.participant?.split('@')[0]||''),type:d.type,text:String(d.body).slice(0,16000),media:!!d.media,name:String(d.media?.fileName||d.type).slice(0,150),mime:String(d.media?.mimetype||''),size:Number(d.media?.fileLength)||0,thumbnail:!!d.media?.jpegThumbnail,duration:Number(d.media?.seconds)||0,waveform:d.media?.waveform?Array.from(typeof d.media.waveform==='string'?Buffer.from(d.media.waveform,'base64'):Buffer.from(d.media.waveform)).slice(0,64):[],status:Number(raw.status)||0});}
-  const last=page.at(-1);return {items:items.reverse(),next:rows.length>60?publicId(JSON.stringify([Number(last.timestamp),Number(last.rowid)])):null};
+  const last=page.at(-1);return {items:items.reverse(),next:rows.length>60?publicId(JSON.stringify([Number(last.timestamp),Number(last.rowid)])):null,
+   ...(media?{stats:galleryMetrics(this.store,id,db,peer,this.archive,filter,peers)}:{})};
  }
  async mediaData(id,key,raw){
   if(this.archive?.allowed(id)){
@@ -115,7 +117,7 @@ export class WebPanel{
    if(route==='/api/panel/chats'&&req.method==='GET'){
     const db=this.storage(session.actor,id),offset=Math.max(0,Math.min(100000,Number(url.searchParams.get('offset'))||0)),query=(url.searchParams.get('q')||'').trim().toLowerCase().slice(0,80);
     const merged=new Map();
-    for(const c of db.list('chat',100000)){const source=toJid(c.id);if(!peerOK(source))continue;const peer=db.canonical(source),name=this.profiles.name(id,peer),old=merged.get(peer);const row={peer,name,avatar:this.profiles.url(id,peer),timestamp:Math.max(Number(c.conversationTimestamp)||0,old?.timestamp||0),unread:Math.max(Number(c.unreadCount)||0,old?.unread||0),group:peer.endsWith('@g.us')};if(old&&name===peer.split('@')[0])row.name=old.name;merged.set(peer,row);}
+    for(const c of db.list('chat',100000)){const source=toJid(c.id);if(!peerOK(source))continue;const peer=db.canonical(source),name=this.profiles.name(id,peer),phone=/^\d{7,15}@s\.whatsapp\.net$/.test(peer)?'+'+peer.split('@')[0]:null,old=merged.get(peer);const row={peer,name,phone,avatar:this.profiles.url(id,peer),timestamp:Math.max(Number(c.conversationTimestamp)||0,old?.timestamp||0),unread:Math.max(Number(c.unreadCount)||0,old?.unread||0),group:peer.endsWith('@g.us')};if(old&&name===peer.split('@')[0])row.name=old.name;merged.set(peer,row);}
     // Give the own chat a preview and timestamp from its real messages,
     // never from another chat's device-sync placeholder.
     for(const c of merged.values()){
