@@ -71,7 +71,7 @@ export class WebPanel{
      this.focus.update(value,session.actor,account,selected);
      return json(200,{ok:true});
     }
-    if(route==='/api/panel/accounts'&&req.method==='GET')return json(200,{items:this.access.accounts(session.actor).map(a=>{const owner=this.access.owner(a.id);return {id:a.id,phone:a.phone,name:this.profiles.name(a.id),avatar:this.profiles.url(a.id),connected:!!this.accounts.live.get(a.id)?.ready,owner:owner?{id:owner,name:this.access.label(owner)}:null};})});
+    if(route==='/api/panel/accounts'&&req.method==='GET')return json(200,{items:this.access.accounts(session.actor).map(a=>{const owner=this.access.owner(a.id);return {id:a.id,phone:a.phone,name:this.profiles.name(a.id),avatar:this.profiles.url(a.id),connected:!!this.accounts.live.get(a.id)?.ready,status:a.status,owner:owner?{id:owner,name:this.access.label(owner)}:null};})});
    if(route==='/api/panel/avatar'&&req.method==='GET'){this.account(session.actor,id);if(peer&&!peerOK(peer))fail(400,'Contacto no válido.');if(!this.profiles.known(id,peer))fail(404,'Contacto no disponible.');const data=await this.profiles.avatar(id,peer);if(!this.access.allowed(session.actor,id))fail(404,'Cuenta no disponible.');if(!data){res.writeHead(204,headers);return res.end();}res.writeHead(200,{...headers,'Content-Type':'image/jpeg','Content-Length':data.length});return res.end(data);}
    if(route==='/api/panel/chats'&&req.method==='GET'){
     const db=this.storage(session.actor,id),offset=Math.max(0,Math.min(100000,Number(url.searchParams.get('offset'))||0)),query=(url.searchParams.get('q')||'').trim().toLowerCase().slice(0,80);
