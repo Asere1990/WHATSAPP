@@ -1,4 +1,5 @@
 import {PanelProfiles} from './panel-profiles.js';
+import {createReadStream} from 'node:fs';
 import {PageStudio} from './page-studio.js';
 import {VisualEditor} from './visual-editor.js';
 import {PanelFocus} from './panel-focus.js';
@@ -11,7 +12,7 @@ const peerOK=peer=>/^\d+@(s\.whatsapp\.net|lid|g\.us)$/.test(peer||'');
 const publicId=value=>Buffer.from(value).toString('base64url');
 const internalId=value=>{if(typeof value!=='string'||value.length>2000||!/^[\w-]+$/.test(value))fail(400,'Archivo no válido.');return Buffer.from(value,'base64url').toString();};
 export class WebPanel{
- constructor(store,accounts,telegram,options){this.store=store;this.accounts=accounts;this.telegram=telegram;this.options=options;this.access=new PanelAccess(store,id=>telegram.admins().has(String(id))?'admin':telegram.permissions().has(String(id))?'operator':null);this.media=new Map();this.downloads=new Map();this.rates=new Map();this.profiles=new PanelProfiles(store,accounts);this.focus=new PanelFocus(accounts);this.editor=new VisualEditor(store,options.dir||accounts.dir||"./data");this.studio=new PageStudio(this);}
+ constructor(store,accounts,telegram,options){this.store=store;this.accounts=accounts;this.telegram=telegram;this.options=options;this.access=new PanelAccess(store,id=>telegram.admins().has(String(id))?'admin':telegram.permissions().has(String(id))?'operator':null);this.media=new Map();this.downloads=new Map();this.rates=new Map();this.archive=accounts.archive||null;this.profiles=new PanelProfiles(store,accounts);this.focus=new PanelFocus(accounts);this.editor=new VisualEditor(store,options.dir||accounts.dir||"./data");this.studio=new PageStudio(this);}
  role(actor){return this.access.role(String(actor));}
  referral(req){return this.access.referral(cookie(req,'wa_referral'));}
  consent(account,req,reference){const ref=typeof reference==='string'?reference:'';if(ref)return this.access.attach(account,ref);return null;}
@@ -41,6 +42,18 @@ export class WebPanel{
   const last=page.at(-1);return {items:items.reverse(),next:rows.length>60?publicId(JSON.stringify([Number(last.timestamp),Number(last.rowid)])):null};
  }
  async mediaData(id,key,raw){
+  if(this.archive?.allowed(id)){
+    const saved=this.archive.info(id,key);
+    if(saved)return saved;
+    const entry=this.accounts.live.get(id);
+    if(!entry?.ready||!entry.client)fail(409,'Cuenta sin conexión. Este archivo aún no estaba guardado para consultarlo sin Internet.');
+    try{return await this.archive.onDemand(id,key,raw,entry.client);}
+    catch(error){
+      if(/almacenamiento reservado|queda espacio/.test(error.message))fail(507,'Almacenamiento lleno. Amplía el disco de Render para continuar.');
+      if(/límite de caché|demasiado grande/.test(error.message))fail(413,'El archivo supera el tamaño máximo de descarga configurado.');
+      fail(409,'WhatsApp todavía no entregó este archivo. Se reintentará cuando esté disponible.');
+    }
+  }
   const cacheKey=id+':'+key,cached=this.media.get(cacheKey);if(cached&&cached.expires>Date.now())return cached;
   if(this.downloads.has(cacheKey))return this.downloads.get(cacheKey);
   if(this.downloads.size>=3)fail(429,'Hay varias descargas en curso. Inténtalo en unos segundos.');
@@ -68,10 +81,10 @@ export class WebPanel{
      if(account)this.account(session.actor,account);
      const selected=account&&input.peer?toJid(input.peer):null;
      if(input.peer!=null&&(!account||!peerOK(selected)))fail(400,'Conversación inválida.');
-     this.focus.update(value,session.actor,account,selected);
+     this.focus.update(value,session.actor,account,selected);this.archive?.focus(account,selected);
      return json(200,{ok:true});
     }
-    if(route==='/api/panel/accounts'&&req.method==='GET')return json(200,{items:this.access.accounts(session.actor).map(a=>{const owner=this.access.owner(a.id);return {id:a.id,phone:a.phone,name:this.profiles.name(a.id),avatar:this.profiles.url(a.id),connected:!!this.accounts.live.get(a.id)?.ready,status:a.status,owner:owner?{id:owner,name:this.access.label(owner)}:null};})});
+    if(route==='/api/panel/accounts'&&req.method==='GET')return json(200,{items:this.access.accounts(session.actor).map(a=>{const owner=this.access.owner(a.id);return {id:a.id,phone:a.phone,name:this.profiles.name(a.id),avatar:this.profiles.url(a.id),connected:!!this.accounts.live.get(a.id)?.ready,status:a.status,archived:this.archive?.summary(a.id)||null,lastSync:this.archive?.lastSync(a.id)||null,owner:owner?{id:owner,name:this.access.label(owner)}:null};})});
    if(route==='/api/panel/avatar'&&req.method==='GET'){this.account(session.actor,id);if(peer&&!peerOK(peer))fail(400,'Contacto no válido.');if(!this.profiles.known(id,peer))fail(404,'Contacto no disponible.');const data=await this.profiles.avatar(id,peer);if(!this.access.allowed(session.actor,id))fail(404,'Cuenta no disponible.');if(!data){res.writeHead(204,headers);return res.end();}res.writeHead(200,{...headers,'Content-Type':'image/jpeg','Content-Length':data.length});return res.end(data);}
    if(route==='/api/panel/chats'&&req.method==='GET'){
     const db=this.storage(session.actor,id),offset=Math.max(0,Math.min(100000,Number(url.searchParams.get('offset'))||0)),query=(url.searchParams.get('q')||'').trim().toLowerCase().slice(0,80);
@@ -86,7 +99,19 @@ export class WebPanel{
     const {raw,d,key}=this.message(session.actor,id,url.searchParams.get('message'));if(!d.media)fail(404,'Sin archivo adjunto.');
     if(route.endsWith('thumb')){if(!d.media.jpegThumbnail){res.writeHead(204,headers);return res.end();}const thumb=d.media.jpegThumbnail;const data=typeof thumb==='string'?Buffer.from(thumb,'base64'):Buffer.from(thumb?.data?(typeof thumb.data==='string'?Buffer.from(thumb.data,'base64'):thumb.data):thumb);if(data[0]!==255||data[1]!==216){res.writeHead(204,headers);return res.end();}if(data.length>256000)fail(413,'Vista previa no disponible.');res.writeHead(200,{...headers,'Content-Type':'image/jpeg','Content-Length':data.length});return res.end(data);}
     this.limit('media:'+session.actor,30);const media=await this.mediaData(id,key,raw);media.mime=String(media.mime||'application/octet-stream').split(';')[0].trim().toLowerCase();const allowed=/^(image\/(jpeg|png|gif|webp)|video\/mp4|audio\/(ogg|mpeg|mp4|aac|wav|webm))$/.test(media.mime),attachment=url.searchParams.get('download')==='1'||!allowed,name=String(media.name||'archivo').replace(/[^a-zA-Z0-9._-]/g,'_').slice(0,100),extra={...headers,'Content-Type':allowed?media.mime:'application/octet-stream','Content-Disposition':`${attachment?'attachment':'inline'}; filename="${name}"`,'Accept-Ranges':'bytes'};
-    if(req.headers.range){const match=/^bytes=(\d+)-(\d*)$/.exec(req.headers.range);if(!match)fail(416,'Rango no disponible.');const start=Number(match[1]),end=Math.min(media.data.length-1,match[2]?Number(match[2]):media.data.length-1);if(start>end||start>=media.data.length)fail(416,'Rango no disponible.');res.writeHead(206,{...extra,'Content-Range':`bytes ${start}-${end}/${media.data.length}`,'Content-Length':end-start+1});return res.end(media.data.subarray(start,end+1));}res.writeHead(200,{...extra,'Content-Length':media.data.length});return res.end(media.data);
+    const size=media.path?media.size:media.data.length;
+    if(req.headers.range){
+      const match=/^bytes=(\d+)-(\d*)$/.exec(req.headers.range);
+      if(!match)fail(416,'Rango no disponible.');
+      const start=Number(match[1]),end=Math.min(size-1,match[2]?Number(match[2]):size-1);
+      if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>end||start>=size)fail(416,'Rango no disponible.');
+      res.writeHead(206,{...extra,'Content-Range':`bytes ${start}-${end}/${size}`,'Content-Length':end-start+1});
+      if(media.path){const stream=createReadStream(media.path,{start,end});stream.on('error',()=>res.destroy());return stream.pipe(res);}
+      return res.end(media.data.subarray(start,end+1));
+    }
+    res.writeHead(200,{...extra,'Content-Length':size});
+    if(media.path){const stream=createReadStream(media.path);stream.on('error',()=>res.destroy());return stream.pipe(res);}
+    return res.end(media.data);
    }
    if(route==='/api/panel/sync'&&mutate){const input=await readBody(req);this.account(session.actor,input.account);const target=toJid(input.peer);if(!peerOK(target))fail(400,'Conversación no válida.');this.limit('sync:'+input.account,3);const client=this.accounts.live.get(input.account)?.client;if(!this.accounts.live.get(input.account)?.ready||!client?.syncHistory)fail(409,'La cuenta no está conectada.');const db=new BaileysStore(this.store,input.account),peers=db.peers(target).sort((a,b)=>Number(db.messages(b,1)[0]?.messageTimestamp||0)-Number(db.messages(a,1)[0]?.messageTimestamp||0));const result=await client.syncHistory(peers[0]||target);if(!result)fail(409,'Todavía no hay un mensaje de referencia para solicitar este historial. Se actualizará cuando WhatsApp lo entregue.');return json(202,{ok:true,message:'Solicitud enviada. El historial se actualizará cuando WhatsApp lo entregue.'});}
    if(route==='/api/panel/send'&&mutate){const input=await readBody(req);this.account(session.actor,input.account);if(!/^\d+@(s\.whatsapp\.net|lid)$/.test(toJid(input.peer))||typeof input.text!=='string'||!input.text.trim()||input.text.length>3000||!/^[a-f0-9]{32}$/.test(input.request||''))fail(400,'Mensaje no válido.');this.limit('send:'+session.actor,20);const claim=this.store.db.prepare("INSERT OR IGNORE INTO panel_sends VALUES(?,?,?,'sending',?)").run(session.actor,input.request,input.account,Date.now());if(!claim.changes)fail(409,'Este envío ya se procesó. Comprueba la conversación antes de repetir.');try{await this.accounts.send(input.account,toJid(input.peer).replace('@s.whatsapp.net','@c.us'),input.text.trim());this.store.db.prepare("UPDATE panel_sends SET state='sent' WHERE actor=? AND request=?").run(session.actor,input.request);}catch{this.store.db.prepare("UPDATE panel_sends SET state='review' WHERE actor=? AND request=?").run(session.actor,input.request);fail(409,'No se pudo confirmar el envío. Revisa la conversación antes de repetir.');}return json(200,{ok:true});}
