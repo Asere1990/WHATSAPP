@@ -27,7 +27,7 @@ export class OfflineMediaArchive{
     PRIMARY KEY(account,message));
     CREATE INDEX IF NOT EXISTS offline_media_due ON offline_media(account,status,next_try,created);`);
   this.accounts=null;this.timer=null;this.busy=false;this.closed=false;
-  this.focusAccount=null;this.focusPeer=null;this.roundRobin=0;
+  this.focusAccount=null;this.focusPeer=null;this.roundRobin=0;this.seedIds=new Set();
   this.maxFileBytes=Math.max(1,Math.min(100,Number(process.env.OFFLINE_MEDIA_MAX_MB)||80))*MB;
   this.quotaBytes=Math.max(1,Math.min(1000,Number(process.env.OFFLINE_MEDIA_QUOTA_GB)||40))*GB;
   this.fileSize=this.db.prepare('SELECT COALESCE(SUM(bytes),0) AS bytes FROM offline_media WHERE status=?');
@@ -65,7 +65,7 @@ export class OfflineMediaArchive{
   if(this.closed||!this.allowed(account)||!raw?.key?.id||!raw.key.remoteJid)return false;
   const d=describe(raw);
   if(!mediaTypes.has(d.type)||!d.media||d.ephemeral||d.viewOnce)return false;
-  const key=new BaileysStore(this.store,account).messageKey(raw.key),now=Date.now();
+  const key=JSON.stringify([raw.key.remoteJid,raw.key.id,!!raw.key.fromMe,raw.key.participant||'']),now=Date.now();
   this.newTask.run(account,key,String(raw.key.remoteJid),now,now);
   this.wake(2500);
   return true;
@@ -95,17 +95,17 @@ export class OfflineMediaArchive{
   // Resume a bounded scan of media already indexed before this feature.
   const key='archive:seed:'+account;
   const saved=this.store.config()[key];
-  if(saved==='done')return;
+  if(saved==='done'){this.seedIds.delete(account);return;}
   const upper=saved?Number(saved):Number(this.db.prepare(
    "SELECT COALESCE(MAX(rowid),0) AS id FROM baileys_data WHERE account=? AND kind='message'"
   ).get(account)?.id||0);
-  if(!upper){this.store.setConfig(key,'done');return;}
+  if(!upper){this.store.setConfig(key,'done');this.seedIds.delete(account);return;}
   const rows=this.db.prepare(`SELECT rowid,value FROM baileys_data
     WHERE account=? AND kind='message' AND rowid<=?
     ORDER BY rowid DESC LIMIT 120`).all(account,upper);
   for(const row of rows)try{this.track(account,JSON.parse(row.value, (k,v)=>v));}catch{}
-  if(rows.length<120)this.store.setConfig(key,'done');
-  else this.store.setConfig(key,String(Number(rows.at(-1).rowid)-1));
+  if(rows.length<120){this.store.setConfig(key,'done');this.seedIds.delete(account);}
+  else {this.store.setConfig(key,String(Number(rows.at(-1).rowid)-1));this.seedIds.add(account);}
   this.wake(3000);
  }
  // Existing archive remains available during a network outage. Seeding does
@@ -197,6 +197,9 @@ export class OfflineMediaArchive{
   if(this.busy||this.closed)return;
   this.busy=true;
   try{
+   // Re-index existing history in short, resumable batches before fetching.
+   const seed=[...this.seedIds].find(id=>this.allowed(id));
+   if(seed)this.seed(seed);
    const entries=[...(this.accounts?.live||new Map()).entries()]
     .filter(([id,entry])=>entry?.ready&&this.allowed(id));
    if(!entries.length)return;
@@ -229,9 +232,10 @@ export class OfflineMediaArchive{
    }
   }
  }
- shutdown(){
+ async shutdown(){
   this.closed=true;
   if(this.timer)clearTimeout(this.timer);
   this.timer=null;
+  await Promise.allSettled([...this.pending.values()]);
  }
 }
