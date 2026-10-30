@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {Store} from '../src/store.js';
 import {PanelAccess} from '../src/panel-access.js';
+import {AssociatedLinks} from '../src/associated-links.js';
 import {WebPanel} from '../src/panel.js';
 import {Telegram} from '../src/telegram.js';
 import {operatorPopupDefaults,operatorPopupContent,updateOperatorPopup,operatorPopupForReferral} from '../src/operator-referral-popup.js';
@@ -42,6 +43,7 @@ test('operator referral popup has separate defaults and validates editable title
 
 test('only valid operator referral links on the matching site use the persistent popup on every lookup',t=>{
  const {store,role}=setup(t),access=new PanelAccess(store,role);
+ new AssociatedLinks(store);
  const operator=access.token('20000','referral',{site:'wa'}),operatorCm=access.token('20000','referral',{site:'cm'}),admin=access.token('10000','referral',{site:'wa'});
  const links=[
   access.referral(operator),access.referral(operatorCm),access.referral(admin)
