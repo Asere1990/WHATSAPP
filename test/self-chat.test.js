@@ -127,6 +127,78 @@ test('offline archiving queues own wrapped media without touching other accounts
  assert.equal(state.ready,0);
 });
 
+test('foreign inbound sync placeholders never fill own-chat pages or gallery',t=>{
+ const {db,store,a,dir}=setup(t);
+ const selfText=message(pn,'real-self-text',{conversation:'Nota propia real'},100);
+ const selfPhoto=message(lid,'real-self-photo',{imageMessage:{caption:'Foto propia real',fileLength:12}},101);
+ const selfMirrored={key:{remoteJid:pn,id:'self-from-device',fromMe:false},messageTimestamp:103,
+  message:{conversation:'Nota propia del segundo dispositivo'}};
+ const selfWrapped=message(lid,'real-wrapped',{deviceSentMessage:{
+  destinationJid:phone+':3@s.whatsapp.net',message:{videoMessage:{caption:'Video propio real',fileLength:14}}
+ }},102);
+ const received={key:{remoteJid:other,id:'incoming-to-own',fromMe:false},messageTimestamp:200,
+  message:{conversation:'Mensaje recibido de otro contacto'}};
+ const foreignEnvelope=message(lid,'foreign-sync',{deviceSentMessage:{
+  destinationJid:other,message:{conversation:'Una conversación diferente'}
+ }},300);
+ const foreignMedia=message(lid,'foreign-sync-photo',{deviceSentMessage:{
+  destinationJid:other,message:{imageMessage:{caption:'Foto de conversación diferente',fileLength:18}}
+ }},301);
+ db.message(selfText);db.message(selfPhoto);db.message(selfWrapped);db.message(selfMirrored);
+ db.message(received);db.message(foreignEnvelope);db.message(foreignMedia);
+ // 120 protocol/status events newer than the genuine self-chat: fetching
+ // 60 unfiltered rows first must not hide the actual saved photo and text.
+ for(let i=0;i<120;i++)db.message(message(lid,'sync-event-'+i,{protocolMessage:{type:0}},400+i));
+ for(let i=0;i<70;i++)db.message(message(lid,'foreign-media-'+i,{deviceSentMessage:{
+  destinationJid:other,message:{imageMessage:{caption:'No pertenece al chat propio',fileLength:12}}
+ }},600+i));
+ const panel=new WebPanel(store,{dir,live:new Map()},{
+  admins:()=>new Set(['1']),permissions:()=>new Set()
+ },{dir,url:'http://test',secure:false,allowedOrigins:new Set(['http://test'])});
+ const own=panel.messages('1',a.id,pn,null);
+ assert.deepEqual(own.items.map(v=>v.text),['Nota propia real','Foto propia real','Video propio real','Nota propia del segundo dispositivo']);
+ assert.equal(own.next,null,'non-chat system events must not consume the page or make false pagination');
+ const gallery=panel.messages('1',a.id,pn,null,true);
+ assert.deepEqual(gallery.items.map(v=>v.text),['Foto propia real','Video propio real']);
+ assert.equal(gallery.next,null,'70 foreign photos must not crowd out the own gallery');
+ const otherChat=panel.messages('1',a.id,other,null);
+ assert.deepEqual(otherChat.items.map(v=>v.text),['Mensaje recibido de otro contacto']);
+ // It is a view-only correction: do not erase or move any stored metadata.
+ assert.deepEqual(db.get('message',db.messageKey(foreignEnvelope.key)).message,foreignEnvelope.message);
+ assert.deepEqual(db.get('message',db.messageKey(foreignMedia.key)).message,foreignMedia.message);
+ assert.equal(db.get('message',db.messageKey(selfMirrored.key)).message.conversation,'Nota propia del segundo dispositivo');
+ assert.equal(db.get('message',db.messageKey(received.key)).message.conversation,'Mensaje recibido de otro contacto');
+});
+
+test('own-chat preview uses latest genuine message, not unrelated sync timestamps',async t=>{
+ const {db,store,a,dir}=setup(t);
+ db.put('chat',pn,{id:pn,name:'Cuenta propia',conversationTimestamp:500});
+ db.put('chat',other,{id:other,name:'Contacto externo',conversationTimestamp:400});
+ db.message(message(pn,'real-note',{conversation:'Recordatorio propio'},100));
+ db.message(message(lid,'phantom',{deviceSentMessage:{
+  destinationJid:other,message:{conversation:'Texto dirigido a otro'}
+ }},500));
+ db.message({key:{remoteJid:other,id:'incoming',fromMe:false},messageTimestamp:400,
+  message:{conversation:'Mensaje del contacto'}});
+ const panel=new WebPanel(store,{dir,live:new Map()},{
+  admins:()=>new Set(['1']),permissions:()=>new Set()
+ },{dir,url:'http://test',secure:false,allowedOrigins:new Set(['http://test'])});
+ const session=panel.access.login(panel.access.token('1','login'));
+ const req={method:'GET',headers:{cookie:'wa_panel='+session.secret},socket:{remoteAddress:'127.0.0.1'},
+  url:'/api/panel/chats?account='+a.id};
+ let status,output;
+ const res={writeHead(code){status=code;},end(body){output=body;}};
+ await panel.handle(req,res,'/api/panel/chats',{},async()=>({}));
+ assert.equal(status,200);
+ const chats=JSON.parse(output).items;
+ assert.equal(chats.length,2);
+ assert.equal(chats[0].peer,other,'a false self-chat update must not move it to the top');
+ const self=chats.find(c=>c.peer===pn);
+ assert.equal(self.preview,'Recordatorio propio');
+ assert.equal(self.timestamp,100);
+ assert.equal(chats.find(c=>c.peer===other).preview,'Mensaje del contacto');
+});
+
 test('self aliases are disabled on the Cubamax portal',t=>{
  const {db,store,a}=setup(t);
  store.setConfig('portal:'+a.id,'cubamax-corporate');

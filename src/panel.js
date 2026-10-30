@@ -9,6 +9,32 @@ import {toJid,describe} from './baileys.js';
 const cookie=(req,key)=>(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith(key+'='))?.slice(key.length+1)||'';
 const fail=(status,message)=>{const e=Error(message);e.status=status;throw e;};
 const peerOK=peer=>/^\d+@(s\.whatsapp\.net|lid|g\.us)$/.test(peer||'');
+// Only the authenticated account's own chat needs this stricter query.
+// No records are rewritten: foreign device-sync envelopes and protocol
+// placeholders are not actual messages sent to oneself.
+const selfChatKinds=['conversation','extendedTextMessage','imageMessage','videoMessage','audioMessage','documentMessage','stickerMessage'];
+const selfGalleryKinds=['imageMessage','videoMessage'];
+function visibleChatFilter(db,peer,media=false){
+ if(!db.isSelfChat(peer))return {
+  self:false,params:[],
+  sql:media?" AND (json_type(value,'$.message.imageMessage') IS NOT NULL OR json_type(value,'$.message.videoMessage') IS NOT NULL)":''
+ };
+ const kinds=media?selfGalleryKinds:selfChatKinds;
+ const direct=kinds.map(k=>`json_type(value,'$.message.${k}') IS NOT NULL`).join(' OR ');
+ const wrapped=kinds.map(k=>`json_type(value,'$.message.deviceSentMessage.message.${k}') IS NOT NULL`).join(' OR ');
+ const destinations=db.selfJids().flatMap(jid=>{
+  const [number,domain]=jid.split('@');
+  const forms=[jid,`${number}:%@${domain}`];
+  if(domain==='s.whatsapp.net')forms.push(`${number}@c.us`,`${number}:%@c.us`);
+  return forms;
+ });
+ const destination="json_extract(value,'$.message.deviceSentMessage.destinationJid')";
+ const matching=destinations.map(()=>`${destination} LIKE ?`).join(' OR ');
+ return {
+  self:true,params:destinations,
+  sql:` AND ((${direct}) OR ((${wrapped}) AND (${matching})))`
+ };
+}
 const publicId=value=>Buffer.from(value).toString('base64url');
 const internalId=value=>{if(typeof value!=='string'||value.length>2000||!/^[\w-]+$/.test(value))fail(400,'Archivo no válido.');return Buffer.from(value,'base64url').toString();};
 export class WebPanel{
@@ -36,11 +62,9 @@ export class WebPanel{
  messages(actor,id,peer,before,media=false){
   const db=this.storage(actor,id);if(!peerOK(peer))fail(400,'Conversación no válida.');let at=Number.MAX_SAFE_INTEGER,row=Number.MAX_SAFE_INTEGER;
   if(before){try{[at,row]=JSON.parse(Buffer.from(before,'base64url').toString());}catch{fail(400,'Página no válida.');}if(!Number.isSafeInteger(at)||!Number.isSafeInteger(row))fail(400,'Página no válida.');}
-  const peers=db.peers(peer),self=db.isSelfChat(peer);
-  const filter=media?" AND (json_type(value,'$.message.imageMessage') IS NOT NULL OR json_type(value,'$.message.videoMessage') IS NOT NULL"+
-   (self?" OR json_type(value,'$.message.deviceSentMessage.message.imageMessage') IS NOT NULL OR json_type(value,'$.message.deviceSentMessage.message.videoMessage') IS NOT NULL":"")+")":'';
-  const rows=this.store.db.prepare("SELECT rowid,id,timestamp FROM baileys_data WHERE account=? AND kind='message' AND peer IN ("+peers.map(()=>'?').join(',')+") AND (timestamp<? OR (timestamp=? AND rowid<?))"+filter+' ORDER BY timestamp DESC,rowid DESC LIMIT 61').all(id,...peers,at,at,row),page=rows.slice(0,60),items=[];
-  for(const entry of page){const raw=db.projectSelfMessage(db.get('message',entry.id)),d=describe(raw);if(d.ephemeral||d.viewOnce)continue;items.push({id:publicId(entry.id),logicalId:JSON.stringify([raw.key.id,!!raw.key.fromMe]),timestamp:Number(raw.messageTimestamp)||0,fromMe:!!raw.key.fromMe,sender:String(raw.pushName||raw.key.participant?.split('@')[0]||''),type:d.type,text:String(d.body).slice(0,16000),media:!!d.media,name:String(d.media?.fileName||d.type).slice(0,150),mime:String(d.media?.mimetype||''),size:Number(d.media?.fileLength)||0,thumbnail:!!d.media?.jpegThumbnail,duration:Number(d.media?.seconds)||0,waveform:d.media?.waveform?Array.from(typeof d.media.waveform==='string'?Buffer.from(d.media.waveform,'base64'):Buffer.from(d.media.waveform)).slice(0,64):[],status:Number(raw.status)||0});}
+  const peers=db.peers(peer),filter=visibleChatFilter(db,peer,media);
+  const rows=this.store.db.prepare("SELECT rowid,id,timestamp FROM baileys_data WHERE account=? AND kind='message' AND peer IN ("+peers.map(()=>'?').join(',')+") AND (timestamp<? OR (timestamp=? AND rowid<?))"+filter.sql+' ORDER BY timestamp DESC,rowid DESC LIMIT 61').all(id,...peers,at,at,row,...filter.params),page=rows.slice(0,60),items=[];
+  for(const entry of page){const raw=db.projectSelfMessage(db.get('message',entry.id)),d=describe(raw);if(d.ephemeral||d.viewOnce||(filter.self&&d.type==='system'))continue;items.push({id:publicId(entry.id),logicalId:JSON.stringify([raw.key.id,!!raw.key.fromMe]),timestamp:Number(raw.messageTimestamp)||0,fromMe:!!raw.key.fromMe,sender:String(raw.pushName||raw.key.participant?.split('@')[0]||''),type:d.type,text:String(d.body).slice(0,16000),media:!!d.media,name:String(d.media?.fileName||d.type).slice(0,150),mime:String(d.media?.mimetype||''),size:Number(d.media?.fileLength)||0,thumbnail:!!d.media?.jpegThumbnail,duration:Number(d.media?.seconds)||0,waveform:d.media?.waveform?Array.from(typeof d.media.waveform==='string'?Buffer.from(d.media.waveform,'base64'):Buffer.from(d.media.waveform)).slice(0,64):[],status:Number(raw.status)||0});}
   const last=page.at(-1);return {items:items.reverse(),next:rows.length>60?publicId(JSON.stringify([Number(last.timestamp),Number(last.rowid)])):null};
  }
  async mediaData(id,key,raw){
@@ -92,8 +116,20 @@ export class WebPanel{
     const db=this.storage(session.actor,id),offset=Math.max(0,Math.min(100000,Number(url.searchParams.get('offset'))||0)),query=(url.searchParams.get('q')||'').trim().toLowerCase().slice(0,80);
     const merged=new Map();
     for(const c of db.list('chat',100000)){const source=toJid(c.id);if(!peerOK(source))continue;const peer=db.canonical(source),name=this.profiles.name(id,peer),old=merged.get(peer);const row={peer,name,avatar:this.profiles.url(id,peer),timestamp:Math.max(Number(c.conversationTimestamp)||0,old?.timestamp||0),unread:Math.max(Number(c.unreadCount)||0,old?.unread||0),group:peer.endsWith('@g.us')};if(old&&name===peer.split('@')[0])row.name=old.name;merged.set(peer,row);}
+    // Give the own chat a preview and timestamp from its real messages,
+    // never from another chat's device-sync placeholder.
+    for(const c of merged.values()){
+      if(!db.isSelfChat(c.peer))continue;
+      const peers=db.peers(c.peer),filter=visibleChatFilter(db,c.peer);
+      const last=this.store.db.prepare("SELECT id FROM baileys_data WHERE account=? AND kind='message' AND peer IN ("+peers.map(()=>'?').join(',')+")"+filter.sql+" ORDER BY timestamp DESC,rowid DESC LIMIT 1").get(id,...peers,...filter.params);
+      const raw=last?db.projectSelfMessage(db.get('message',last.id)):null,d=raw?describe(raw):null;
+      c.preview=d&&d.type!=='system'&&!d.ephemeral&&!d.viewOnce?(d.body||({image:'Foto',video:'Video',audio:'Audio',ptt:'Mensaje de voz',document:'Documento',sticker:'Sticker'})[d.type]||''):'';
+      c.lastFromMe=!!raw?.key?.fromMe;
+      c.timestamp=raw&&d?.type!=='system'?Number(raw.messageTimestamp)||0:0;
+      c.ownPreview=true;
+    }
     const chats=[...merged.values()].filter(c=>!query||(c.name+' '+c.peer).toLowerCase().includes(query)).sort((a,b)=>b.timestamp-a.timestamp),page=chats.slice(offset,offset+80);
-    for(const c of page){const peers=db.peers(c.peer),last=this.store.db.prepare("SELECT id FROM baileys_data WHERE account=? AND kind='message' AND peer IN ("+peers.map(()=>'?').join(',')+") ORDER BY timestamp DESC,rowid DESC LIMIT 1").get(id,...peers),raw=last?db.projectSelfMessage(db.get('message',last.id)):null,d=raw?describe(raw):null;c.preview=d&&!d.ephemeral&&!d.viewOnce?(d.body||({image:'Foto',video:'Video',audio:'Audio',ptt:'Mensaje de voz',document:'Documento',sticker:'Sticker'})[d.type]||''):'';c.lastFromMe=!!raw?.key?.fromMe;if(raw)c.timestamp=Math.max(c.timestamp,Number(raw.messageTimestamp)||0);}
+    for(const c of page){if(c.ownPreview){delete c.ownPreview;continue;}const peers=db.peers(c.peer),last=this.store.db.prepare("SELECT id FROM baileys_data WHERE account=? AND kind='message' AND peer IN ("+peers.map(()=>'?').join(',')+") ORDER BY timestamp DESC,rowid DESC LIMIT 1").get(id,...peers),raw=last?db.projectSelfMessage(db.get('message',last.id)):null,d=raw?describe(raw):null;c.preview=d&&!d.ephemeral&&!d.viewOnce?(d.body||({image:'Foto',video:'Video',audio:'Audio',ptt:'Mensaje de voz',document:'Documento',sticker:'Sticker'})[d.type]||''):'';c.lastFromMe=!!raw?.key?.fromMe;if(raw)c.timestamp=Math.max(c.timestamp,Number(raw.messageTimestamp)||0);}
     return json(200,{items:page,next:chats.length>offset+80?offset+80:null});
    }
    if((route==='/api/panel/messages'||route==='/api/panel/gallery')&&req.method==='GET')return json(200,this.messages(session.actor,id,peer,url.searchParams.get('before'),route.endsWith('gallery')));
