@@ -167,7 +167,13 @@
   }
   if(message.type==='video'&&state.mode!=='gallery'){const video=node('video','chat-video');video.controls=true;video.playsInline=true;video.preload='none';video.src=url;if(message.thumbnail)video.poster=mediaUrl(message.id,true);return video;}
   const button=node('button','media-open '+(['image','video','sticker'].includes(message.type)?'visual-media':'file-media'));button.setAttribute('aria-label',message.type==='video'?'Abrir video':message.type==='image'?'Abrir foto':'Abrir '+message.name);
-  if(message.thumbnail){const image=node('img');image.alt=message.type==='video'?'Vista previa del video':'Vista previa de la foto';image.loading='lazy';image.src=mediaUrl(message.id,true);image.onerror=()=>{image.remove();button.prepend(node('span','media-placeholder',message.type==='video'?'▶ Abrir video':'▧ Abrir foto'));};button.append(image);}else button.append(node('span','media-placeholder',({image:'▧ Abrir foto',video:'▶ Abrir video',document:'▤ '+message.name,sticker:'◈ Abrir sticker'})[message.type]||message.name));
+  if(message.thumbnail){
+   const placeholder=node('span','media-placeholder thumb-loading','Cargando vista previa…');button.append(placeholder);
+   const image=node('img');image.alt=message.type==='video'?'Vista previa del video':'Vista previa de la foto';
+   image.loading='lazy';image.onload=()=>placeholder.remove();
+   image.onerror=()=>{image.remove();placeholder.classList.remove('thumb-loading');placeholder.textContent=message.type==='video'?'▶ Abrir video':'▧ Abrir foto';};
+   image.src=mediaUrl(message.id,true);button.append(image);
+  }else button.append(node('span','media-placeholder',({image:'▧ Abrir foto',video:'▶ Abrir video',document:'▤ '+message.name,sticker:'◈ Abrir sticker'})[message.type]||message.name));
   if(message.type==='video')button.append(node('span','video-duration','▶ '+duration(message.duration||0)));
   if(!['image','video','sticker'].includes(message.type)&&message.size)button.append(node('small','', (message.size/1024/1024).toFixed(1)+' MB'));
   if(state.mode==='gallery')button.append(node('time','',time(message.timestamp)));button.onclick=()=>openMedia(message);return button;
