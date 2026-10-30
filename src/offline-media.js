@@ -63,11 +63,13 @@ export class OfflineMediaArchive{
  }
  track(account,raw){
   if(this.closed||!this.allowed(account)||!raw?.key?.id||!raw.key.remoteJid)return false;
-  const db=new BaileysStore(this.store,account);
-  const visible=db.projectSelfMessage(raw);
+  // Normal media follow the unchanged fast path. Only an uncommon
+  // device-sent envelope requires checking authenticated own-chat IDs.
+  const visible=raw.message?.deviceSentMessage
+    ?new BaileysStore(this.store,account).projectSelfMessage(raw):raw;
   const d=describe(visible);
   if(!mediaTypes.has(d.type)||!d.media||d.ephemeral||d.viewOnce)return false;
-  const key=db.messageKey(raw.key),now=Date.now();
+  const key=JSON.stringify([raw.key.remoteJid,raw.key.id,!!raw.key.fromMe,raw.key.participant||'']),now=Date.now();
   this.newTask.run(account,key,String(raw.key.remoteJid),now,now);
   this.wake(1500);
   return true;
