@@ -50,7 +50,7 @@ test('permisos.txt button is admin-only, accepts Telegram IDs and survives a new
   assert.equal(bot.permissions().has('567890'),false,'operator cannot grant new privileges');
   await bot.handle(callback(123));
   await bot.handle({message:{text:'/cancelar',from:{id:123},chat:{id:123,type:'private'}}});
-  await bot.handle({message:{text:'678901',from:{id:123},chat:{id:123,type:'private'}}});
+  assert.equal(bot.pending.has('123:123'),false,'cancel must close permission editor');
   assert.equal(bot.permissions().has('678901'),false,'cancel must not grant privileges');
 });
 
