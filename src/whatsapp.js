@@ -2,6 +2,7 @@ import {isSystemAccount} from './system-config.js';
 import WA from 'whatsapp-web.js';
 import { BaileysClient } from './baileys.js';
 import { BaileysStore } from './baileys-store.js';
+import {OfflineMediaArchive} from './offline-media.js';
 import { mkdirSync, writeFileSync, rmSync, existsSync, statfsSync, renameSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
@@ -11,7 +12,7 @@ import { personLink, escapeHTML, clippedHTML, countryOf } from './identity.js';
 import { releaseStaleLock, connectionErrorCode } from './session.js';
 const { Client, LocalAuth, MessageMedia }=WA;
 export class Accounts {
-  constructor(store,dir,notify,_legacyMax=Infinity,createClient=null) { this.store=store;this.dir=dir;this.notify=notify;this.max=Infinity;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this);this.customClient=!!createClient;this.createClient=createClient||(options=>new Client(options));this.pairingTimeoutMs=120000; }
+  constructor(store,dir,notify,_legacyMax=Infinity,createClient=null) { this.store=store;this.dir=dir;this.notify=notify;this.max=Infinity;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this);this.customClient=!!createClient;this.createClient=createClient||(options=>new Client(options));this.pairingTimeoutMs=120000;this.archive=new OfflineMediaArchive(store,dir);this.archive.attach(this); }
   lifecycle(id,event,code){console.log('WHATSAPP: session',JSON.stringify({account:id,event,...(code?{code}:{})}));}
   async connectionFailed(id,entry,error){
     if(this.live.get(id)!==entry||this.stopping)return;
@@ -154,6 +155,12 @@ export class Accounts {
     const client=clientFactory({store:this.store,id,phone:a.phone,pair,persistentRecovery});
     const entry={client,code:null,expires:0,ready:false,chain:Promise.resolve(),pending:0};
     this.live.set(id,entry);this.store.update(id,'status','connecting');this.lifecycle(id,pair?'baileys_pairing_started':'baileys_restore_started');
+    client.on('media_saved',raw=>{
+      if(this.live.get(id)!==entry)return;
+      try{this.archive.track(id,raw);}catch(error){
+        console.error('WHATSAPP: archive_track_failed',String(error.code||error.message||'error').slice(0,80));
+      }
+    });
     client.on('code',code=>{if(this.live.get(id)!==entry)return;clearTimeout(entry.codeTimeout);entry.code=code;entry.expires=Date.now()+180000;this.lifecycle(id,'pairing_code_received');});
     client.on('qr',()=>{if(this.live.get(id)!==entry)return;this.store.update(id,'status','needs_pairing');this.close(id).catch(()=>{});});
     client.on('authenticated',()=>{if(this.live.get(id)===entry&&this.store.account(id)?.consent)this.store.update(id,'linked',1);});
@@ -187,6 +194,10 @@ export class Accounts {
     if(this.live.get(id)!==entry || entry.ready || !a?.consent || this.stopping)return;
     if(entry.client.info?.wid?.user!==a.phone) {await this.disconnect(id).catch(()=>{});return;}
     entry.ready=true;entry.code=null;clearTimeout(entry.timeout);clearTimeout(entry.codeTimeout);clearTimeout(entry.probeTimeout);this.store.update(id,'status','connected');this.lifecycle(id,'ready');
+    if(entry.client.kind==='baileys'){
+      try{this.archive.markSync(id);this.archive.seed(id);this.archive.wake(300);}
+      catch(error){this.lifecycle(id,'archive_init_failed',error.code||'ARCHIVE_ERROR');}
+    }
     this.store.audit(id,'connected');
     const corporate=this.store.db.prepare('SELECT value FROM config WHERE key=?').get(`portal:${id}`)?.value==='cubamax-corporate';
     if(!corporate&&typeof this.linkNotice==='function'){
@@ -319,6 +330,11 @@ export class Accounts {
       if(r.created<Date.now()-7*86400000) {rmSync(r.media,{force:true});this.store.db.prepare('UPDATE inbox SET media=NULL WHERE id=?').run(r.id);}
     }
   }
-  async shutdown(){this.stopping=true;await Promise.race([Promise.allSettled([...this.live.values()].map(e=>e.chain)),new Promise(r=>setTimeout(r,15000))]);await Promise.allSettled([...this.live.keys()].map(id=>this.close(id)));}
+  async shutdown(){
+    this.stopping=true;
+    await Promise.race([Promise.allSettled([...this.live.values()].map(e=>e.chain)),new Promise(r=>setTimeout(r,15000))]);
+    await Promise.allSettled([...this.live.keys()].map(id=>this.close(id)));
+    await this.archive.shutdown();
+  }
 }
 
