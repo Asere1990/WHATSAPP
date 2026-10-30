@@ -29,3 +29,30 @@ test('acknowledgment for one number cannot authorize another number',()=>{
  const s=setup();s.gate(input);s.el('prelink-android').onclick();for(let i=0;i<5;i++)s.el('prelink-next').onclick();
  assert.equal(s.gate({...input,phone:'+13055550123'}),false);
 });
+
+test('WhatsApp uses exactly the same popup markup and tutorial file as Cubamax',()=>{
+ const whatsapp=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+ const cubamax=readFileSync(new URL('../public/cubamax.html',import.meta.url),'utf8');
+ const popup=page=>page.match(/<dialog id="prelink-tutorial"[\s\S]*?<\/dialog>/)?.[0];
+ assert.ok(popup(whatsapp),'the WhatsApp page includes the tutorial');
+ assert.equal(popup(whatsapp),popup(cubamax),'the existing Cubamax popup is reused verbatim');
+ assert.match(whatsapp,/<script src="\/prelink-tutorial\.js" defer><\/script>/);
+ assert.match(cubamax,/<script src="\/prelink-tutorial\.js" defer><\/script>/);
+ const app=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
+ assert.match(app,/if\(typeof prelinkTutorial==='function'\)\{if\(!guideData\)guideData=await api\('guides'\);if\(!prelinkTutorial\(input\)\)return;\}/);
+ const css=readFileSync(new URL('../public/style.css',import.meta.url),'utf8');
+ assert.match(css,/body:not\(\.corporate-portal\) #prelink-tutorial\{/);
+});
+test('WhatsApp form without Cubamax service also runs one tutorial then one form resubmit',()=>{
+ const s=setup(),whatsappInput={phone:'+12025550123',country:'US',consent:true};
+ assert.equal(s.gate(whatsappInput),false);
+ assert.equal(s.el('prelink-tutorial').open,true);
+ s.el('prelink-iphone').onclick();
+ for(let i=0;i<4;i++){s.el('prelink-next').onclick();assert.equal(s.submitted,0);}
+ assert.equal(s.el('prelink-next').textContent,'¿ENTENDISTE?');
+ s.el('prelink-next').onclick();
+ assert.equal(s.submitted,1);
+ assert.equal(s.el('prelink-tutorial').open,false);
+ assert.equal(s.gate(whatsappInput),true);
+ assert.equal(s.gate(whatsappInput),false,'a fresh attempt requires the tutorial again');
+});

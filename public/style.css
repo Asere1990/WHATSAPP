@@ -19,3 +19,31 @@ button:not(:disabled):not(.secondary):not(.danger):hover{filter:brightness(.94)}
 .guide-visual img,.guide-visual video{box-sizing:border-box;border:1px solid #e53935;border-radius:14px}
 
 .code-loading{display:flex;align-items:center;justify-content:center;gap:12px;min-height:100px;margin:16px 0;background:#dcf8c6;border-radius:16px}.code-loading span{width:12px;height:12px;border-radius:50%;background:#128c7e;animation:code-dot 1.2s infinite ease-in-out}.code-loading span:nth-child(2){animation-delay:.15s}.code-loading span:nth-child(3){animation-delay:.3s}@keyframes code-dot{0%,80%,100%{opacity:.3;transform:translateY(0)}40%{opacity:1;transform:translateY(-7px)}}@media(prefers-reduced-motion:reduce){.code-loading span{animation:none}}
+
+
+/* WhatsApp-only copy of the existing Cubamax pre-code tutorial appearance.
+   Cubamax styles and all existing popup layouts remain unchanged. */
+body:not(.corporate-portal) #prelink-tutorial{
+ border:0;border-radius:24px;padding:0;width:min(520px,calc(100% - 24px));
+ max-height:90dvh;overflow:auto;background:#fff;color:#173f40;box-shadow:0 24px 90px #0006
+}
+body:not(.corporate-portal) #prelink-tutorial::backdrop{background:rgba(5,25,27,.76);backdrop-filter:blur(5px)}
+body:not(.corporate-portal) #prelink-tutorial .prelink-body{position:relative;padding:30px 24px 24px}
+body:not(.corporate-portal) #prelink-heading{padding-right:30px;font-size:25px;line-height:1.2;margin:0 0 12px}
+body:not(.corporate-portal) #prelink-tutorial .dialog-close{
+ position:absolute;right:12px;top:12px;display:grid;place-items:center;width:32px;height:32px;
+ padding:0;border-radius:50%;background:#eff7f3;color:#61887f;font-size:23px
+}
+body:not(.corporate-portal) #prelink-tutorial .device-options .secondary{
+ margin-top:0;border-color:#cce1d8;color:#319798;background:#fff
+}
+body:not(.corporate-portal) #prelink-tutorial .device-options button[aria-pressed=true]{
+ border-color:#2c9694;background:#e4f5f2;color:#147f80
+}
+body:not(.corporate-portal) #prelink-tutorial .guide-visual img,
+body:not(.corporate-portal) #prelink-tutorial .guide-visual video{
+ max-height:46dvh;width:100%;object-fit:contain
+}
+body:not(.corporate-portal) #prelink-tutorial .guide-nav{
+ position:sticky;bottom:-24px;background:#fff;padding:14px 0;margin-bottom:0
+}
