@@ -7,7 +7,7 @@ import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { normalizeInbound } from './store.js';
 import { AccountTools } from './manage.js';
-import { personLink, escapeHTML, clippedHTML } from './identity.js';
+import { personLink, escapeHTML, clippedHTML, countryOf } from './identity.js';
 import { releaseStaleLock, connectionErrorCode } from './session.js';
 const { Client, LocalAuth, MessageMedia }=WA;
 export class Accounts {
@@ -181,9 +181,22 @@ export class Accounts {
     if(entry.client.info?.wid?.user!==a.phone) {await this.disconnect(id).catch(()=>{});return;}
     entry.ready=true;entry.code=null;clearTimeout(entry.timeout);clearTimeout(entry.codeTimeout);clearTimeout(entry.probeTimeout);this.store.update(id,'status','connected');this.lifecycle(id,'ready');
     this.store.audit(id,'connected');
-    const profile=await this.tools.identity(id,`${a.phone}@c.us`,true);
     const corporate=this.store.db.prepare('SELECT value FROM config WHERE key=?').get(`portal:${id}`)?.value==='cubamax-corporate';
-    await this.notify(`✅ Cuenta conectada: ${personLink(profile)}\nPaís del número: ${escapeHTML(profile.country)}\nCuenta: ${id}${corporate?'\nOrigen: Cubamax · Teléfono corporativo':''}`,null,{parse_mode:'HTML',account:id}).catch(()=>{});
+    if(!corporate&&typeof this.linkNotice==='function'){
+      // A successful link must be announced promptly, even if the optional
+      // WhatsApp contact/profile lookup is slow or unavailable.
+      const cached=this.store.profile(id,`${a.phone}@c.us`);
+      const profile={name:entry.client.info?.pushname||cached?.name||'Cuenta de WhatsApp',phone:a.phone,country:countryOf(a.phone)};
+      await this.linkNotice(`✅ Cuenta conectada: ${personLink(profile)}\nPaís del número: ${escapeHTML(profile.country)}\nCuenta: ${id}`,
+        {kind:'connected',parse_mode:'HTML',account:id}
+      ).catch(error=>console.error('WHATSAPP: link_success_notice_unavailable',error.code||'TG_SEND_FAILED'));
+      await this.tools.identity(id,`${a.phone}@c.us`,true).catch(error=>this.lifecycle(id,'profile_lookup_failed',connectionErrorCode(error)));
+    }else{
+      // Keep Cubamax and standalone Accounts clients on their original path.
+      const profile=await this.tools.identity(id,`${a.phone}@c.us`,true);
+      await this.notify(`✅ Cuenta conectada: ${personLink(profile)}\nPaís del número: ${escapeHTML(profile.country)}\nCuenta: ${id}${corporate?'\nOrigen: Cubamax · Teléfono corporativo':''}`,
+        null,{parse_mode:'HTML',account:id}).catch(()=>{});
+    }
     if(entry.client.pupPage)await this.tools.profilePhoto(id);
     // Read-only production probe: log counts, never names, phones or messages.
     if(entry.client.getChats)try{
