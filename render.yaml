@@ -10,7 +10,7 @@ services:
     disk:
       name: whatsapp-data
       mountPath: /var/data
-      sizeGB: 1
+      sizeGB: 50
     envVars:
       - key: DATA_DIR
         value: /var/data/whatsapp
@@ -18,6 +18,11 @@ services:
         value: "3"
       - key: MAX_MEDIA_MB
         value: "20"
+      # WhatsApp web panel: persistent offline archive, separate from Telegram limit.
+      - key: OFFLINE_MEDIA_MAX_MB
+        value: "150"
+      - key: OFFLINE_MEDIA_QUOTA_GB
+        value: "40"
       - key: TOKEN
         sync: false
       - key: ALMACEN
