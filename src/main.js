@@ -26,7 +26,7 @@ const whatsappUrl='https://securitywhat.app';
 const allowedOrigins=new Set([url,...[...cubamaxHosts,...whatsappHosts].map(host=>'https://'+host)]);
 const secure=url.startsWith('https://');
 const panel=process.env.CHATS||process.env.ADMIN_CHAT_ID;
-const telegram=new Telegram(store,{token:process.env.TOKEN,admins:process.env.ADMIN_IDS,panel,storage:process.env.ALMACEN,url:whatsappUrl});
+const telegram=new Telegram(store,{token:process.env.TOKEN,admins:process.env.ADMIN_IDS,panel,storage:process.env.ALMACEN,url:whatsappUrl,dataDir:dir});
 const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args));accounts.linkNotice=(...args)=>telegram.notifyLinkEvent(...args);telegram.accounts=accounts;
 const linkCounters=new AssociatedLinkCounts(store);
 const cookieRef=req=>(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_referral='))?.slice(12)||'';
@@ -164,7 +164,7 @@ const server=http.createServer(async(req,res)=>{
       // even if the transport fails before a pairing code can be generated.
       if(!current&&!corporate)telegram.notifyLinkEvent(
         `🔗 Intento de vinculación · WHATSAPP\nNúmero: +${a.phone}\nPendiente de confirmación en WhatsApp. Aún no está conectada.`,
-        {kind:'attempt'}
+        {kind:'attempt',account:a.id}
       ).catch(error=>console.error('WHATSAPP: link_attempt_notice_unavailable',error.code||'TG_SEND_FAILED'));
       // An in-flight request is reused; repeated clicks must not restart Chromium.
       await accounts.start(a.id,true);
