@@ -39,3 +39,32 @@
 .gallery-stats-line{overflow-wrap:anywhere}
 .gallery-stats-help{display:block;color:#83918b;font-size:10px;margin-top:3px;line-height:1.35}
 @media(max-width:760px){.gallery-stats{padding:9px 14px;font-size:11px}.chat-copy small.chat-phone{font-size:12px}}
+
+/* Optional contact sheet; the existing chats and gallery stay in place. */
+.contact-info-trigger{display:flex;align-items:center;gap:12px;flex:1;min-width:0;padding:0;background:transparent;color:inherit;text-align:left;cursor:default}
+.contact-info-trigger.is-contact{cursor:pointer}
+.contact-info-trigger .avatar{flex-shrink:0}
+.contact-info-trigger .chat-heading{min-width:0}
+.contact-info-dialog{width:min(480px,calc(100vw - 30px));max-width:480px;max-height:92dvh;margin:auto;padding:0;border:0;border-radius:25px;background:#f3f3f3;color:#161616;box-shadow:0 24px 80px #0005;overflow-y:auto;overscroll-behavior:contain}
+.contact-info-dialog::backdrop{background:#0009}
+.contact-info-view{padding:0 0 24px}
+.contact-info-top{position:relative;min-height:80px;padding:25px 70px 15px;text-align:center;display:flex;justify-content:center;align-items:center;font-size:17px}
+.contact-info-top strong{font-weight:700}
+.contact-info-back{position:absolute;left:18px;top:15px;width:48px;height:48px;border-radius:50%;background:#fff;color:#141414;font-size:38px;line-height:1}
+.contact-info-person{text-align:center;padding:22px 15px 34px}
+.contact-info-photo{position:relative;display:grid;place-items:center;margin:0 auto 19px;width:154px;height:154px;border-radius:50%;overflow:hidden;background:#dce9e0;color:#388b5a;font-size:57px}
+.contact-info-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.contact-info-person h2{font-size:31px;line-height:1.2;font-weight:750;max-width:100%;overflow-wrap:anywhere;margin:10px auto 8px}
+.contact-info-person p{font-size:19px;color:#7a7a7a;margin:0;overflow-wrap:anywhere}
+.contact-info-panel{background:#fff;border-radius:23px;margin:0 17px 14px;padding:5px 20px}
+.contact-info-line{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;padding:17px 0;font-size:14px}
+.contact-info-line span{color:#666}
+.contact-info-line strong{color:#1d4939;text-align:right;font-size:14px;overflow-wrap:anywhere}
+.contact-info-line+.contact-info-line,.contact-info-description{border-top:1px solid #e9ece9}
+.contact-info-description{padding:16px 0}
+.contact-info-description strong{display:block;color:#4b7464;font-size:13px;margin-bottom:8px}
+.contact-info-description p{margin:0;font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.contact-info-gallery{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#fff;border-radius:23px;width:calc(100% - 34px);margin:0 17px;padding:23px 20px;text-align:left;color:#192c25;font-size:15px}
+.contact-info-gallery>span:last-child{font-size:12px;color:#5c8072;text-align:right}
+.contact-info-note{font-size:11px;line-height:1.5;color:#8a918c;margin:18px 27px}
+@media(max-width:760px){.contact-info-dialog{width:100%;max-width:100%;height:100dvh;max-height:100dvh;border-radius:0;margin:0}.contact-info-photo{width:160px;height:160px}.contact-info-top{min-height:100px}.contact-info-person{padding-top:29px}}
