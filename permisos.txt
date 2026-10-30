@@ -1,2 +1,2 @@
 # Un telegram_id autorizado por línea. No concede permisos de administrador.
-1609522430
+1609522430 #TaticaRafelito
