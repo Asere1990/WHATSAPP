@@ -6,6 +6,7 @@ import {Store} from '../src/store.js';
 import {BaileysStore} from '../src/baileys-store.js';
 import {BaileysClient} from '../src/baileys.js';
 import {WebPanel} from '../src/panel.js';
+import {OfflineMediaArchive} from '../src/offline-media.js';
 import {authenticatedSelfJids,normalizedPrivateJid,projectAuthenticatedSelfMessage} from '../src/self-chat.js';
 
 const phone='12025550123',pn=phone+'@s.whatsapp.net',lid='990000123@lid',other='12025550124@s.whatsapp.net';
@@ -98,6 +99,32 @@ test('existing own-chat mapping is preserved if the current credentials have no 
  db.put('mapping',lid,pn);
  assert.deepEqual(db.peers(pn),[pn,lid]);
  assert.deepEqual(db.peers(lid),[lid,pn]);
+});
+
+
+test('new self-chat device-sent text is indexed as ordinary text without rewriting old records',t=>{
+ const {db,store,a}=setup(t);
+ store.setConfig('panel_archive','1');
+ const client=new BaileysClient({store,id:a.id,phone:a.phone});
+ t.after(()=>client.destroy());
+ const raw=message(lid,'live-own-envelope',{deviceSentMessage:{destinationJid:pn,message:{conversation:'Mensaje nuevo'}}},120);
+ client.saveMessage(raw,{live:true});
+ const saved=db.get('message',db.messageKey(raw.key));
+ assert.equal(saved.message.conversation,'Mensaje nuevo');
+ assert.equal(saved.key.remoteJid,lid);
+});
+
+test('offline archiving queues own wrapped media without touching other accounts',t=>{
+ const {db,store,a,dir}=setup(t);
+ const archive=new OfflineMediaArchive(store,dir);
+ t.after(()=>archive.shutdown());
+ const own=message(lid,'archive-own',{deviceSentMessage:{destinationJid:pn,message:{imageMessage:{fileLength:14}}}},150);
+ const foreign=message(lid,'archive-foreign',{deviceSentMessage:{destinationJid:other,message:{imageMessage:{fileLength:14}}}},151);
+ assert.equal(archive.track(a.id,own),true);
+ assert.equal(archive.track(a.id,foreign),false);
+ const state=archive.summary(a.id);
+ assert.equal(state.pending,1);
+ assert.equal(state.ready,0);
 });
 
 test('self aliases are disabled on the Cubamax portal',t=>{
