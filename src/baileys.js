@@ -128,7 +128,10 @@ export class BaileysClient extends EventEmitter {
   saveMessage(m,{live=false}={}){
     if(!m.key?.remoteJid||!m.key.id)return;
     const jid=toJid(m.key.remoteJid),alt=toJid(m.key.remoteJidAlt||'');if(jid.endsWith('@lid')&&alt.endsWith('@s.whatsapp.net'))this.saveMapping({lid:jid,pn:alt});else if(alt.endsWith('@lid')&&jid.endsWith('@s.whatsapp.net'))this.saveMapping({lid:alt,pn:jid});m={...m,key:{...m.key,remoteJid:jid}};
-    const d=describe(m);if(this.archiveMessages&&live&&!d.ephemeral&&!d.viewOnce&&d.type!=='system')this.store.primeArchive(m);
+    // A self-chat history item may carry a device-sent envelope or use the
+    // authenticated account's LID instead of its phone-number JID.
+    const visible=this.store.projectSelfMessage(m);
+    const d=describe(visible);if(this.archiveMessages&&live&&!d.ephemeral&&!d.viewOnce&&d.type!=='system')this.store.primeArchive(m);
     this.store.rememberOldest(m);if(this.archiveMessages)this.store.advanceArchive(m);
     if(this.archiveMessages){if(!d.ephemeral&&!d.viewOnce)this.store.message({...m,message:d.content});}
     else if(!this.galleryOnly)this.store.message(m);
@@ -136,7 +139,7 @@ export class BaileysClient extends EventEmitter {
     if(privateJid(jid)||this.archiveMessages&&jid.endsWith('@g.us')){const old=this.store.get('chat',jid)||{id:jid};if(Number(m.messageTimestamp)>Number(old.conversationTimestamp||0))this.saveChat({...old,conversationTimestamp:Number(m.messageTimestamp)});}
     // An independent disk worker archives eligible attachments without blocking
     // history ingestion, and never saves disappearing or view-once content.
-    if(this.archiveMessages&&d.media&&!d.viewOnce&&!d.ephemeral)this.emit('media_saved',m);
+    if(this.archiveMessages&&d.media&&!d.viewOnce&&!d.ephemeral)this.emit('media_saved',visible);
   }
   wrap(raw){
     const d=describe(raw),peer=toPeer(raw.key.remoteJid),id=this.store.messageKey(raw.key),client=this;
@@ -231,7 +234,20 @@ export class BaileysClient extends EventEmitter {
     }
   }
   async syncHistory(peer,now=Date.now()){
-    const jid=toJid(peer),backfill=this.archiveMessages?this.store.get('archive-backfill',jid):null,oldest=backfill?.active?backfill.cursor:this.store.get('cursor',jid)||this.store.oldestMessage(jid);if(!oldest)return false;
+    let jid=toJid(peer),backfill=this.archiveMessages?this.store.get('archive-backfill',jid):null;
+    let oldest=backfill?.active?backfill.cursor:this.store.get('cursor',jid)||this.store.oldestMessage(jid);
+    // The displayed self-chat may have no phone-number cursor while its
+    // LID form already has a real history anchor. Request with that anchor,
+    // never a fabricated message identifier or timestamp.
+    if(!oldest&&this.store.isSelfChat(jid)){
+      for(const alternate of this.store.peers(jid)){
+        if(alternate===jid)continue;
+        const pending=this.archiveMessages?this.store.get('archive-backfill',alternate):null;
+        const anchor=pending?.active?pending.cursor:this.store.get('cursor',alternate)||this.store.oldestMessage(alternate);
+        if(anchor){jid=alternate;oldest=anchor;break;}
+      }
+    }
+    if(!oldest)return false;
     const previous=this.store.get('history-sync',jid)||{};
     if(previous.next>now)return true;
     const cursor=JSON.stringify(oldest.key),stalls=previous.cursor===cursor?Math.min(10,(previous.stalls||0)+1):0;
