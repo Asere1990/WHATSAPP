@@ -155,6 +155,7 @@ export class Accounts {
     const client=clientFactory({store:this.store,id,phone:a.phone,pair,persistentRecovery});
     const entry={client,code:null,expires:0,ready:false,chain:Promise.resolve(),pending:0};
     this.live.set(id,entry);this.store.update(id,'status','connecting');this.lifecycle(id,pair?'baileys_pairing_started':'baileys_restore_started');
+    client.on('history_saved',()=>{if(this.live.get(id)===entry)this.archive.markSync(id);});
     client.on('media_saved',raw=>{
       if(this.live.get(id)!==entry)return;
       try{this.archive.track(id,raw);}catch(error){
@@ -310,6 +311,13 @@ export class Accounts {
     rmSync(path.join(this.dir,'sessions',`session-${id}`),{recursive:true,force:true});
   }
   async restore() {
+    // Index previously saved history incrementally, even when a linked
+    // device is currently offline. Downloads wait until the link is ready.
+    for(const a of this.store.all()){
+      if(!a.consent||!a.confirmed||this.engine(a.id)!=='baileys')continue;
+      try{this.archive.seed(a.id);}catch(error){this.lifecycle(a.id,'archive_seed_failed',error.code||'ARCHIVE_ERROR');}
+    }
+    this.archive.wake(2500);
     for(const a of this.store.all()) {
       if(!a.consent)continue;
       if(this.engine(a.id)==='baileys'){
