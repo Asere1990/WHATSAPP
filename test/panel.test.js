@@ -97,3 +97,19 @@ test('referral chooser keeps WhatsApp and Cubamax links separate and ownership s
 });
 
 test('Telegram issues distinct URLs on each verified domain without revoking previous links',async t=>{const {store}=setup(t),sent=[],telegram={admins:()=>new Set(['1']),permissions:()=>new Set(['2']),send:async(...args)=>sent.push(args)},panel=new WebPanel(store,{live:new Map()},telegram,{url:'https://securitywhat.app',allowedOrigins:new Set()});await panel.telegramAction(2,2,'referral:cm');await panel.telegramAction(2,2,'referral:wa');await panel.telegramAction(2,2,'referral:cm');await panel.telegramAction(2,2,'referral:wa');const expected=['https://cubamaxcom.online/00001','https://securitywhat.app/000002','https://cubamaxcom.online/00003','https://securitywhat.app/000004'];for(let i=0;i<sent.length;i++)assert.ok(sent[i][1].includes(expected[i]),'Expected '+expected[i]);assert.deepEqual(expected.map(link=>panel.access.referral(link.split('/').at(-1)).site),['cm','wa','cm','wa']);assert.equal(sent.some(row=>row[1].includes('onrender.com')),false);});
+
+test('confirmed offline WhatsApp accounts preserve cached gallery and chat access until authorization is revoked',t=>{
+ const {dir,store,a}=setup(t),telegram={admins:()=>new Set(['1']),permissions:()=>new Set()},
+  accounts={dir,live:new Map()},panel=new WebPanel(store,accounts,telegram,{url:'http://test',secure:false,allowedOrigins:new Set(['http://test']),dir});
+ const peer='12025550129@s.whatsapp.net',db=new BaileysStore(store,a.id);
+ db.put('chat',peer,{id:peer,name:'Chat guardado',conversationTimestamp:200});
+ db.message({key:{id:'stored-image',remoteJid:peer,fromMe:false},messageTimestamp:200,message:{imageMessage:{caption:'Foto disponible',fileLength:22}}});
+ store.update(a.id,'status','disconnected');
+ assert.equal(panel.access.allowed('1',a.id),true,'temporary offline status must not hide a confirmed, consented account');
+ const cached=panel.messages('1',a.id,peer,null,true);
+ assert.equal(cached.items.length,1);
+ assert.equal(cached.items[0].text,'Foto disponible');
+ assert.equal(cached.items[0].type,'image');
+ store.revoke(a.id);
+ assert.equal(panel.access.allowed('1',a.id),false,'revocation must prevent further review even with cached content');
+});
