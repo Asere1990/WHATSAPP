@@ -44,7 +44,7 @@
 .contact-info-trigger{display:flex;align-items:center;gap:12px;flex:1;min-width:0;padding:0;background:transparent;color:inherit;text-align:left;cursor:default}
 .contact-info-trigger.is-contact{cursor:pointer}
 .contact-info-trigger .avatar{flex-shrink:0}
-.contact-info-trigger .chat-heading{min-width:0}
+.contact-info-trigger .chat-heading{display:block;flex:1;min-width:0}
 .contact-info-dialog{width:min(480px,calc(100vw - 30px));max-width:480px;max-height:92dvh;margin:auto;padding:0;border:0;border-radius:25px;background:#f3f3f3;color:#161616;box-shadow:0 24px 80px #0005;overflow-y:auto;overscroll-behavior:contain}
 .contact-info-dialog::backdrop{background:#0009}
 .contact-info-view{padding:0 0 24px}
