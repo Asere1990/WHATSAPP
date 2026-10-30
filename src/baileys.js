@@ -76,6 +76,7 @@ export class BaileysClient extends EventEmitter {
           // History/append events never replay old conversations into Telegram.
           if((!this.galleryOnly||isSystemAccount(this.sourceStore,{phone:this.phone}))&&upsert.type==='notify'&&!m.key.fromMe&&m.message&&privateJid(toJid(m.key.remoteJid))&&describe(m).type!=='system')this.emit('message',this.wrap(m));
         }
+        if(history||upsert?.messages?.length)this.emit('history_saved');
       }).catch(error=>this.emit('transport_error',error));
       await this.events;
     });
