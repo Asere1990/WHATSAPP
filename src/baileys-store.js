@@ -45,9 +45,11 @@ export class BaileysStore {
     // incorrect mapping must never drag a different contact into self-chat.
     if(own.includes(peer)&&own.length>1)return [...new Set([peer,...own])];
     const result=new Set([peer]),pn=this.get('mapping',peer);
-    if(typeof pn==='string'&&/^\d+@s\.whatsapp\.net$/.test(pn)&&!own.includes(pn))result.add(pn);
+    // With no authenticated LID yet, retain the prior mapping behavior.
+    // Once the current LID is authenticated, exclude it from other chats.
+    if(typeof pn==='string'&&/^\d+@s\.whatsapp\.net$/.test(pn)&&(own.length<2||!own.includes(pn)))result.add(pn);
     for(const row of this.db.prepare("SELECT id FROM baileys_data WHERE account=? AND kind='mapping' AND json_extract(value,'$')=?").all(this.account,pn||peer))
-      if(/^\d+@lid$/.test(row.id)&&!own.includes(row.id))result.add(row.id);
+      if(/^\d+@lid$/.test(row.id)&&(own.length<2||!own.includes(row.id)))result.add(row.id);
     return [...result];
   }
   canonical(peer){return this.peers(peer).find(p=>p.endsWith('@s.whatsapp.net'))||peer;}
