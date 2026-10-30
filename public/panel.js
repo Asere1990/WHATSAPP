@@ -49,7 +49,7 @@
  }
  const mediaUrl=(id,thumb=false)=>`/api/panel/${thumb?'thumb':'media'}?account=${accountQuery()}&message=${encodeURIComponent(id)}`;
  const time=seconds=>seconds?new Date(seconds*1000).toLocaleString('es',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
- function clearConversation(){state.epoch++;state.chat=null;state.items=[];state.next=null;state.itemSignature=null;$('chat-name').textContent='Selecciona una conversación';$('chat-detail').textContent='Mensajes y archivos sincronizados';$('thread').classList.remove('gallery');$('thread').replaceChildren(node('p','empty','Selecciona una conversación.'));$('tabs').hidden=true;$('sync').hidden=true;$('composer').hidden=true;$('older').hidden=true;$('group-note').hidden=true;$('message').value='';}
+ function clearConversation(){state.epoch++;state.chat=null;state.items=[];state.next=null;state.itemSignature=null;$('gallery-stats').hidden=true;$('gallery-stats').replaceChildren();$('chat-name').textContent='Selecciona una conversación';$('chat-detail').textContent='Mensajes y archivos sincronizados';$('thread').classList.remove('gallery');$('thread').replaceChildren(node('p','empty','Selecciona una conversación.'));$('tabs').hidden=true;$('sync').hidden=true;$('composer').hidden=true;$('older').hidden=true;$('group-note').hidden=true;$('message').value='';}
 
  async function accounts(){
   const finish=beginLoading('accounts-load-state','Cargando cuentas vinculadas…',
@@ -113,7 +113,9 @@
     const button=node('button','chat-item'+(state.chat?.peer===chat.peer?' active':'')),
      avatar=node('span','avatar',chat.group?'▧':chat.name.slice(0,1).toUpperCase()),copy=node('span','chat-copy');
     avatarPhoto(avatar,chat.avatar,chat.name);
-    copy.append(node('strong','',chat.name),node('small','chat-preview',
+    copy.append(node('strong','',chat.name));
+    if(chat.phone&&!chat.group)copy.append(node('small','chat-phone',chat.phone));
+    copy.append(node('small','chat-preview',
      (chat.lastFromMe?'Tú: ':'')+(chat.preview||(chat.group?'Grupo':chat.peer.split('@')[0]))));
     const meta=node('span','chat-meta');
     if(chat.timestamp)meta.append(node('time','',new Date(chat.timestamp*1000).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})));
@@ -129,8 +131,23 @@
    if(state.account?.id===id){finish('No se pudieron cargar las conversaciones. Inténtalo nuevamente.');throw error;}
   }finally{finish();}
  }
- async function chooseChat(chat){state.epoch++;state.chat=chat;state.items=[];state.next=null;state.itemSignature=null;state.mode='messages';$('chat-name').textContent=chat.name;$('chat-detail').textContent=state.account.name+(chat.group?' · Grupo':'');$('chat-avatar').textContent=chat.group?'▧':chat.name.slice(0,1).toUpperCase();avatarPhoto($('chat-avatar'),chat.avatar,chat.name);$('tabs').hidden=false;$('sync').hidden=false;$('message').value='';$('composer').hidden=chat.group;$('group-note').hidden=!chat.group;view('thread');reportFocus();selectTab();$('thread').replaceChildren(node('p','empty','Cargando conversación…'));await messages();const key=state.account.id+':'+chat.peer;if(state.account.connected&&(!syncTimes.has(key)||Date.now()-syncTimes.get(key)>600000)){syncTimes.set(key,Date.now());api('sync',{account:state.account.id,peer:chat.peer}).catch(()=>{});}}
- function selectTab(){$('tab-messages').classList.toggle('selected',state.mode==='messages');$('tab-gallery').classList.toggle('selected',state.mode==='gallery');$('thread').classList.toggle('gallery',state.mode==='gallery');$('older').textContent=state.mode==='gallery'?'Cargar más fotos y videos':'Cargar mensajes anteriores';}
+ async function chooseChat(chat){state.epoch++;state.chat=chat;state.items=[];state.next=null;state.itemSignature=null;state.mode='messages';$('chat-name').textContent=chat.name;$('chat-detail').textContent=chat.phone&&!chat.group?chat.phone:state.account.name+(chat.group?' · Grupo':'');$('chat-avatar').textContent=chat.group?'▧':chat.name.slice(0,1).toUpperCase();avatarPhoto($('chat-avatar'),chat.avatar,chat.name);$('tabs').hidden=false;$('sync').hidden=false;$('message').value='';$('composer').hidden=chat.group;$('group-note').hidden=!chat.group;view('thread');reportFocus();selectTab();$('thread').replaceChildren(node('p','empty','Cargando conversación…'));await messages();const key=state.account.id+':'+chat.peer;if(state.account.connected&&(!syncTimes.has(key)||Date.now()-syncTimes.get(key)>600000)){syncTimes.set(key,Date.now());api('sync',{account:state.account.id,peer:chat.peer}).catch(()=>{});}}
+ function selectTab(){$('tab-messages').classList.toggle('selected',state.mode==='messages');$('tab-gallery').classList.toggle('selected',state.mode==='gallery');$('thread').classList.toggle('gallery',state.mode==='gallery');$('older').textContent=state.mode==='gallery'?'Cargar más fotos y videos':'Cargar mensajes anteriores';$('gallery-stats').hidden=state.mode!=='gallery';}
+ function renderGalleryStats(stats){
+  const target=$('gallery-stats');
+  if(!stats){target.replaceChildren(node('span','','Consultando cantidades de fotos y videos…'));return;}
+  const digits=value=>Number(value||0).toLocaleString('es');
+  const counts=value=>digits(value.photos)+' fotos · '+digits(value.videos)+' videos';
+  const first=stats.firstBatch
+   ?'Primer lote registrado: '+counts(stats.firstBatch)
+   :'Primer lote: sin registro anterior';
+  target.replaceChildren(
+   node('div','gallery-stats-line','Detectadas por WhatsApp: '+counts(stats.detected)),
+   node('div','gallery-stats-line','Descargadas en el archivo local: '+(stats.downloaded?counts(stats.downloaded):'No disponible')),
+   node('div','gallery-stats-line',first),
+   node('small','gallery-stats-help','Conteos del historial recibido; no representan el total de la galería del teléfono. El primer lote se registra desde esta actualización.')
+  );
+ }
 
  async function messages(older=false){
   if(!state.chat||state.busy?.epoch===state.epoch)return;
@@ -143,6 +160,7 @@
    const data=await api((gallery?'gallery':'messages')+'?'+chatQuery()+
     (older&&state.next?'&before='+encodeURIComponent(state.next):''),undefined,25000);
    if(epoch!==state.epoch||mode!==state.mode)return;
+   if(gallery)renderGalleryStats(data.stats);
    const found=new Map(state.items.map(m=>[m.logicalId||m.id,m]));
    for(const item of data.items)found.set(item.logicalId||item.id,item);
    state.items=[...found.values()].sort((a,b)=>a.timestamp-b.timestamp);
@@ -189,7 +207,7 @@
  function openMedia(message){$('media-title').textContent=message.name;$('media-body').replaceChildren(node('p','empty','Abriendo archivo…'));$('download').href=mediaUrl(message.id)+'&download=1';$('download').textContent='↓ Descargar archivo';$('media-dialog').showModal();const src=mediaUrl(message.id);let el;if(message.type==='image'||message.type==='sticker'){el=node('img');el.alt=message.text||message.name;}else if(message.type==='video'){el=node('video');el.controls=true;el.playsInline=true;el.preload='metadata';}else if(message.type==='audio'||message.type==='ptt'){el=node('audio');el.controls=true;el.playsInline=true;el.preload='metadata';}if(el){el.src=src;el.onerror=()=>{$('media-body').replaceChildren(node('p','empty','No se pudo abrir el archivo. La cuenta debe estar conectada y WhatsApp debe tenerlo disponible.'));};$('media-body').replaceChildren(el);}else $('media-body').replaceChildren(node('p','empty','Usa Descargar archivo para abrir este documento.'));}
  $('close-media').onclick=()=>{$('media-dialog').close();$('media-body').replaceChildren();};$('media-dialog').addEventListener('click',e=>{if(e.target===$('media-dialog'))$('close-media').click();});
  $('search').oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>chats().catch(e=>notice(e.message)),250);};$('more-chats').onclick=()=>chats(true).catch(e=>notice(e.message));$('older').onclick=()=>messages(true);
- for(const mode of ['messages','gallery'])$('tab-'+mode).onclick=()=>{state.mode=mode;state.epoch++;state.items=[];state.next=null;state.itemSignature=null;selectTab();reportFocus();$('thread').replaceChildren(node('p','empty',mode==='gallery'?'Preparando galería…':'Preparando conversación…'));messages();};
+ for(const mode of ['messages','gallery'])$('tab-'+mode).onclick=()=>{state.mode=mode;state.epoch++;state.items=[];state.next=null;state.itemSignature=null;selectTab();if(mode==='gallery')renderGalleryStats(null);reportFocus();$('thread').replaceChildren(node('p','empty',mode==='gallery'?'Preparando galería…':'Preparando conversación…'));messages();};
  $('sync').onclick=async()=>{if(!state.chat)return;$('sync').disabled=true;try{const data=await api('sync',{account:state.account.id,peer:state.chat.peer});notice(data.message);}catch(e){notice(e.message);}finally{$('sync').disabled=false;}};
  $('composer').onsubmit=async event=>{event.preventDefault();const text=$('message').value.trim();if(!text||!state.chat||state.chat.group)return;if(!confirm('¿Enviar este mensaje a '+state.chat.name+' desde +'+state.account.phone+'?\n\n'+text))return;const request=Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('');const epoch=state.epoch,account=state.account.id,peer=state.chat.peer;$('send').disabled=true;try{await api('send',{account,peer,text,request});if(state.epoch===epoch){if($('message').value.trim()===text)$('message').value='';await messages();}}catch(e){notice(e.message);}finally{$('send').disabled=false;}};
  $('back-accounts').onclick=()=>{view('accounts');reportFocus(true);};$('back-chats').onclick=()=>{view('chats');reportFocus(true);};$('logout').onclick=async()=>{try{await api('logout',{});}finally{locked('Sesión cerrada. Abre otro acceso desde Telegram cuando quieras volver.');}};
