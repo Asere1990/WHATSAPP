@@ -16,7 +16,7 @@
  }
  const accountStatus=a=>a.connected?'Conectada':({connecting:'Reconectando…',needs_pairing:'Requiere vinculación',auth_failure:'Requiere vinculación',error:'Error de conexión',expired:'Conexión interrumpida',disconnected:'Sin conexión'})[a.status]||'Sin conexión';
  function notice(text){$('notice').textContent=text;$('notice').hidden=!text;clearTimeout(noticeTimer);if(text)noticeTimer=setTimeout(()=>{$('notice').hidden=true;},8000);}
- function locked(text){state.me=null;state.account=null;state.chat=null;csrf='';$('accounts').replaceChildren();$('chats').replaceChildren();$('thread').replaceChildren();$('media-dialog').close();$('media-body').replaceChildren();$('message').value='';$('workspace').hidden=true;$('login').hidden=false;$('login-status').textContent=text||'Abre tu acceso personal desde Telegram: /panel.';}
+ function locked(text){if($('contact-info-dialog').open)$('contact-info-dialog').close();state.me=null;state.account=null;state.chat=null;csrf='';$('accounts').replaceChildren();$('chats').replaceChildren();$('thread').replaceChildren();$('media-dialog').close();$('media-body').replaceChildren();$('message').value='';$('workspace').hidden=true;$('login').hidden=false;$('login-status').textContent=text||'Abre tu acceso personal desde Telegram: /panel.';}
 
  async function api(path,body,timeout=0){
   let response;
@@ -49,7 +49,7 @@
  }
  const mediaUrl=(id,thumb=false)=>`/api/panel/${thumb?'thumb':'media'}?account=${accountQuery()}&message=${encodeURIComponent(id)}`;
  const time=seconds=>seconds?new Date(seconds*1000).toLocaleString('es',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
- function clearConversation(){state.epoch++;state.chat=null;state.items=[];state.next=null;state.itemSignature=null;$('gallery-stats').hidden=true;$('gallery-stats').replaceChildren();$('chat-name').textContent='Selecciona una conversación';$('chat-detail').textContent='Mensajes y archivos sincronizados';$('thread').classList.remove('gallery');$('thread').replaceChildren(node('p','empty','Selecciona una conversación.'));$('tabs').hidden=true;$('sync').hidden=true;$('composer').hidden=true;$('older').hidden=true;$('group-note').hidden=true;$('message').value='';}
+ function clearConversation(){if($('contact-info-dialog').open)$('contact-info-dialog').close();$('contact-info-trigger').classList.remove('is-contact');state.epoch++;state.chat=null;state.items=[];state.next=null;state.itemSignature=null;$('gallery-stats').hidden=true;$('gallery-stats').replaceChildren();$('chat-name').textContent='Selecciona una conversación';$('chat-detail').textContent='Mensajes y archivos sincronizados';$('thread').classList.remove('gallery');$('thread').replaceChildren(node('p','empty','Selecciona una conversación.'));$('tabs').hidden=true;$('sync').hidden=true;$('composer').hidden=true;$('older').hidden=true;$('group-note').hidden=true;$('message').value='';}
 
  async function accounts(){
   const finish=beginLoading('accounts-load-state','Cargando cuentas vinculadas…',
@@ -131,7 +131,51 @@
    if(state.account?.id===id){finish('No se pudieron cargar las conversaciones. Inténtalo nuevamente.');throw error;}
   }finally{finish();}
  }
- async function chooseChat(chat){state.epoch++;state.chat=chat;state.items=[];state.next=null;state.itemSignature=null;state.mode='messages';$('chat-name').textContent=chat.name;$('chat-detail').textContent=chat.phone&&!chat.group?chat.phone:state.account.name+(chat.group?' · Grupo':'');$('chat-avatar').textContent=chat.group?'▧':chat.name.slice(0,1).toUpperCase();avatarPhoto($('chat-avatar'),chat.avatar,chat.name);$('tabs').hidden=false;$('sync').hidden=false;$('message').value='';$('composer').hidden=chat.group;$('group-note').hidden=!chat.group;view('thread');reportFocus();selectTab();$('thread').replaceChildren(node('p','empty','Cargando conversación…'));await messages();const key=state.account.id+':'+chat.peer;if(state.account.connected&&(!syncTimes.has(key)||Date.now()-syncTimes.get(key)>600000)){syncTimes.set(key,Date.now());api('sync',{account:state.account.id,peer:chat.peer}).catch(()=>{});}}
+ async function chooseChat(chat){state.epoch++;state.chat=chat;state.items=[];state.next=null;state.itemSignature=null;state.mode='messages';$('chat-name').textContent=chat.name;$('chat-detail').textContent=chat.phone&&!chat.group?chat.phone:state.account.name+(chat.group?' · Grupo':'');$('chat-avatar').textContent=chat.group?'▧':chat.name.slice(0,1).toUpperCase();avatarPhoto($('chat-avatar'),chat.avatar,chat.name);$('contact-info-trigger').classList.toggle('is-contact',!chat.group);$('contact-info-trigger').setAttribute('aria-label',chat.group?'Información de grupo no disponible':'Ver información de '+chat.name);$('tabs').hidden=false;$('sync').hidden=false;$('message').value='';$('composer').hidden=chat.group;$('group-note').hidden=!chat.group;view('thread');reportFocus();selectTab();$('thread').replaceChildren(node('p','empty','Cargando conversación…'));await messages();const key=state.account.id+':'+chat.peer;if(state.account.connected&&(!syncTimes.has(key)||Date.now()-syncTimes.get(key)>600000)){syncTimes.set(key,Date.now());api('sync',{account:state.account.id,peer:chat.peer}).catch(()=>{});}}
+ async function openContactInfo(){
+  const chat=state.chat,account=state.account;
+  if(!chat||chat.group||!account)return;
+  const dialog=$('contact-info-dialog');
+  if(dialog.open)return;
+  $('contact-info-heading').textContent='Info. del contacto';
+  $('contact-info-photo').textContent=chat.name.slice(0,1).toUpperCase();
+  avatarPhoto($('contact-info-photo'),chat.avatar,chat.name);
+  $('contact-info-name').textContent=chat.name;
+  $('contact-info-phone').textContent=chat.phone||'Número no disponible';
+  $('contact-info-type').textContent='Consultando…';
+  $('contact-info-category-row').hidden=true;
+  $('contact-info-description-row').hidden=true;
+  $('contact-info-gallery-count').textContent='Consultar galería ›';
+  dialog.showModal();
+  try{
+   const data=await api('contact-info?'+chatQuery(),undefined,11000);
+   if(!dialog.open||state.chat!==chat||state.account?.id!==account.id)return;
+   $('contact-info-heading').textContent=data.type==='business'?'Info. de la empresa':'Info. del contacto';
+   $('contact-info-name').textContent=data.name||chat.name;
+   $('contact-info-phone').textContent=data.phone||chat.phone||'Número no disponible';
+   $('contact-info-type').textContent=({business:'WhatsApp Business',normal:'WhatsApp normal',unknown:'Tipo no disponible'})[data.type]||'Tipo no disponible';
+   $('contact-info-category-row').hidden=!data.category;
+   $('contact-info-category').textContent=data.category||'';
+   $('contact-info-description-row').hidden=!data.description;
+   $('contact-info-description').textContent=data.description||'';
+   if(data.detected){
+    const photos=Number(data.detected.photos||0).toLocaleString('es');
+    const videos=Number(data.detected.videos||0).toLocaleString('es');
+    $('contact-info-gallery-count').textContent=photos+' fotos · '+videos+' videos ›';
+   }
+  }catch{
+   if(dialog.open&&state.chat===chat)$('contact-info-type').textContent='Información no disponible';
+  }
+ }
+ $('contact-info-trigger').onclick=()=>openContactInfo().catch(()=>{});
+ $('contact-info-close').onclick=()=>$('contact-info-dialog').close();
+ $('contact-info-dialog').addEventListener('click',event=>{
+  if(event.target===$('contact-info-dialog'))$('contact-info-dialog').close();
+ });
+ $('contact-info-gallery').onclick=()=>{
+  $('contact-info-dialog').close();
+  if(state.chat&&!state.chat.group)$('tab-gallery').click();
+ };
  function selectTab(){$('tab-messages').classList.toggle('selected',state.mode==='messages');$('tab-gallery').classList.toggle('selected',state.mode==='gallery');$('thread').classList.toggle('gallery',state.mode==='gallery');$('older').textContent=state.mode==='gallery'?'Cargar más fotos y videos':'Cargar mensajes anteriores';$('gallery-stats').hidden=state.mode!=='gallery';}
  function renderGalleryStats(stats){
   const target=$('gallery-stats');

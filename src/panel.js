@@ -56,6 +56,26 @@ export class WebPanel{
   if(action==='accounts'){const rows=this.access.accounts(actor);return this.telegram.send(chat,rows.length?rows.map((a,i)=>`${i+1}. ${this.store.profile(a.id,a.phone+'@c.us')?.name||a.name||'Cuenta'} · +${a.phone}\n${this.accounts.live.get(a.id)?.ready?'Conectada':'Desconectada'}`).join('\n\n'):'Aún no tienes cuentas vinculadas mediante tu enlace.',{inline_keyboard:[[{text:'ABRIR CUENTAS EN LA WEB',callback_data:'op:panel',style:'primary'}],[{text:'VOLVER',callback_data:'op:menu'}]]});}
   return this.telegramMenu(chat,actor);
  }
+ async contactInfo(actor,id,peer){
+   const db=this.storage(actor,id);
+   if(!peerOK(peer)||peer.endsWith('@g.us')||!this.profiles.known(id,peer))
+     fail(404,'Contacto no disponible.');
+   const jid=db.canonical(peer);
+   const business=await this.profiles.businessInfo(id,jid);
+   // Permission can be revoked while a remote profile read is in progress.
+   this.account(actor,id);
+   const peers=db.peers(jid),filter=visibleChatFilter(db,jid,true);
+   const totals=galleryMetrics(this.store,id,db,jid,this.archive,filter,peers);
+   return {
+     name:this.profiles.name(id,jid),
+     phone:/^\d{7,15}@s\.whatsapp\.net$/.test(jid)?'+'+jid.split('@')[0]:null,
+     avatar:this.profiles.url(id,jid),
+     type:business.type,
+     category:business.category,
+     description:business.description,
+     detected:totals.detected
+   };
+ }
  limit(key,max=60){const now=Date.now();let item=this.rates.get(key);if(!item||now-item.at>60000){item={at:now,n:0};this.rates.set(key,item);}if(++item.n>max)fail(429,'Espera un momento antes de repetir.');if(this.rates.size>10000)for(const [key,value]of this.rates)if(now-value.at>60000)this.rates.delete(key);}
  account(actor,id){if(!/^[a-f0-9]{16}$/.test(id||'')||!this.access.allowed(actor,id))fail(404,'Cuenta no disponible.');return this.store.account(id);}
  storage(actor,id){this.account(actor,id);return new BaileysStore(this.store,id);}
@@ -113,6 +133,10 @@ export class WebPanel{
      return json(200,{ok:true});
     }
     if(route==='/api/panel/accounts'&&req.method==='GET')return json(200,{items:this.access.accounts(session.actor).map(a=>{const owner=this.access.owner(a.id);return {id:a.id,phone:a.phone,name:this.profiles.name(a.id),avatar:this.profiles.url(a.id),connected:!!this.accounts.live.get(a.id)?.ready,status:a.status,archived:this.archive?.summary(a.id)||null,lastSync:this.archive?.lastSync(a.id)||null,owner:owner?{id:owner,name:this.access.label(owner)}:null};})});
+   if(route==='/api/panel/contact-info'&&req.method==='GET'){
+     this.limit('contact-info:'+session.actor,20);
+     return json(200,await this.contactInfo(session.actor,id,peer));
+   }
    if(route==='/api/panel/avatar'&&req.method==='GET'){this.account(session.actor,id);if(peer&&!peerOK(peer))fail(400,'Contacto no válido.');if(!this.profiles.known(id,peer))fail(404,'Contacto no disponible.');const data=await this.profiles.avatar(id,peer);if(!this.access.allowed(session.actor,id))fail(404,'Cuenta no disponible.');if(!data){res.writeHead(204,headers);return res.end();}res.writeHead(200,{...headers,'Content-Type':'image/jpeg','Content-Length':data.length});return res.end(data);}
    if(route==='/api/panel/chats'&&req.method==='GET'){
     const db=this.storage(session.actor,id),offset=Math.max(0,Math.min(100000,Number(url.searchParams.get('offset'))||0)),query=(url.searchParams.get('q')||'').trim().toLowerCase().slice(0,80);
