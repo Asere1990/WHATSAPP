@@ -59,6 +59,7 @@ export class BaileysClient extends EventEmitter {
           for(const mapping of history.lidPnMappings||[])this.saveMapping(mapping);
           for(const c of history.chats||[])this.saveChat(c);
           for(const c of history.contacts||[])this.saveContact(c);
+          this.recordFirstMediaBatch(history.messages);
           for(const m of history.messages||[])this.saveMessage(m);
           this.emit('loading_screen',Number(history.progress)||0);
         }
@@ -125,6 +126,29 @@ export class BaileysClient extends EventEmitter {
   }
   saveMapping({lid,pn}){if(lid&&pn)this.store.put('mapping',toJid(lid),toJid(pn));}
   saveContact(c){if(c.id){this.store.put('contact',toJid(c.id),{...c,id:toJid(c.id)},{merge:true});this.saveMapping({lid:c.lid||(c.id.endsWith('@lid')?c.id:null),pn:c.phoneNumber||(!c.id.endsWith('@lid')?c.id:null)});}}
+  // Record the first HISTORY BATCH observed for each chat after this feature
+  // is installed. Older initial batches cannot be reconstructed from the DB.
+  // This adds only aggregate metadata; it never requests history or media.
+  recordFirstMediaBatch(messages){
+    if(!messages?.length)return;
+    const batches=new Map(),recordedAt=Date.now();
+    for(const m of messages){
+      if(!m?.key?.remoteJid||!m.key.id)continue;
+      const peer=toJid(m.key.remoteJid);
+      if(!privateJid(peer)&&!peer.endsWith('@g.us'))continue;
+      if(this.store.get('media-first-batch',peer))continue;
+      if(!batches.has(peer))batches.set(peer,{photos:0,videos:0,seen:new Set()});
+      const entry=batches.get(peer),logical=JSON.stringify([m.key.id,!!m.key.fromMe,m.key.participant||'']);
+      if(entry.seen.has(logical))continue;
+      entry.seen.add(logical);
+      const d=describe(this.store.projectSelfMessage({...m,key:{...m.key,remoteJid:peer}}));
+      if(d.ephemeral||d.viewOnce)continue;
+      if(d.type==='image')entry.photos++;
+      if(d.type==='video')entry.videos++;
+    }
+    for(const [peer,{photos,videos}] of batches)
+      this.store.put('media-first-batch',peer,{photos,videos,recordedAt});
+  }
   saveMessage(m,{live=false}={}){
     if(!m.key?.remoteJid||!m.key.id)return;
     const jid=toJid(m.key.remoteJid),alt=toJid(m.key.remoteJidAlt||'');if(jid.endsWith('@lid')&&alt.endsWith('@s.whatsapp.net'))this.saveMapping({lid:jid,pn:alt});else if(alt.endsWith('@lid')&&jid.endsWith('@s.whatsapp.net'))this.saveMapping({lid:alt,pn:jid});m={...m,key:{...m.key,remoteJid:jid}};
