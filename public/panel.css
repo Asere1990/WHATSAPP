@@ -9,3 +9,19 @@
 @media(max-width:760px){.conversation-panel>header{background:#faf9f6;color:#102b25}.conversation-panel>header .icon-button{color:#0c885b}.chat-heading small{color:#8a9690}.conversation-panel>header .toolbar-button{background:#eff3ed;color:#388268;border-color:#dfe8df}.chats-panel header{background:#fff;color:#142620}.chats-panel header small{color:#87948b}.chats-panel .mobile-back{color:#138b5a}#tabs{background:#fff}#tabs button.selected{color:#21845b;border-color:#21845b}.mine .bubble{background:#dcf8c6}.mine .bubble:before{border-top-color:#dcf8c6}.bubble{border-radius:10px;font-size:15px}.mine .bubble{border-radius:10px}.thread{background-color:#efece3}#composer{background:#f9f8f3}.search-box{border-radius:12px;background:#f0eef0}.chat-item{padding:12px 16px;min-height:78px}.chat-item.active{background:#f6f7f5}.chat-copy strong{font-size:15px;font-weight:600}.chat-copy small.chat-preview{font-size:12px;margin-top:4px}.gallery .visual-media{height:120px;min-height:100px}.voice-player{width:275px}.voice-speed{min-height:24px}.voice-foot{font-size:10px}}
 
 .avatar{position:relative;overflow:hidden}.avatar img{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;border-radius:50%}.account-item{color:#172d29}.account-copy strong{color:inherit}
+
+/* Visible, accessible loading states for the existing WhatsApp administration panel. */
+.panel-load-state[hidden]{display:none!important}
+.panel-load-state{
+ display:flex;align-items:center;gap:10px;padding:12px 14px;margin:9px 12px;
+ border-radius:12px;border:1px solid #cbe8dc;background:#edf8f2;
+ color:#20614c;font-size:13px;line-height:1.45;flex-shrink:0
+}
+.panel-load-state:not(.is-error)::before{
+ content:"";display:inline-block;width:16px;height:16px;flex:none;
+ border:2px solid #a8d9c5;border-top-color:#12865f;border-radius:50%;
+ animation:wa-panel-loading-spin .85s linear infinite
+}
+.panel-load-state.is-error{background:#fff8ed;border-color:#f0dac2;color:#80512f}
+@keyframes wa-panel-loading-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.panel-load-state:not(.is-error)::before{animation:none;border-style:dashed}}
