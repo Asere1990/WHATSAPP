@@ -17,14 +17,14 @@ async function runPopup(state,site){
    addEventListener(){}
  };
  const photo={hidden:true,src:'',removeAttribute(){}};
- const button={addEventListener(){}};
+ const button={addEventListener(){},set textContent(v){fields.button=v;}};
  const doc={
    body:{dataset:site==='cm'?{operatorPopupSite:'cm'}:{}},
    styleSheets:[],
    getElementById:id=>{
      if(id==='wa-welcome')return dialog;
      if(id==='wa-welcome-photo')return photo;
-     if(id==='wa-welcome-button')return Object.assign(button,{set textContent(v){fields.button=v;}});
+     if(id==='wa-welcome-button')return button;
      return {set textContent(v){fields[id]=v}};
    }
  };
