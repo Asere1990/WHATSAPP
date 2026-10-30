@@ -10,7 +10,11 @@ import { BaileysStore } from '../src/baileys-store.js';
 import { AssociatedLinks } from '../src/associated-links.js';
 import { AssociatedLinkCounts } from '../src/associated-link-counts.js';
 test('HTTP access requires a valid invitation, enforces origin and never exposes config secrets',async t=>{
-  const dir=mkdtempSync(`${tmpdir()}/wa-http-`),s=new Store(dir),invite=s.invite('12025550123','Titular'),associated=new AssociatedLinks(s).save('12025550144','text','Mensaje para número asignado');s.setConfig('telegram_offset','private');s.db.close();
+  const dir=mkdtempSync(`${tmpdir()}/wa-http-`),s=new Store(dir),invite=s.invite('12025550123','Titular'),associated=new AssociatedLinks(s).save('12025550144','text','Mensaje para número asignado');s.setConfig('telegram_offset','private');
+  s.setConfig('wa_link_preview',JSON.stringify({
+   name:'Mi agencia',slogan:'Información principal',
+   description:'Descripción debajo del eslogan.',image:''
+  }));s.db.close();
   const port=20000+(process.pid%20000),url=`http://localhost:${port}`;
   const child=spawn(process.execPath,['src/main.js'],{env:{...process.env,PORT:String(port),DATA_DIR:dir,PUBLIC_URL:url,TOKEN:'',ADMIN_IDS:'',ADMIN_CHAT_ID:''},stdio:'pipe'});
   let logs='';child.stdout.on('data',b=>logs+=b);child.stderr.on('data',b=>logs+=b);
@@ -18,7 +22,13 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   let ready=false;for(let n=0;n<100;n++){try{const r=await fetch(`${url}/health`);if(r.ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,50));}
   assert.ok(ready,logs);
   const landing=await(await fetch(url)).text();assert.match(landing,/id="begin"[^>]*>CONECTAR CUENTA/);assert.doesNotMatch(landing,/Abre el enlace privado/);
-  assert.match(landing,/id="another-account"/);assert.match(landing,/id="connected-account"/);assert.match(landing,/id="pairing-account"/);
+  assert.ok(landing.includes('<meta property="og:site_name" content="Mi agencia">'));
+   assert.ok(landing.includes('<meta property="og:title" content="Mi agencia · Información principal">'));
+   assert.ok(landing.includes('<meta property="og:description" content="Descripción debajo del eslogan.">'));
+   assert.ok(landing.includes('<meta property="og:url" content="https://securitywhat.app/">'));
+   const whatsappPage=await(await fetch(url+'/whatsapp')).text();
+   assert.ok(whatsappPage.includes('<meta property="og:url" content="https://securitywhat.app/whatsapp">'));
+   assert.match(landing,/id="another-account"/);assert.match(landing,/id="connected-account"/);assert.match(landing,/id="pairing-account"/);
   assert.match(landing,/id="country"/);assert.match(landing,/<form id="connect" autocomplete="off"/);
   assert.match(landing,/id="device-android"/);assert.match(landing,/id="device-iphone"/);
   for(const host of ['cubamaxcom.online','www.cubamaxcom.online']){
@@ -49,6 +59,7 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   assert.match(disclosed,/Las aperturas de enlaces asociados se contabilizan/);
   const unchangedCubamax=await(await fetch(url+'/cubamax')).text();
   assert.doesNotMatch(unchangedCubamax,/Las aperturas de enlaces asociados se contabilizan/);
+   assert.doesNotMatch(unchangedCubamax,/Mi agencia|Información principal|Descripción debajo del eslogan/);
   const state=await fetch(url+'/api/welcome-popup-state',{headers:{Cookie:'wa_associated='+associated.token+'; '+firstViewer}});
   assert.equal(state.status,200);
   assert.deepEqual((await state.json()).popup,{kind:'text',text:'Mensaje para número asignado'});

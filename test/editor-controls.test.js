@@ -24,7 +24,13 @@ async function editor(site='wa',{conflict=false,dirty=false}={}){
  $('page').contentWindow=pageWindow;
  $('site').value=site;
  const field={id:'brand:description',kind:'text',label:'Descripción principal',group:'branding',value:'Descripción original'};
- const draft={site,version:dirty?4:0,base:'revision',revision:'revision',dirty,conflict,fields:[field]};
+ const share=site==='wa'?[
+  {id:'share-preview:image',kind:'image',label:'Miniatura del enlace · Logo o imagen',group:'share-preview',optional:true,value:''},
+  {id:'share-preview:name',kind:'text',label:'Miniatura del enlace · Nombre',group:'share-preview',value:'WHATSAPP'},
+  {id:'share-preview:slogan',kind:'text',label:'Miniatura del enlace · Eslogan',group:'share-preview',value:'Conectar mi cuenta'},
+  {id:'share-preview:description',kind:'text',label:'Miniatura del enlace · Descripción',group:'share-preview',value:'Servicio independiente'}
+ ]:[];
+ const draft={site,version:dirty?4:0,base:'revision',revision:'revision',dirty,conflict,fields:[field,...share]};
  const copy=v=>JSON.parse(JSON.stringify(v));
  const fetch=async(url,options={})=>{
   const route=url.replace('/api/panel/',''),payload=options.body?JSON.parse(options.body):null;
@@ -44,10 +50,10 @@ async function editor(site='wa',{conflict=false,dirty=false}={}){
    assert.equal(payload.site,site);
    assert.equal(payload.version,draft.version);
    assert.equal(payload.revision,draft.base);
-   assert.equal(payload.changes[0].id,'brand:description');
+   assert.ok(draft.fields.some(f=>f.id===payload.changes[0].id));
    draft.version++;
    draft.dirty=true;
-   draft.fields[0].value=payload.changes[0].value;
+   draft.fields.find(f=>f.id===payload.changes[0].id).value=payload.changes[0].value;
    return {ok:true,json:async()=>copy(draft)};
   }
   if(route==='editor/publish'){
@@ -167,4 +173,25 @@ test('WhatsApp Secciones exposes editable main-page steps, not only the separate
 test('WhatsApp uploaded main-page guide photos use persistent portal media, Cubamax keeps original upload folder',()=>{
  const src=readFileSync(new URL('../public/editor.js',import.meta.url),'utf8');
  assert.match(src,/chosen\.startsWith\('guide:'\)\&\&data\.site==='cm'/);
+});
+
+test('WhatsApp-only sharing preview section offers image, name, slogan, description editing',async()=>{
+ const e=await editor('wa');
+ const options=e.get('popup').children.map(x=>({value:x.value,label:x.textContent}));
+ assert.equal(options.find(x=>x.value==='share-preview')?.label,'Miniatura del enlace');
+ e.get('popup').value='share-preview';e.get('popup').onchange();
+ assert.match(e.get('selection-title').textContent,/Logo o imagen/);
+ assert.match(e.get('status').textContent,/Miniatura del enlace/);
+ const controls=e.get('selection').children.filter(x=>x.className==='related');
+ assert.equal(controls.length,3);
+ assert.ok(controls.some(x=>/Nombre/.test(x.textContent)));
+ assert.ok(controls.some(x=>/Eslogan/.test(x.textContent)));
+ assert.ok(controls.some(x=>/Descripción/.test(x.textContent)));
+ controls.find(x=>/Eslogan/.test(x.textContent)).onclick();
+ const input=e.get('selection').children.find(x=>x.tagName==='TEXTAREA');
+ input.value='Nuevo eslogan';input.oninput();
+ await e.get('save').onclick();
+ assert.equal(e.calls.find(x=>x.route==='editor/draft').payload.changes[0].id,'share-preview:slogan');
+ const cm=await editor('cm');
+ assert.equal(cm.get('popup').children.some(x=>x.value==='share-preview'),false,'Cubamax selector stays unchanged');
 });

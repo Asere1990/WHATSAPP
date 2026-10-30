@@ -38,6 +38,13 @@ export class VisualEditor{
    const subtitleSource='Cuenta no oficial de WhatsApp',subtitleEntry=Object.entries(pageCatalog.wa).find(([,f])=>f.text===subtitleSource);
    add('brand:subtitle','Descripción bajo el nombre','text',config.wa_brand_subtitle||(subtitleEntry?values[subtitleEntry[0]]:undefined)||subtitleSource,'wa_brand_subtitle',null,{group:'identity',max:4000,source:subtitleSource});
    add('brand:verified','Icono de verificación · Visibilidad','badge',config.wa_brand_badge==='hidden'?'hidden':'visible','wa_brand_badge',null,{group:'identity'});
+   const share=publicSnapshot(store,'wa').linkPreview;
+   for(const [part,label,kind,limit]of [
+    ['image','Logo o imagen de la miniatura','image',100],
+    ['name','Nombre mostrado al compartir','text',80],
+    ['slogan','Eslogan principal del enlace','text',150],
+    ['description','Descripción debajo del eslogan','text',500]
+   ])add('share-preview:'+part,'Miniatura del enlace · '+label,kind,share[part],'wa_link_preview',part,{group:'share-preview',optional:part==='image',max:limit});
    const popupCopy=waPopupCopy(store),names={heading:'Título',introduction:'Texto informativo',prompt:'Pregunta sobre el teléfono',choose:'Mensaje para elegir dispositivo',android:'Botón Android',iphone:'Botón iPhone',back:'Botón ATRÁS',next:'Botón SIGUIENTE',confirm:'Botón final ENTENDIDO',close:'Texto para cerrar'};
    for(const [part,label]of Object.entries(names))add('prelink-copy:'+part,'Popup antes del código · '+label,'text',popupCopy[part],'wa_prelink_copy',part,{group:'popup-prelink',max:part==='introduction'?1000:300});
    for(const device of ['iphone','android'])for(const step of waPopupGuides(store,device))for(const property of ['title','text','asset']){

@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {mkdtempSync,rmSync,writeFileSync,mkdirSync} from 'node:fs';import {tmpdir} from 'node:os';import {Store} from '../src/store.js';import {createHash} from 'node:crypto';import {VisualEditor} from '../src/visual-editor.js';import {publicSnapshot} from '../src/public-content.js';
+import test from 'node:test';import assert from 'node:assert/strict';import {mkdtempSync,rmSync,writeFileSync,mkdirSync} from 'node:fs';import {tmpdir} from 'node:os';import {Store} from '../src/store.js';import {renderWhatsAppPreview} from '../src/link-preview.js';import {createHash} from 'node:crypto';import {VisualEditor} from '../src/visual-editor.js';import {publicSnapshot} from '../src/public-content.js';
 function setup(t){const dir=mkdtempSync(tmpdir()+'/wa-visual-'),store=new Store(dir),editor=new VisualEditor(store,dir);t.after(()=>{store.db.close();rmSync(dir,{recursive:true,force:true});});return {store,editor,dir};}
 test('drafts persist privately and publish atomically without changing other site settings',t=>{const {store,editor,dir}=setup(t),before=publicSnapshot(store,'cm'),data=editor.data('1','cm');const saved=editor.save('1',{site:'cm',version:data.version,revision:data.base,changes:[{id:'portal:serviceHeading',value:'SERVICIOS DE PRUEBA'},{id:'portal:moneyPopupTitle',value:'Popup de prueba'}]});assert.equal(saved.version,1);assert.equal(publicSnapshot(store,'cm').revision,before.revision);assert.equal(editor.data('2','cm').dirty,false);assert.equal(editor.data('1','wa').dirty,false);const other=new Store(dir);assert.equal(new VisualEditor(other,dir).data('1','cm').dirty,true);other.db.close();const html=editor.preview('1','cm','qa');assert.match(html,/SERVICIOS DE PRUEBA/);assert.doesNotMatch(html,/src="\/app.js/);assert.match(html,/data-visual-preview/);editor.publish('1',{site:'cm',version:1});assert.equal(publicSnapshot(store,'cm').portal.fields.serviceHeading,'SERVICIOS DE PRUEBA');assert.equal(editor.data('1','cm').dirty,false);assert.equal(store.config().panel_archive,undefined);});
 test('another administrator or Telegram cannot be overwritten by a stale draft',t=>{const {store,editor}=setup(t),data=editor.data('1','cm');editor.save('1',{site:'cm',revision:data.base,version:0,changes:[{id:'portal:cta',value:'Nuevo botón'}]});assert.throws(()=>editor.save('1',{site:'cm',revision:data.base,version:0,changes:[]}),/pestaña/);store.setConfig('cubamax_content',JSON.stringify({cta:'Cambio desde Telegram'}));assert.equal(editor.data('1','cm').conflict,true);assert.throws(()=>editor.publish('1',{site:'cm',version:1}),/web cambió/);assert.equal(publicSnapshot(store,'cm').portal.fields.cta,'Cambio desde Telegram');editor.discard('1','cm',1);assert.equal(editor.data('1','cm').dirty,false);});
@@ -124,7 +124,7 @@ test('WhatsApp popup media edits stay in WhatsApp and use existing portal assets
 
 test('unchanged WhatsApp popup defaults preserve existing published revision and saved drafts',t=>{
  const {store,editor}=setup(t),snapshot=publicSnapshot(store,'wa');
- const original=Object.fromEntries(Object.entries(snapshot).filter(([key])=>!['revision','prelinkCopy','prelinkGuides','mainGuides'].includes(key)));
+ const original=Object.fromEntries(Object.entries(snapshot).filter(([key])=>!['revision','prelinkCopy','prelinkGuides','mainGuides','linkPreview'].includes(key)));
  const hash=createHash('sha256').update(JSON.stringify(original)).digest('hex');
  assert.equal(snapshot.revision,hash,'existing WhatsApp drafts must not conflict just because the new popup editor was deployed');
  const first=editor.data('admin','wa');
@@ -173,8 +173,59 @@ test('Adding a main-page WhatsApp guide editor does not cause revision conflicts
  const current=publicSnapshot(store,'wa');
  assert.equal(store.config().wa_main_guide_iphone,undefined);
  assert.equal(store.config().wa_main_guide_android,undefined);
- const original=Object.fromEntries(Object.entries(current).filter(([key])=>!['revision','prelinkCopy','prelinkGuides','mainGuides'].includes(key)));
+ const original=Object.fromEntries(Object.entries(current).filter(([key])=>!['revision','prelinkCopy','prelinkGuides','mainGuides','linkPreview'].includes(key)));
  assert.equal(current.revision,createHash('sha256').update(JSON.stringify(original)).digest('hex'));
  assert.equal(editor.data('admin','wa').conflict,false);
  assert.equal(editor.data('admin','wa').version,stored.version);
+});
+
+test('Only WhatsApp exposes editable sharing preview image, name, slogan and description',t=>{
+ const {store,editor,dir}=setup(t),cubamaxBefore=publicSnapshot(store,'cm');
+ const waBefore=publicSnapshot(store,'wa'),initial=editor.data('admin','wa');
+ const ids=['image','name','slogan','description'].map(key=>'share-preview:'+key);
+ assert.ok(ids.every(id=>initial.fields.some(f=>f.id===id)));
+ assert.equal(initial.fields.find(f=>f.id===ids[0]).kind,'image');
+ assert.ok(ids.every(id=>!editor.data('admin','cm').fields.some(f=>f.id===id)));
+ const image='/portal-media/'+'d'.repeat(64)+'.png';
+ mkdirSync(dir+'/portal-media');writeFileSync(dir+image,Buffer.from('sample PNG image fixture'));
+ const saved=editor.save('admin',{site:'wa',version:initial.version,revision:initial.base,changes:[
+   {id:'share-preview:image',value:image},
+   {id:'share-preview:name',value:'Agencia de prueba'},
+   {id:'share-preview:slogan',value:'Mi eslogan principal'},
+   {id:'share-preview:description',value:'Descripción que aparece bajo el eslogan.'}
+ ]});
+ assert.equal(saved.dirty,true);
+ assert.equal(publicSnapshot(store,'wa').revision,waBefore.revision,'draft must not be public');
+ const originalMarkup='<html><head><title>WHATSAPP · Conectar mi cuenta</title></head><body>Contenido anterior</body></html>';
+ assert.equal(renderWhatsAppPreview(originalMarkup,store,'https://securitywhat.app','/'),originalMarkup);
+ editor.publish('admin',{site:'wa',version:saved.version});
+ const published=publicSnapshot(store,'wa');
+ assert.equal(published.linkPreview.name,'Agencia de prueba');
+ assert.equal(published.linkPreview.slogan,'Mi eslogan principal');
+ assert.equal(published.linkPreview.description,'Descripción que aparece bajo el eslogan.');
+ assert.equal(published.linkPreview.image,image);
+ assert.equal(store.config().wa_link_preview!==undefined,true);
+ const html=renderWhatsAppPreview(originalMarkup,store,'https://securitywhat.app','/');
+ assert.match(html,/<meta property="og:title" content="Agencia de prueba · Mi eslogan principal">/);
+ assert.match(html,/<meta property="og:description" content="Descripción que aparece bajo el eslogan\.">/);
+ assert.match(html,/property="og:image"/);
+ assert.match(html,/<body>Contenido anterior<\/body>/);
+ assert.equal(publicSnapshot(store,'cm').revision,cubamaxBefore.revision,'Cubamax remains unchanged');
+ const reopened=new Store(dir);
+ assert.equal(publicSnapshot(reopened,'wa').linkPreview.image,image);
+ reopened.db.close();
+});
+test('Sharing preview rejects an external image and does not change the visible branding',t=>{
+ const {store,editor}=setup(t),initial=editor.data('admin','wa');
+ const original=publicSnapshot(store,'wa').branding;
+ assert.throws(()=>editor.save('admin',{site:'wa',version:initial.version,revision:initial.base,changes:[
+  {id:'share-preview:image',value:'https://external.example/logo.png'}
+ ]}),/imagen|vídeo|video|válido/);
+ const saved=editor.save('admin',{site:'wa',version:initial.version,revision:initial.base,changes:[
+  {id:'share-preview:slogan',value:'Un eslogan diferente'}
+ ]});
+ editor.publish('admin',{site:'wa',version:saved.version});
+ assert.deepEqual(publicSnapshot(store,'wa').branding,original);
+ assert.equal(store.config().title,undefined);
+ assert.equal(store.config().description,undefined);
 });
