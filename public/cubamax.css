@@ -258,6 +258,9 @@
   flex-shrink:0;
   z-index:3;
 }
-.corporate-portal #service-dialog.full-photo.cover-photo .dialog-close{
+.corporate-portal #service-dialog.full-photo.cover-photo .service-dialog-content>.dialog-close{
+  position:absolute;
+  top:12px;
+  right:12px;
   z-index:3;
 }
