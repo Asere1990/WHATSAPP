@@ -26,6 +26,8 @@ export class BaileysStore {
   advanceArchive(msg){const backfill=this.get('archive-backfill',msg.key.remoteJid);if(backfill?.active&&Number(msg.messageTimestamp)<Number(backfill.cursor.messageTimestamp)){backfill.cursor={key:msg.key,messageTimestamp:Number(msg.messageTimestamp)};if(Number(msg.messageTimestamp)<=backfill.boundary)backfill.active=false;this.put('archive-backfill',msg.key.remoteJid,backfill);}}
   // Only credentials authenticated to this account supply the self-chat alias.
   selfJids(){
+    // Cubamax and ordinary contact mapping retain their existing behavior.
+    if(this.db.prepare('SELECT value FROM config WHERE key=?').get('portal:'+this.account)?.value==='cubamax-corporate')return [];
     const account=this.db.prepare('SELECT phone FROM accounts WHERE id=?').get(this.account);
     return authenticatedSelfJids(account?.phone,this.authValue('creds','self')?.me);
   }
@@ -33,10 +35,12 @@ export class BaileysStore {
   projectSelfMessage(raw){return projectAuthenticatedSelfMessage(raw,this.selfJids());}
   peers(peer){
     if(!/^\d+@(s\.whatsapp\.net|lid)$/.test(peer))return [peer];
+    const own=this.selfJids();
+    // Use only independently authenticated self aliases: a stale or
+    // incorrect mapping must never drag a different contact into self-chat.
+    if(own.includes(peer))return [...new Set([peer,...own])];
     const result=new Set([peer]),pn=this.get('mapping',peer);if(typeof pn==='string'&&/^\d+@s\.whatsapp\.net$/.test(pn))result.add(pn);
     for(const row of this.db.prepare("SELECT id FROM baileys_data WHERE account=? AND kind='mapping' AND json_extract(value,'$')=?").all(this.account,pn||peer))if(/^\d+@lid$/.test(row.id))result.add(row.id);
-    const own=this.selfJids();
-    if(own.includes(peer))for(const jid of own)result.add(jid);
     return [...result];
   }
   canonical(peer){return this.peers(peer).find(p=>p.endsWith('@s.whatsapp.net'))||peer;}
