@@ -30,12 +30,18 @@ async function editor(site='wa',{conflict=false,dirty=false}={}){
   {id:'share-preview:slogan',kind:'text',label:'Miniatura del enlace · Eslogan',group:'share-preview',value:'Conectar mi cuenta'},
   {id:'share-preview:description',kind:'text',label:'Miniatura del enlace · Descripción',group:'share-preview',value:'Servicio independiente'}
  ]:[];
- const draft={site,version:dirty?4:0,base:'revision',revision:'revision',dirty,conflict,fields:[field,...share]};
+ const popups=site==='cm'?['money','combo','packages','topup'].flatMap(id=>[
+  {id:'extra:'+id+'PopupPhoto',kind:'media',label:'Servicio '+id+' · Foto/video del popup',group:'popup-'+id,value:'',optional:true},
+  {id:'layout:'+id,kind:'layout',label:'Servicio '+id+' · Tamaño de foto',group:'popup-'+id,value:'standard'},
+  {id:'portal:'+id+'PopupButton',kind:'text',label:'Botón '+id,group:'popup-'+id,value:'Vincular WhatsApp'},
+ ]):[];
+ const draft={site,version:dirty?4:0,base:'revision',revision:'revision',dirty,conflict,fields:[field,...share,...popups]};
  const copy=v=>JSON.parse(JSON.stringify(v));
  const fetch=async(url,options={})=>{
-  const route=url.replace('/api/panel/',''),payload=options.body?JSON.parse(options.body):null;
+  const route=url.replace('/api/panel/',''),payload=typeof options.body==='string'?JSON.parse(options.body):null;
   calls.push({route,payload});
   if(route==='me')return {ok:true,json:async()=>({role:'admin',csrf:'csrf'})};
+  if(route==='editor/upload')return {ok:true,json:async()=>({asset:'/portal-media/'+'e'.repeat(64)+'.jpg'})};
   if(route.startsWith('editor/data?site='))return {ok:true,json:async()=>copy(draft)};
   if(route==='editor/rebase'){
    assert.equal(payload.site,'wa');
@@ -53,7 +59,7 @@ async function editor(site='wa',{conflict=false,dirty=false}={}){
    assert.ok(draft.fields.some(f=>f.id===payload.changes[0].id));
    draft.version++;
    draft.dirty=true;
-   draft.fields.find(f=>f.id===payload.changes[0].id).value=payload.changes[0].value;
+   for(const change of payload.changes){const f=draft.fields.find(f=>f.id===change.id);assert.ok(f);f.value=change.value;}
    return {ok:true,json:async()=>copy(draft)};
   }
   if(route==='editor/publish'){
@@ -194,4 +200,30 @@ test('WhatsApp-only sharing preview section offers image, name, slogan, descript
  assert.equal(e.calls.find(x=>x.route==='editor/draft').payload.changes[0].id,'share-preview:slogan');
  const cm=await editor('cm');
  assert.equal(cm.get('popup').children.some(x=>x.value==='share-preview'),false,'Cubamax selector stays unchanged');
+});
+
+test('Cubamax service popup selection opens its own photo editor and keeps the button independently editable',async()=>{
+ const e=await editor('cm'),choices=e.get('popup').children.map(x=>({value:x.value,label:x.textContent}));
+ for(const [id,name]of [['money','Dinero'],['combo','Combos'],['packages','Paquetes'],['topup','Recargas']]){
+  assert.equal(choices.find(x=>x.value===id)?.label,'Popup · '+name);
+  e.get('popup').value=id;e.get('popup').onchange();
+  assert.match(e.get('selection-title').textContent,/Foto\/video del popup/);
+  const related=e.get('selection').children.filter(x=>x.className==='related');
+  assert.ok(related.some(x=>x.textContent.includes('Tamaño de foto')));
+  assert.ok(related.some(x=>x.textContent.includes('Botón')));
+ }
+ const whatsapp=await editor('wa');
+ assert.equal(whatsapp.get('popup').children.some(x=>x.value==='money'),false);
+});
+test('Cubamax uploading a photo saves full-cover layout for that popup without changing its button',async()=>{
+ const e=await editor('cm');e.get('popup').value='combo';e.get('popup').onchange();
+ e.get('upload').files=[{name:'foto.jpg',size:18000}];
+ await e.get('upload').onchange();
+ await e.get('save').onclick();
+ const request=e.calls.findLast(x=>x.route==='editor/draft');
+ assert.deepEqual(request.payload.changes.map(x=>x.id),['extra:comboPopupPhoto','layout:combo']);
+ assert.equal(request.payload.changes[0].value,'/portal-media/'+'e'.repeat(64)+'.jpg');
+ assert.equal(request.payload.changes[1].value,'full');
+ assert.ok(!request.payload.changes.some(x=>x.id==='portal:comboPopupButton'));
+ assert.equal(e.get('publish').disabled,false);
 });

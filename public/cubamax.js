@@ -8,8 +8,13 @@ function renderServicePopup(){
  const button=document.getElementById('service-continue'),photo=document.getElementById('service-dialog-photo');
  button.textContent=corporateAppearance.fields[corporateService+'PopupButton']||'Vincular WhatsApp';
  button.setAttribute?.('data-service-color',corporateService);
- document.getElementById('service-dialog').classList?.toggle('full-photo',corporateAppearance.popupLayouts?.[corporateService]==='full'&&!!corporateAppearance.extraMedia[corporateService+'PopupPhoto']);
- const asset=corporateAppearance.extraMedia[corporateService+'PopupPhoto'];const isVideo=!!asset?.endsWith('.mp4');let media=photo;if(isVideo!==(photo.tagName==='VIDEO')){media=document.createElement(isVideo?'video':'img');media.id=photo.id;media.hidden=photo.hidden;if(isVideo){media.controls=true;media.playsInline=true;media.preload='metadata';}photo.replaceWith(media);}media.hidden=!asset;if(asset){media.setAttribute?.('data-public-source',asset);media.src=asset;}else{media.removeAttribute?.('data-public-source');media.removeAttribute?.('src');}
+ const asset=corporateAppearance.extraMedia[corporateService+'PopupPhoto'];const isVideo=!!asset?.endsWith('.mp4');
+ const full=corporateAppearance.popupLayouts?.[corporateService]==='full'&&!!asset;
+ const dialog=document.getElementById('service-dialog');
+ dialog.classList?.toggle('full-photo',full);
+ // The complete photograph covers this service's popup. Videos retain
+ // their existing inline player. Neither changes the button action.
+ dialog.classList?.toggle('cover-photo',full&&!isVideo);let media=photo;if(isVideo!==(photo.tagName==='VIDEO')){media=document.createElement(isVideo?'video':'img');media.id=photo.id;media.hidden=photo.hidden;if(isVideo){media.controls=true;media.playsInline=true;media.preload='metadata';}photo.replaceWith(media);}media.hidden=!asset;if(asset){media.setAttribute?.('data-public-source',asset);media.src=asset;}else{media.removeAttribute?.('data-public-source');media.removeAttribute?.('src');}
 }
 let corporateAppearance={fields:{},extraMedia:{}};
 let corporateService=null,corporateConfirmed=null;

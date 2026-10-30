@@ -229,3 +229,30 @@ test('Sharing preview rejects an external image and does not change the visible 
  assert.equal(store.config().title,undefined);
  assert.equal(store.config().description,undefined);
 });
+
+test('Cubamax four service popups each accept an independent full-cover image without changing button text or WhatsApp',t=>{
+ const {editor,store,dir}=setup(t),services=['money','combo','packages','topup'];
+ const waBefore=publicSnapshot(store,'wa').revision,initial=editor.data('123','cm');
+ const originalButtons=Object.fromEntries(services.map(id=>[id,publicSnapshot(store,'cm').portal.fields[id+'PopupButton']]));
+ const changes=[];
+ mkdirSync(dir+'/portal-media',{recursive:true});
+ for(const [i,id]of services.entries()){
+  const photo='/portal-media/'+String(i+1).repeat(64)+'.png';
+  writeFileSync(dir+photo,Buffer.from('fixture photo '+id));
+  assert.ok(initial.fields.find(f=>f.id==='extra:'+id+'PopupPhoto'),'Each popup must have its own photo field');
+  assert.ok(initial.fields.find(f=>f.id==='layout:'+id),'Each popup must have its own photo layout');
+  changes.push({id:'extra:'+id+'PopupPhoto',value:photo},{id:'layout:'+id,value:'full'});
+ }
+ const saved=editor.save('123',{site:'cm',version:initial.version,revision:initial.base,changes});
+ assert.equal(saved.dirty,true);
+ assert.deepEqual(publicSnapshot(store,'cm').portal.extraMedia,{},'The public website is unchanged until publish');
+ editor.publish('123',{site:'cm',version:saved.version});
+ const portal=publicSnapshot(store,'cm').portal;
+ for(const [i,id]of services.entries()){
+  assert.equal(portal.extraMedia[id+'PopupPhoto'],'/portal-media/'+String(i+1).repeat(64)+'.png');
+  assert.equal(portal.popupLayouts[id],'full');
+  assert.equal(portal.fields[id+'PopupButton'],originalButtons[id],'Original button label is preserved');
+ }
+ assert.equal(new Set(services.map(id=>portal.extraMedia[id+'PopupPhoto'])).size,4);
+ assert.equal(publicSnapshot(store,'wa').revision,waBefore,'WHATSAPP stays intact');
+});
