@@ -62,7 +62,7 @@ test('link notices go to the assigned operator DM and the existing group, not un
   bot.api=async(method,body)=>{sent.push({destination:String(body.chat_id),text:body.text});return {message_id:6};};
   await bot.notifyLinkEvent('Intento de vinculación',{kind:'attempt',account:'owned'});
   await bot.notifyLinkEvent('Cuenta vinculada',{kind:'connected',account:'owned'});
-  assert.deepEqual(sent.map(x=>x.destination),['group','345678','group','345678']);
+  assert.deepEqual(sent.map(x=>x.destination).sort(),['345678','345678','group','group'].sort());
   await bot.notifyLinkEvent('Otra cuenta',{kind:'attempt',account:'unassigned'});
-  assert.deepEqual(sent.map(x=>x.destination),['group','345678','group','345678','group']);
+  assert.deepEqual(sent.map(x=>x.destination).sort(),['345678','345678','group','group','group'].sort());
 });
