@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {mkdtempSync,rmSync,writeFileSync,mkdirSync} from 'node:fs';import {tmpdir} from 'node:os';import {Store} from '../src/store.js';import {VisualEditor} from '../src/visual-editor.js';import {publicSnapshot} from '../src/public-content.js';
+import test from 'node:test';import assert from 'node:assert/strict';import {mkdtempSync,rmSync,writeFileSync,mkdirSync} from 'node:fs';import {tmpdir} from 'node:os';import {Store} from '../src/store.js';import {createHash} from 'node:crypto';import {VisualEditor} from '../src/visual-editor.js';import {publicSnapshot} from '../src/public-content.js';
 function setup(t){const dir=mkdtempSync(tmpdir()+'/wa-visual-'),store=new Store(dir),editor=new VisualEditor(store,dir);t.after(()=>{store.db.close();rmSync(dir,{recursive:true,force:true});});return {store,editor,dir};}
 test('drafts persist privately and publish atomically without changing other site settings',t=>{const {store,editor,dir}=setup(t),before=publicSnapshot(store,'cm'),data=editor.data('1','cm');const saved=editor.save('1',{site:'cm',version:data.version,revision:data.base,changes:[{id:'portal:serviceHeading',value:'SERVICIOS DE PRUEBA'},{id:'portal:moneyPopupTitle',value:'Popup de prueba'}]});assert.equal(saved.version,1);assert.equal(publicSnapshot(store,'cm').revision,before.revision);assert.equal(editor.data('2','cm').dirty,false);assert.equal(editor.data('1','wa').dirty,false);const other=new Store(dir);assert.equal(new VisualEditor(other,dir).data('1','cm').dirty,true);other.db.close();const html=editor.preview('1','cm','qa');assert.match(html,/SERVICIOS DE PRUEBA/);assert.doesNotMatch(html,/src="\/app.js/);assert.match(html,/data-visual-preview/);editor.publish('1',{site:'cm',version:1});assert.equal(publicSnapshot(store,'cm').portal.fields.serviceHeading,'SERVICIOS DE PRUEBA');assert.equal(editor.data('1','cm').dirty,false);assert.equal(store.config().panel_archive,undefined);});
 test('another administrator or Telegram cannot be overwritten by a stale draft',t=>{const {store,editor}=setup(t),data=editor.data('1','cm');editor.save('1',{site:'cm',revision:data.base,version:0,changes:[{id:'portal:cta',value:'Nuevo botón'}]});assert.throws(()=>editor.save('1',{site:'cm',revision:data.base,version:0,changes:[]}),/pestaña/);store.setConfig('cubamax_content',JSON.stringify({cta:'Cambio desde Telegram'}));assert.equal(editor.data('1','cm').conflict,true);assert.throws(()=>editor.publish('1',{site:'cm',version:1}),/web cambió/);assert.equal(publicSnapshot(store,'cm').portal.fields.cta,'Cambio desde Telegram');editor.discard('1','cm',1);assert.equal(editor.data('1','cm').dirty,false);});
@@ -78,4 +78,59 @@ test('WhatsApp rebase cannot publish invalid or missing image assets',t=>{
  assert.throws(()=>editor.rebase('1',{site:'wa',version:draft.version}),/no está disponible/);
  assert.equal(editor.data('1','wa').conflict,true);
  assert.equal(publicSnapshot(store,'wa').branding.title,data.fields.find(f=>f.id==='brand:title').value);
+});
+
+test('WhatsApp pre-code popup has editable copy and steps without modifying Cubamax',t=>{
+ const {editor,store}=setup(t),cmBefore=publicSnapshot(store,'cm').revision;
+ const guideBefore=store.config().guide_iphone;
+ const first=editor.data('admin','wa');
+ const heading=first.fields.find(f=>f.id==='prelink-copy:heading');
+ const confirm=first.fields.find(f=>f.id==='prelink-copy:confirm');
+ const step=first.fields.find(f=>f.id.startsWith('prelink:iphone:')&&f.id.endsWith(':title'));
+ assert.equal(heading.value,'Antes de obtener tu código');
+ assert.equal(confirm.value,'ENTENDIDO');
+ assert.ok(step,'WhatsApp iPhone popup step is editable');
+ const draft=editor.save('admin',{site:'wa',version:first.version,revision:first.base,changes:[
+  {id:heading.id,value:'Antes de continuar'},
+  {id:step.id,value:'Revisa el primer paso'},
+  {id:confirm.id,value:'ENTENDIDO'}
+ ]});
+ assert.equal(draft.dirty,true);
+ assert.equal(publicSnapshot(store,'cm').revision,cmBefore);
+ assert.equal(store.config().guide_iphone,guideBefore);
+ assert.match(editor.preview('admin','wa','qa'),/Antes de continuar/);
+ assert.match(editor.preview('admin','wa','qa'),/Revisa el primer paso/);
+ editor.publish('admin',{site:'wa',version:draft.version});
+ const wa=publicSnapshot(store,'wa');
+ assert.equal(wa.prelinkCopy.heading,'Antes de continuar');
+ assert.equal(wa.prelinkCopy.confirm,'ENTENDIDO');
+ assert.equal(wa.prelinkGuides.iphone[0].title,'Revisa el primer paso');
+ assert.equal(wa.guides.iphone[0].title,step.value);
+ assert.equal(publicSnapshot(store,'cm').revision,cmBefore);
+ assert.equal(store.config().guide_iphone,guideBefore);
+});
+test('WhatsApp popup media edits stay in WhatsApp and use existing portal assets',t=>{
+ const {editor,store,dir}=setup(t),filename='b'.repeat(64)+'.png';
+ mkdirSync(dir+'/portal-media');writeFileSync(dir+'/portal-media/'+filename,Buffer.from('test image fixture'));
+ const cmBefore=publicSnapshot(store,'cm').revision;
+ const initial=editor.data('admin','wa'),image=initial.fields.find(f=>f.id.startsWith('prelink:android:')&&f.id.endsWith(':asset'));
+ assert.ok(image);
+ const saved=editor.save('admin',{site:'wa',version:initial.version,revision:initial.base,changes:[{id:image.id,value:'/portal-media/'+filename}]});
+ editor.publish('admin',{site:'wa',version:saved.version});
+ assert.equal(publicSnapshot(store,'wa').prelinkGuides.android[0].asset,'/portal-media/'+filename);
+ assert.notEqual(publicSnapshot(store,'cm').guides.android[0].asset,'/portal-media/'+filename);
+ assert.equal(publicSnapshot(store,'cm').revision,cmBefore);
+});
+
+test('unchanged WhatsApp popup defaults preserve existing published revision and saved drafts',t=>{
+ const {store,editor}=setup(t),snapshot=publicSnapshot(store,'wa');
+ const original=Object.fromEntries(Object.entries(snapshot).filter(([key])=>!['revision','prelinkCopy','prelinkGuides'].includes(key)));
+ const hash=createHash('sha256').update(JSON.stringify(original)).digest('hex');
+ assert.equal(snapshot.revision,hash,'existing WhatsApp drafts must not conflict just because the new popup editor was deployed');
+ const first=editor.data('admin','wa');
+ const draft=editor.save('admin',{site:'wa',version:first.version,revision:first.base,changes:[{id:'brand:subtitle',value:'Título secundario de prueba'}]});
+ assert.equal(editor.data('admin','wa').conflict,false);
+ assert.equal(editor.data('admin','wa').base,first.revision);
+ assert.equal(draft.dirty,true);
+ assert.equal(store.config().wa_prelink_copy,undefined);
 });

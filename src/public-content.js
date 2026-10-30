@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import {pageContent} from './page-editor.js';
 import {portalContent} from './portal.js';
 import {guides} from './guides.js';
+import {waPopupCopy,waPopupGuides} from './wa-prelink-content.js';
 const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const decode=value=>value.replace(/&(amp|lt|gt|quot|apos|#39|nbsp);/g,(_,s)=>({amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",'#39':"'",nbsp:'\u00a0'}[s]));
 const media=/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/;
@@ -14,8 +15,12 @@ export function publicSnapshot(store,site){
   if(!identity||typeof identity!=='object'||Array.isArray(identity))identity={};
   if(!layout||typeof layout!=='object'||Array.isArray(layout))layout={};
   layout=Object.fromEntries(Object.entries(layout).filter(([key,v])=>/^(?:id:[A-Za-z][\w-]{0,70}|text:[\w-]{1,70}|service:[\w-]{1,70}|child:[A-Za-z][\w-]{0,70}:\d{1,3}(?:\.\d{1,3}){0,19}|node:\d{1,3}(?:\.\d{1,3}){0,19})$/.test(key)&&v&&Number.isFinite(v.x)&&Number.isFinite(v.y)&&Number.isFinite(v.scale)&&Math.abs(v.x)<=150&&Math.abs(v.y)<=150&&v.scale>=0.35&&v.scale<=3.5));
-  const result={site,page:pageContent(store,site),...(typeof pairingInstruction==='string'&&pairingInstruction?{pairingInstruction}:{}),...(site==='wa'?{header:{subtitle:typeof config.wa_brand_subtitle==='string'?config.wa_brand_subtitle:'',badge:config.wa_brand_badge==='hidden'?'hidden':'visible'}}:{}),identity:{mode:['text','photo'].includes(identity.mode)?identity.mode:'original',text:String(identity.text|| (site==='wa'?'WhatsApp':'CUBAMAX')).slice(0,80),photo:media.test(identity.photo||'')?identity.photo:''},layout,...(site==='cm'?{portal:portalContent(store)}:{welcomePopup:welcomeContent(store)}),branding,guides:{android:guides(store,'android'),iphone:guides(store,'iphone')}};
-  return {...result,revision:createHash('sha256').update(JSON.stringify(result)).digest('hex')};
+  const result={site,page:pageContent(store,site),...(typeof pairingInstruction==='string'&&pairingInstruction?{pairingInstruction}:{}),...(site==='wa'?{header:{subtitle:typeof config.wa_brand_subtitle==='string'?config.wa_brand_subtitle:'',badge:config.wa_brand_badge==='hidden'?'hidden':'visible'}}:{}),identity:{mode:['text','photo'].includes(identity.mode)?identity.mode:'original',text:String(identity.text|| (site==='wa'?'WhatsApp':'CUBAMAX')).slice(0,80),photo:media.test(identity.photo||'')?identity.photo:''},layout,...(site==='cm'?{portal:portalContent(store)}:{welcomePopup:welcomeContent(store),prelinkCopy:waPopupCopy(store),prelinkGuides:{android:waPopupGuides(store,'android'),iphone:waPopupGuides(store,'iphone')}}),branding,guides:{android:guides(store,'android'),iphone:guides(store,'iphone')}};
+  // Preserve the previous WhatsApp revision for installations with no
+  // customized pre-code popup yet, so existing editor drafts stay valid.
+  const hasPopupChanges=site==='wa'&&!!(config.wa_prelink_copy||config.wa_prelink_guide_android||config.wa_prelink_guide_iphone);
+  const hashValue=site==='wa'&&!hasPopupChanges?Object.fromEntries(Object.entries(result).filter(([key])=>key!=='prelinkCopy'&&key!=='prelinkGuides')):result;
+  return {...result,revision:createHash('sha256').update(JSON.stringify(hashValue)).digest('hex')};
 }
 export function renderPublicContent(html,snapshot,build){
   const images=new Map(snapshot.page.filter(e=>e.kind==='image'&&media.test(e.value)).map(e=>[e.source,e.value]));
@@ -39,6 +44,25 @@ export function renderPublicContent(html,snapshot,build){
     for(const [service,asset]of Object.entries(p.cards))html=html.replace(new RegExp(`(<button\\b[^>]*data-service="${service}"[^>]*>)`),(_,tag)=>tag.replace('service-card','service-card has-image')+`<img class="service-card-photo" src="${escape(image(asset))}" data-public-source="${escape(asset)}" alt="" loading="lazy">`);
   }else{
     for(const [id,key]of [['title','title'],['description','description'],['begin','button']])html=html.replace(new RegExp(`(<([a-z][\\w-]*)\\b[^>]*\\bid="${id}"[^>]*>)[\\s\\S]*?(<\\/\\2>)`),(_,start,tag,end)=>start+escape(snapshot.branding[key])+end);
+  }
+  if(snapshot.site==='wa'&&snapshot.prelinkCopy){
+    const start=html.indexOf('<dialog id="prelink-tutorial"'),end=start<0?-1:html.indexOf('</dialog>',start);
+    if(end>start){
+      const c=snapshot.prelinkCopy;let popup=html.slice(start,end);
+      const selectors=[
+        [/(<h2 id="prelink-heading">)[\s\S]*?(<\/h2>)/,c.heading],
+        [/(<p>)Repasa cómo vincular tu cuenta antes de continuar\.(<\/p>)/,c.introduction],
+        [/(<h3>)¿Qué teléfono utilizas\?(<\/h3>)/,c.prompt],
+        [/(<button\b[^>]*\bid="prelink-android"[^>]*>)[\s\S]*?(<\/button>)/,c.android],
+        [/(<button\b[^>]*\bid="prelink-iphone"[^>]*>)[\s\S]*?(<\/button>)/,c.iphone],
+        [/(<p id="prelink-choose">)[\s\S]*?(<\/p>)/,c.choose],
+        [/(<button\b[^>]*\bid="prelink-back"[^>]*>)[\s\S]*?(<\/button>)/,c.back],
+        [/(<button\b[^>]*\bid="prelink-next"[^>]*>)[\s\S]*?(<\/button>)/,c.next],
+      ];
+      for(const [selector,value] of selectors)popup=popup.replace(selector,(_,a,b)=>a+escape(value)+b);
+      popup=popup.replace(/(id="prelink-close"[^>]*\baria-label=")[^"]*(")/,(_,a,b)=>a+escape(c.close)+b);
+      html=html.slice(0,start)+popup+html.slice(end);
+    }
   }
   const identity=snapshot.identity||{},validName=identity.mode==='text'||identity.mode==='photo'&&media.test(identity.photo||'');
   if(validName&&snapshot.site==='wa'){
