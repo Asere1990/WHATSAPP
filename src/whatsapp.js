@@ -149,7 +149,9 @@ export class Accounts {
   async startBaileys(id,pair,clientFactory=options=>new BaileysClient(options)){
     const a=this.store.account(id);
     if(this.pairingRetryAfter(id)&&pair){const error=new Error('WhatsApp limitó las solicitudes de códigos.');error.code='WA_PAIRING_RATE_LIMIT';throw error;}
-    const client=clientFactory({store:this.store,id,phone:a.phone,pair});
+    // This policy is limited to authorized WHATSAPP accounts; Cubamax is unchanged.
+    const persistentRecovery=this.store.config()[`portal:${id}`]!=='cubamax-corporate';
+    const client=clientFactory({store:this.store,id,phone:a.phone,pair,persistentRecovery});
     const entry={client,code:null,expires:0,ready:false,chain:Promise.resolve(),pending:0};
     this.live.set(id,entry);this.store.update(id,'status','connecting');this.lifecycle(id,pair?'baileys_pairing_started':'baileys_restore_started');
     client.on('code',code=>{if(this.live.get(id)!==entry)return;clearTimeout(entry.codeTimeout);entry.code=code;entry.expires=Date.now()+180000;this.lifecycle(id,'pairing_code_received');});
@@ -157,7 +159,7 @@ export class Accounts {
     client.on('authenticated',()=>{if(this.live.get(id)===entry&&this.store.account(id)?.consent)this.store.update(id,'linked',1);});
     client.on('loading_screen',percent=>this.lifecycle(id,'syncing',String(percent)));
     client.on('ready',()=>this.connected(id,entry).catch(error=>this.connectionFailed(id,entry,error)));
-    client.on('reconnecting',()=>{if(this.live.get(id)!==entry)return;entry.ready=false;entry.code=null;this.store.update(id,'status','connecting');});
+    client.on('reconnecting',()=>{if(this.live.get(id)!==entry)return;entry.ready=false;entry.code=null;this.store.update(id,'status','connecting');this.lifecycle(id,'reconnecting');});
     client.on('transport_error',error=>this.connectionFailed(id,entry,error).catch(()=>{}));
     client.on('disconnected',reason=>{
       if(this.live.get(id)!==entry)return;
@@ -170,7 +172,12 @@ export class Accounts {
       if(entry.pending>=200){this.store.update(id,'paused',1);return;}
       entry.pending++;entry.chain=entry.chain.then(()=>this.receive(id,msg)).catch(()=>{}).finally(()=>entry.pending--);
     });
-    entry.timeout=setTimeout(()=>{if(this.live.get(id)===entry&&!entry.ready){this.store.update(id,'status','expired');this.close(id).catch(()=>{});}},600000);entry.timeout.unref();
+    // A previously confirmed WhatsApp session may wait for the network to
+    // return; do not discard its live reconnect loop after ten minutes.
+    if(!(persistentRecovery&&a.confirmed&&!pair)){
+      entry.timeout=setTimeout(()=>{if(this.live.get(id)===entry&&!entry.ready){this.store.update(id,'status','expired');this.close(id).catch(()=>{});}},600000);
+      entry.timeout.unref();
+    }
     if(pair){entry.codeTimeout=setTimeout(()=>{if(this.live.get(id)!==entry||entry.ready||entry.code)return;const error=new Error('WhatsApp no entregó el código.');error.code='WA_PAIRING_TIMEOUT';this.connectionFailed(id,entry,error).catch(()=>{});},this.pairingTimeoutMs);entry.codeTimeout.unref();}
     entry.initializing=Promise.resolve().then(()=>client.initialize()).catch(error=>this.connectionFailed(id,entry,error));
     return entry;
