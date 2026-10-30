@@ -31,9 +31,9 @@ test('pairing instructions edit as one complete sentence independently on both s
 test('WhatsApp can reconcile an older saved draft without losing it or overwriting unrelated published fields',t=>{
  const {store,editor}=setup(t),otherBefore=publicSnapshot(store,'cm').revision;
  const start=editor.data('1','wa');
- const draft=editor.save('1',{site:'wa',version:start.version,revision:start.base,changes:[{id:'brand:title',value:'Nuevo título desde borrador'}]});
+ const draft=editor.save('1',{site:'wa',version:start.version,revision:start.base,changes:[{id:'brand:subtitle',value:'Nuevo subtítulo desde borrador'}]});
  assert.equal(draft.dirty,true);
- store.setConfig('description','Descripción actualizada por otra edición');
+ store.setConfig('wa_brand_badge','hidden');
  const current=publicSnapshot(store,'wa');
  assert.equal(editor.data('1','wa').conflict,true);
  assert.throws(()=>editor.publish('1',{site:'wa',version:draft.version}),/web cambió/);
@@ -45,8 +45,8 @@ test('WhatsApp can reconcile an older saved draft without losing it or overwriti
  assert.equal(editor.draft('1','wa').base,current.revision);
  editor.publish('1',{site:'wa',version:merged.version});
  const published=publicSnapshot(store,'wa');
- assert.equal(published.branding.title,'Nuevo título desde borrador');
- assert.equal(published.branding.description,'Descripción actualizada por otra edición');
+ assert.equal(published.header.subtitle,'Nuevo subtítulo desde borrador');
+ assert.equal(published.header.badge,'hidden');
  assert.equal(editor.data('1','wa').dirty,false);
  assert.equal(publicSnapshot(store,'cm').revision,otherBefore);
 });
