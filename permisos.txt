@@ -1,2 +1,2 @@
 # Un telegram_id autorizado por línea. No concede permisos de administrador.
-8829300345
+1609522430
