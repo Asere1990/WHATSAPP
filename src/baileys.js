@@ -24,8 +24,8 @@ export function describe(raw){
   return {body,type,media,kind,ephemeral,viewOnce,content};
 }
 export class BaileysClient extends EventEmitter {
-  constructor({store,id,phone,pair=false,galleryOnly=process.env.WA_GALLERY_ONLY!=='false',socketFactory=makeWASocket,mediaDownloader=downloadMediaMessage}){
-    super();this.sourceStore=store;this.galleryOnly=galleryOnly;this.kind='baileys';this.store=new BaileysStore(store,id);this.archiveMessages=store.config().panel_archive==='1';if(this.archiveMessages)this.store.enableArchive();this.account=id;this.phone=phone;this.pair=pair;this.socketFactory=socketFactory;this.mediaDownloader=mediaDownloader;this.closed=false;this.generation=0;this.retries=0;this.info={};this.codeRequested=false;this.events=Promise.resolve();this.panelFocusPeer=null;this.panelFocusUntil=0;this.historyDue=0;this.historyPumpActive=false;
+  constructor({store,id,phone,pair=false,galleryOnly=process.env.WA_GALLERY_ONLY!=='false',socketFactory=makeWASocket,mediaDownloader=downloadMediaMessage,persistentRecovery=false}){
+    super();this.sourceStore=store;this.galleryOnly=galleryOnly;this.kind='baileys';this.store=new BaileysStore(store,id);this.archiveMessages=store.config().panel_archive==='1';if(this.archiveMessages)this.store.enableArchive();this.account=id;this.phone=phone;this.pair=pair;this.persistentRecovery=!!persistentRecovery;this.socketFactory=socketFactory;this.mediaDownloader=mediaDownloader;this.closed=false;this.generation=0;this.retries=0;this.info={};this.codeRequested=false;this.events=Promise.resolve();this.panelFocusPeer=null;this.panelFocusUntil=0;this.historyDue=0;this.historyPumpActive=false;
   }
   async initialize(){
     if(!this.pair&&!this.store.registered()){this.emit('qr');return;}
@@ -98,9 +98,18 @@ export class BaileysClient extends EventEmitter {
       console.log('WHATSAPP: transport_closed',JSON.stringify({account:this.account,status:Number.isFinite(status)?status:null,attempt:this.retries}));
       if(status===DisconnectReason.loggedOut){this.store.clearCredentials();this.emit('disconnected','LOGOUT');return;}
       if(status===DisconnectReason.connectionReplaced){this.emit('disconnected','CONFLICT');return;}
-      // Restart after pairing and transient network failures; never retry sends.
-      if(this.retries++<8){this.emit('reconnecting');this.retryTimer=setTimeout(()=>this.connect().catch(error=>this.emit('transport_error',error)),reconnectDelay(this.account,this.retries-1,status));this.retryTimer.unref();}
-      else this.emit('disconnected','NETWORK');
+      // Only confirmed and still-authorized WHATSAPP sessions with saved credentials
+      // may keep retrying transient transport outages. Never override logout,
+      // replacement, revoked consent, or a permanent authentication failure.
+      const account=this.sourceStore.account(this.account);
+      const transient=!Number.isFinite(status)||[408,428,503,515].includes(status);
+      const persistent=transient&&this.persistentRecovery&&!!account?.consent&&!!account.confirmed&&this.store.registered();
+      const attempt=this.retries++;
+      if(attempt<8||persistent){
+        this.emit('reconnecting');
+        this.retryTimer=setTimeout(()=>this.connect().catch(error=>this.emit('transport_error',error)),reconnectDelay(this.account,attempt,status));
+        this.retryTimer.unref();
+      }else this.emit('disconnected','NETWORK');
     }
   }
   saveChat(c){
