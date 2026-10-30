@@ -90,6 +90,16 @@ test('manual history recovery uses an existing self LID anchor when phone-number
  assert.equal(await client.syncHistory(other),false);
 });
 
+test('existing own-chat mapping is preserved if the current credentials have no LID',t=>{
+ const {db}=setup(t);
+ const auth=db.auth();
+ auth.state.creds.me={id:pn};
+ auth.saveCreds();
+ db.put('mapping',lid,pn);
+ assert.deepEqual(db.peers(pn),[pn,lid]);
+ assert.deepEqual(db.peers(lid),[lid,pn]);
+});
+
 test('self aliases are disabled on the Cubamax portal',t=>{
  const {db,store,a}=setup(t);
  store.setConfig('portal:'+a.id,'cubamax-corporate');
