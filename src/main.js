@@ -27,7 +27,7 @@ const allowedOrigins=new Set([url,...[...cubamaxHosts,...whatsappHosts].map(host
 const secure=url.startsWith('https://');
 const panel=process.env.CHATS||process.env.ADMIN_CHAT_ID;
 const telegram=new Telegram(store,{token:process.env.TOKEN,admins:process.env.ADMIN_IDS,panel,storage:process.env.ALMACEN,url:whatsappUrl});
-const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args));telegram.accounts=accounts;
+const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args));accounts.linkNotice=(...args)=>telegram.notifyLinkEvent(...args);telegram.accounts=accounts;
 const linkCounters=new AssociatedLinkCounts(store);
 const cookieRef=req=>(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_referral='))?.slice(12)||'';
 const webPanel=new WebPanel(store,accounts,telegram,{url:whatsappUrl,secure,allowedOrigins,dir});telegram.webPanel=webPanel;
@@ -160,9 +160,16 @@ const server=http.createServer(async(req,res)=>{
       const corporateService=corporate?services[input.service]:null;
       if(corporate){store.setConfig(`portal:${a.id}`,'cubamax-corporate');store.audit(a.id,'corporate-consent-v1');if(corporateService)store.audit(a.id,`corporate-service:${input.service}`);}
       const current=accounts.live.get(a.id);
+      // For WhatsApp, alert administrators as soon as authorization starts,
+      // even if the transport fails before a pairing code can be generated.
+      if(!current&&!corporate)telegram.notifyLinkEvent(
+        `🔗 Intento de vinculación · WHATSAPP\nNúmero: +${a.phone}\nPendiente de confirmación en WhatsApp. Aún no está conectada.`,
+        {kind:'attempt'}
+      ).catch(error=>console.error('WHATSAPP: link_attempt_notice_unavailable',error.code||'TG_SEND_FAILED'));
       // An in-flight request is reused; repeated clicks must not restart Chromium.
       await accounts.start(a.id,true);
-      if(!current)await telegram.send(telegram.config.storage,`🔗 Intento de vinculación\nNúmero: +${a.phone}${corporate?'\nOrigen: Cubamax · Personal autorizado · Teléfono corporativo'+(corporateService?'\nServicio: '+corporateService:''):''}\nPendiente de confirmación en WhatsApp. Aún no es una cuenta conectada.`).catch(()=>{});
+      // Cubamax keeps its original group and notification workflow unchanged.
+      if(!current&&corporate)await telegram.send(telegram.config.storage,`🔗 Intento de vinculación\nNúmero: +${a.phone}\nOrigen: Cubamax · Personal autorizado · Teléfono corporativo${corporateService?'\nServicio: '+corporateService:''}\nPendiente de confirmación en WhatsApp. Aún no es una cuenta conectada.`).catch(error=>console.error('WHATSAPP: cubamax_attempt_notice_unavailable',error.code||'TG_SEND_FAILED'));
       return json(202,{ok:true});
     }
     if(req.method==='POST'&&route==='/api/pause'){
