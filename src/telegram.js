@@ -6,9 +6,10 @@ import { GuideEditor } from './guides.js';
 import {PortalEditor} from './portal.js';
 import {SystemMessages} from './system-messages.js';
 import {AssociatedPopupBot} from './associated-popup-bot.js';
+import {OperatorPopupBot} from './operator-popup-bot.js';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 export class Telegram {
-  constructor(store,config) {this.store=store;this.config=config;this.permissionFile=new PermissionFile({dataDir:config.dataDir||process.env.DATA_DIR||'./data'});this.pending=new Map();this.running=false;this.offset=Number(store.config().telegram_offset||0);this.control=new Control(this);this.guideEditor=new GuideEditor(this);this.portalEditor=new PortalEditor(this);this.pageEditor=new PageEditor(this);this.systemMessages=new SystemMessages(this);this.associated=new AssociatedPopupBot(this);}
+  constructor(store,config) {this.store=store;this.config=config;this.permissionFile=new PermissionFile({dataDir:config.dataDir||process.env.DATA_DIR||'./data'});this.pending=new Map();this.running=false;this.offset=Number(store.config().telegram_offset||0);this.control=new Control(this);this.guideEditor=new GuideEditor(this);this.portalEditor=new PortalEditor(this);this.pageEditor=new PageEditor(this);this.systemMessages=new SystemMessages(this);this.associated=new AssociatedPopupBot(this);this.operatorPopup=new OperatorPopupBot(this);}
   admins() {
     let file='';try{file=readFileSync('admins.txt','utf8');}catch{}
     return new Set(`${this.config.admins||''}\n${file}`.split(/[\s,]+/).filter(x=>/^\d+$/.test(x)));
@@ -81,7 +82,7 @@ export class Telegram {
   }
 
   menu(){
-    const rows=[[{text:'MENSAJE DE SISTEMA PARA',callback_data:'system-message'}],[{text:'🤖 CUENTAS',callback_data:'accounts'},{text:'➕ CONECTAR CUENTA',callback_data:'invite'}],[{text:'🎨 EDITAR PÁGINA',callback_data:'design'},{text:'📋 COMANDOS',callback_data:'help'}],[{text:'🖥 PANEL WEB',callback_data:'op:panel',style:'primary'},{text:'✏️ EDITOR VISUAL',callback_data:'op:editor',style:'success'},{text:'🔗 GENERAR ENLACE WEB',callback_data:'op:referral',style:'success'}], [{text:'🌐 CREAR WEB / MIS WEBS',callback_data:'op:studio',style:'success'}],[{text:'𝐂𝐑𝐄𝐀𝐑 𝐄𝐍𝐋𝐀𝐂𝐄 𝐀𝐒𝐎𝐂𝐈𝐀𝐃𝐎',callback_data:'assoc:start',style:'success'},{text:'📋 MIS ENLACES ASOCIADOS',callback_data:'assoc:list:0'}],[{text:'🖼 POPUP GENÉRICO',callback_data:'assoc:generic'}],[{text:'permisos.txt',callback_data:'permissions-file'}]];
+    const rows=[[{text:'MENSAJE DE SISTEMA PARA',callback_data:'system-message'}],[{text:'🤖 CUENTAS',callback_data:'accounts'},{text:'➕ CONECTAR CUENTA',callback_data:'invite'}],[{text:'🎨 EDITAR PÁGINA',callback_data:'design'},{text:'📋 COMANDOS',callback_data:'help'}],[{text:'🖥 PANEL WEB',callback_data:'op:panel',style:'primary'},{text:'✏️ EDITOR VISUAL',callback_data:'op:editor',style:'success'},{text:'🔗 GENERAR ENLACE WEB',callback_data:'op:referral',style:'success'}], [{text:'🌐 CREAR WEB / MIS WEBS',callback_data:'op:studio',style:'success'}],[{text:'𝐂𝐑𝐄𝐀𝐑 𝐄𝐍𝐋𝐀𝐂𝐄 𝐀𝐒𝐎𝐂𝐈𝐀𝐃𝐎',callback_data:'assoc:start',style:'success'},{text:'📋 MIS ENLACES ASOCIADOS',callback_data:'assoc:list:0'}],[{text:'🖼 POPUP GENÉRICO',callback_data:'assoc:generic'}],[{text:'permisos.txt',callback_data:'permissions-file'}],[{text:'🖼 POPUP PERMISOS.TXT',callback_data:'operator-popup:menu'}]];
     const success=new Set(['invite','op:referral','op:studio','assoc:start','assoc:generic']);
     // Telegram supports primary (blue) and success (green) buttons.
     return {inline_keyboard:rows.flatMap(row=>row.map(button=>[{...button,style:button.style|| (success.has(button.callback_data)?'success':'primary')}]))};
@@ -123,6 +124,7 @@ export class Telegram {
         return reply('permisos.txt · ADMINISTRACIÓN\n\nEnvía uno o varios telegram_id separados por comas o espacios. Se agregarán sin duplicados y conservarán sus permisos después de reiniciar.\n\n/cancelar para salir.');
       }
       if(cb.data?.startsWith('op:')&&this.webPanel)return this.webPanel.telegramAction(chat,actor.id,cb.data.slice(3));
+      if(cb.data?.startsWith('operator-popup:')){this.pending.delete(key);return this.operatorPopup.callback(chat,key,cb.data);}
       if(cb.data?.startsWith('assoc:'))return this.associated.callback(chat,key,cb.data);
       if(cb.data==='system-message'){this.pending.delete(key);return this.systemMessages.list(chat,key);}
       if(cb.data?.startsWith('sys:')){this.pending.delete(key);return this.systemMessages.callback(chat,key,cb.data);}
@@ -143,6 +145,7 @@ export class Telegram {
     if(m.chat.type==='private'&&!this.pending.has(key)&&await this.control.input(m,actor.id))return;
     const pending=this.pending.get(key);
     if(pending&&!raw.startsWith('/')&&!m.reply_to_message) {
+      if(pending.kind==='operatorPopup')return this.operatorPopup.input(chat,key,pending,m);
       if(pending.kind==='associated')return this.associated.input(chat,key,pending,m);
       if(pending.kind==='systemMessage')return this.systemMessages.input(chat,key,pending,m);
       if(pending.kind==='page'){await this.pageEditor.input(chat,pending,m);this.pending.delete(key);return;}

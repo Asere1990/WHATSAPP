@@ -14,10 +14,19 @@
  globalThis.checkWelcomePopup=async()=>{
   if(checked||dismissed||document.body.dataset.visualPreview)return;checked=true;
   try{
-   const response=await fetch('/api/welcome-popup-state',{cache:'no-store'});
+   const site=document.body.dataset.operatorPopupSite==='cm'?'cm':'wa';
+   const response=await fetch('/api/welcome-popup-state?site='+site,{cache:'no-store'});
    if(!response.ok)return;
    const state=await response.json();
-   // Only a valid, unrevoked WhatsApp-associated link displays this popup.
+   // An operator referral uses its own informational popup on EVERY visit.
+   // Unlike associated links, this never records or restricts first visitors.
+   if(state.operatorPopup===true&&state.popup&&!dismissed&&!dialog.open){
+     associated=state.popup;
+     render();
+     dialog.showModal();
+     return;
+   }
+   // Preserve the existing first-visitor behavior for admin-associated links.
    if(state.linked!==false||!state.popup||dismissed||dialog.open)return;
    const base=globalThis.currentPublicContent?.welcomePopup||{};
    associated={...base,title:base.title||'Antes de comenzar',button:base.button||'CONTINUAR',
@@ -28,4 +37,5 @@
  };
  render();globalThis.addEventListener('publiccontentchange',render);
  if(document.body.dataset.visualPreview)dialog.showModal();
+ if(document.body.dataset.operatorPopupSite==='cm')globalThis.checkWelcomePopup();
 })();
