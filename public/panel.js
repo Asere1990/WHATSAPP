@@ -136,6 +136,7 @@
   const chat=state.chat,account=state.account;
   if(!chat||chat.group||!account)return;
   const dialog=$('contact-info-dialog');
+  if(dialog.open)return;
   $('contact-info-heading').textContent='Info. del contacto';
   $('contact-info-photo').textContent=chat.name.slice(0,1).toUpperCase();
   avatarPhoto($('contact-info-photo'),chat.avatar,chat.name);
