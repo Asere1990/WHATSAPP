@@ -130,6 +130,7 @@ export class BaileysClient extends EventEmitter {
   // is installed. Older initial batches cannot be reconstructed from the DB.
   // This adds only aggregate metadata; it never requests history or media.
   recordFirstMediaBatch(messages){
+    if(this.sourceStore.config()['portal:'+this.account]==='cubamax-corporate')return;
     if(!messages?.length)return;
     const batches=new Map(),recordedAt=Date.now();
     for(const m of messages){
