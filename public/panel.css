@@ -25,3 +25,9 @@
 .panel-load-state.is-error{background:#fff8ed;border-color:#f0dac2;color:#80512f}
 @keyframes wa-panel-loading-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.panel-load-state:not(.is-error)::before{animation:none;border-style:dashed}}
+
+/* Media previews stay informative while lazy-loading remote thumbnails. */
+.visual-media .thumb-loading{position:absolute;inset:0;z-index:1;min-height:100%;font-size:12px;background:#e3eee8;color:#3d7760}
+.visual-media .thumb-loading:not(.is-error){animation:wa-panel-thumb-pulse 1.8s ease-in-out infinite}
+@keyframes wa-panel-thumb-pulse{50%{opacity:.72}}
+@media(prefers-reduced-motion:reduce){.visual-media .thumb-loading{animation:none!important}}
