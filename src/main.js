@@ -1,4 +1,5 @@
 import {welcomeIdentity} from './welcome-popup.js';
+import {operatorPopupForReferral} from './operator-referral-popup.js';
 import {AssociatedLinkCounts} from './associated-link-counts.js';
 import {publicSnapshot,renderPublicContent} from './public-content.js';
 import {createHash,randomBytes} from 'node:crypto';
@@ -39,6 +40,10 @@ const security={
   'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','Cache-Control':'no-store',
   ...(secure?{'Strict-Transport-Security':'max-age=31536000'}:{})
 };
+// Use the exact existing WhatsApp dialog only for operator referral visits
+// to Cubamax; ordinary Cubamax pages and admin popups remain untouched.
+const operatorDialogMarkup=readFileSync(new URL('../public/index.html',import.meta.url),'utf8')
+  .match(/<dialog id="wa-welcome"[\s\S]*?<\/dialog>/)?.[0]||'';
 const publicBuild=createHash('sha256').update(['welcome-popup.js','welcome-popup.css','public-content.js','page-content.js','element-layout.js','name-layout.css','app.js','cubamax.js','cubamax-headline.js','cubamax.css','style.css'].map(file=>readFileSync(new URL('../public/'+file,import.meta.url))).join('')).digest('hex').slice(0,16);
 const publicFiles={'/element-layout.js':['element-layout.js','application/javascript'],'/name-layout.css':['name-layout.css','text/css'],'/welcome-popup.js':['welcome-popup.js','application/javascript'],'/welcome-popup.css':['welcome-popup.css','text/css'],'/studio':['studio.html','text/html; charset=utf-8'],'/studio.js':['studio.js','application/javascript'],'/studio.css':['studio.css','text/css'],'/studio-render.js':['studio-render.js','application/javascript'],'/studio-page.js':['studio-page.js','application/javascript'],'/whatsapp':['index.html','text/html; charset=utf-8'],'/whatsapp/':['index.html','text/html; charset=utf-8'],'/chat-wallpaper.svg':['chat-wallpaper.svg','image/svg+xml'],'/editor':['editor.html','text/html; charset=utf-8'],'/editor.js':['editor.js','application/javascript'],'/editor.css':['editor.css','text/css'],'/editor-preview.js':['editor-preview.js','application/javascript'],'/editor-preview.css':['editor-preview.css','text/css'],'/panel':['panel.html','text/html; charset=utf-8'],'/panel/':['panel.html','text/html; charset=utf-8'],'/panel.css':['panel.css','text/css'],'/panel.js':['panel.js','application/javascript'],'/public-content.js':['public-content.js','application/javascript'],'/prelink-tutorial.js':['prelink-tutorial.js','application/javascript'],'/page-content.js':['page-content.js','application/javascript'],'/cubamax':['cubamax.html','text/html; charset=utf-8'],'/cubamax/':['cubamax.html','text/html; charset=utf-8'],'/cubamax.css':['cubamax.css','text/css'],'/cubamax.js':['cubamax.js','application/javascript'],'/cubamax-headline.js':['cubamax-headline.js','application/javascript'],'/cubamax-logo.svg':['cubamax-logo.svg','image/svg+xml'],'/countries.js':['countries.js','application/javascript'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','application/javascript'],'/style.css':['style.css','text/css']};
 async function body(req,max=4000){let data='';for await(const chunk of req){data+=chunk;if(data.length>max)throw new Error('Solicitud demasiado grande');}return JSON.parse(data||'{}');}
@@ -71,6 +76,12 @@ const server=http.createServer(async(req,res)=>{
       const host=(req.headers.host||'').toLowerCase().split(':')[0];
       const [file,type]=publicFiles[route==='/'&&cubamaxHosts.has(host)?'/cubamax':route];res.writeHead(200,{...security,'Content-Type':type});const bytes=readFileSync(new URL(`../public/${file}`,import.meta.url));
       if(file==='cubamax.html'||file==='index.html'){const snapshot=publicSnapshot(store,file==='cubamax.html'?'cm':'wa');const html=file==='cubamax.html'?renderCubamaxPreview(bytes.toString(),store,cubamaxHosts.has(host)?'https://cubamaxcom.online':url,route):bytes.toString();const ref=webPanel.referral(req);const escape=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));let rendered=renderPublicContent(html,snapshot,publicBuild);if(file==='index.html')rendered=renderWhatsAppPreview(rendered,store,whatsappUrl,route);if(ref&&file==='cubamax.html'){rendered=rendered.replace(/<body\b/,`<body data-link-ref="${escape(cookieRef(req))}"`);const note=`Esta cuenta quedará asociada a ${escape(ref.name)} (Telegram ${escape(ref.actor)}) y podrá ser revisada por ese usuario y por los administradores del sistema.`;rendered=rendered.replace(/(<button[^>]*id="connect-button")/,`<p class="note">${note}</p>$1`).replace('Puedes revocar la vinculación desde WhatsApp.</p>',`Puedes revocar la vinculación desde WhatsApp.</p><p>${note}</p>`);}if(ref&&file==='index.html')rendered=rendered.replace(/<body\b/,`<body data-link-ref="${escape(cookieRef(req))}"`);
+        if(file==='cubamax.html'&&operatorDialogMarkup&&
+           operatorPopupForReferral(store,ref,ref?webPanel.role(ref.actor):null,'cm')){
+          rendered=rendered.replace('</head>','<link rel="stylesheet" href="/welcome-popup.css"><script src="/welcome-popup.js" defer></script></head>')
+            .replace(/<body\b/,'<body data-operator-popup-site="cm"')
+            .replace('</body>',operatorDialogMarkup+'</body>');
+        }
         if(file==='index.html'){
           const code=(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_associated='))?.slice(14);
           if(telegram.associated.links.find(code))rendered=rendered.replace('</footer>','<span>Las aperturas de enlaces asociados se contabilizan y notifican a los administradores junto al número asignado al enlace; esto no identifica al visitante.</span></footer>');
@@ -104,7 +115,10 @@ const server=http.createServer(async(req,res)=>{
       const cookies=Object.fromEntries((req.headers.cookie||'').split(';').map(v=>v.trim().split('=')));
       const account=store.browser(cookies.wa_session)||store.account(welcomeTokens.read(cookies.wa_welcome_identity)||'');
       const linked=!!account&&!!account.consent&&(account.status==='connected'||!!accounts.live.get(account.id)?.ready);
-      const popup=linked?null:telegram.associated.links.popupFor(cookies.wa_associated,cookies.wa_assoc_viewer);
+      // Referral popup is independent of the first-visitor associated-link flow.
+      const reference=webPanel.referral(req),site=new URL(req.url,'http://local').searchParams.get('site')==='cm'?'cm':'wa';
+      const operatorPopup=operatorPopupForReferral(store,reference,reference?webPanel.role(reference.actor):null,site);
+      const popup=operatorPopup|| (linked?null:telegram.associated.links.popupFor(cookies.wa_associated,cookies.wa_assoc_viewer));
       const assigned=telegram.associated.links.find(cookies.wa_associated);
       if(assigned&&/^[A-Za-z0-9_-]{43}$/.test(cookies.wa_assoc_viewer||'')){
         try{
@@ -116,7 +130,7 @@ const server=http.createServer(async(req,res)=>{
       // Display once for each visit through the associated URL. Direct visits
       // to the normal site do not inherit an old person's popup.
       const clear=cookies.wa_associated?{'Set-Cookie':'wa_associated=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'+(secure?'; Secure':'')}:{};
-      return json(200,{linked,popup},clear);
+      return json(200,{linked,popup,operatorPopup:!!operatorPopup},clear);
     }
     if(req.method==='POST'&&route==='/api/access'){
       if(!rate(`${ip}:access`,30))return json(429,{error:'Espera un minuto.'});
