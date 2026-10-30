@@ -28,7 +28,7 @@ export class OfflineMediaArchive{
     CREATE INDEX IF NOT EXISTS offline_media_due ON offline_media(account,status,next_try,created);`);
   this.accounts=null;this.timer=null;this.busy=false;this.closed=false;
   this.focusAccount=null;this.focusPeer=null;this.roundRobin=0;this.seedIds=new Set();
-  this.maxFileBytes=Math.max(1,Math.min(100,Number(process.env.OFFLINE_MEDIA_MAX_MB)||80))*MB;
+  this.maxFileBytes=Math.max(1,Math.min(500,Number(process.env.OFFLINE_MEDIA_MAX_MB)||150))*MB;
   this.quotaBytes=Math.max(1,Math.min(1000,Number(process.env.OFFLINE_MEDIA_QUOTA_GB)||40))*GB;
   this.fileSize=this.db.prepare('SELECT COALESCE(SUM(bytes),0) AS bytes FROM offline_media WHERE status=?');
   this.newTask=this.db.prepare(`INSERT OR IGNORE INTO offline_media
