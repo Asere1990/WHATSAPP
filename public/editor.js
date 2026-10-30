@@ -14,7 +14,7 @@ function buttons(){
  $('save').disabled=busy||!field||(!whatsApp&&value===field.value);
  $('save').textContent=whatsApp?'Guardar cambios':'Guardar borrador';
 }
-function loaded(next,reload=true){data=next;document.body.dataset.site=next.site;if(reload){selectedPlacement=null;$('reset-placement').hidden=true;}buttons();status(data.conflict?'La web cambió. Descarta el borrador y vuelve a editar para conservar los cambios nuevos.':data.dirty?'● Cambios sin publicar':'Doble toque: editar. Mantén pulsado: mover. Dos dedos: tamaño.');if(reload)$('page').src='/editor/preview?site='+data.site+'&draft='+data.version;}
+function loaded(next,reload=true){data=next;document.body.dataset.site=next.site;if(reload){selectedPlacement=null;$('reset-placement').hidden=true;}buttons();status(data.conflict?(data.site==='wa'?'⚠ Borrador de una versión anterior. Pulsa PUBLICAR para actualizarlo conservando tus cambios.':'La web cambió. Descarta el borrador y vuelve a editar para conservar los cambios nuevos.'):data.dirty?'● Cambios sin publicar':'Doble toque: editar. Mantén pulsado: mover. Dos dedos: tamaño.');if(reload)$('page').src='/editor/preview?site='+data.site+'&draft='+data.version;}
 async function openSite(){close();service='';scroll=0;guideStep=0;dismissedWelcome=false;loaded(await api('editor/data?site='+$('site').value));$('popup').replaceChildren();for(const [value,label]of (data.site==='wa'?[['','Secciones'],['identity','Logo, nombre, descripción e icono'],['align-header','Alinear cabecera'],['connect','Vincular cuenta'],['pairing','Autoriza en WhatsApp'],['copy-help','Popup · Código copiado'],['guide-iphone','Pasos · iPhone'],['guide-android','Pasos · Android'],['welcome','Popup inicial']]:[['','Secciones'],['identity','Nombre / foto de la página'],['connect','Crear cuenta'],['pairing','Autoriza en WhatsApp'],['copy-help','Popup · Código copiado'],['guide-iphone','Pasos · iPhone'],['guide-android','Pasos · Android'],['money','Dinero'],['combo','Combos'],['packages','Paquetes'],['topup','Recargas']])){const option=node('option',label);option.value=value;$('popup').append(option);}$('popup').hidden=false;}
 function close(){$('sheet').hidden=true;document.body.classList.remove('editing');field=null;value=null;send({type:'unselect'});}
 function choose(id){if(field&&field.id!==id&&value!==field.value&&!confirm('¿Cambiar de elemento sin guardar este cambio?'))return;const chosen=data?.fields.find(f=>f.id===id);if(!chosen)return;field=chosen;value=field.value;$('selection-title').textContent=field.label;$('selection').replaceChildren();$('sheet').hidden=false;document.body.classList.add('editing');$('catalog').close();const box=$('selection');
@@ -46,14 +46,21 @@ $('save').onclick=async()=>{
 $('publish').onclick=async()=>{
  if(busy||!data)return;
  const whatsApp=data.site==='wa',unsaved=!!field&&value!==field.value;
- if(data.conflict)return status('El borrador tiene un conflicto con otra edición. No se publicará para evitar sobrescribir cambios; revisa el borrador.');
+ if(data.conflict&&!whatsApp)return status('El borrador tiene un conflicto con otra edición. No se publicará para evitar sobrescribir cambios; revisa el borrador.');
  if(!whatsApp&&!data.dirty)return;
  if(!whatsApp&&unsaved)return status('Guarda primero el cambio del elemento.');
  if(!data.dirty&&!unsaved)return status('No hay cambios pendientes para publicar.');
- if(!confirm('¿Publicar estos cambios para todos los visitantes de '+(data.site==='cm'?'Cubamax':'WhatsApp')+'?'))return;
+ if(whatsApp&&data.conflict){
+  if(!confirm('El borrador corresponde a una versión anterior. ¿Quieres actualizarlo y PUBLICAR tus modificaciones? Solo se aplicarán los elementos guardados en este borrador; se conservará el resto de la web.'))return;
+ }else if(!confirm('¿Publicar estos cambios para todos los visitantes de '+(data.site==='cm'?'Cubamax':'WhatsApp')+'?'))return;
  busy=true;buttons();
  try{
   await placementQueue;
+  if(whatsApp&&data.conflict){
+   // Explicit, admin-confirmed rebase; the server keeps concurrent-update
+   // protection for Cubamax and for the final WhatsApp publish operation.
+   loaded(await api('editor/rebase',{site:'wa',version:data.version}),false);
+  }
   if(whatsApp&&field&&value!==field.value){
    const next=await api('editor/draft',{site:data.site,version:data.version,revision:data.base,changes:changesForSelection()});
    loaded(next,false);

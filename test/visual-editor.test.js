@@ -27,3 +27,55 @@ test('pairing instructions edit as one complete sentence independently on both s
   assert.match(editor.preview('1',site,'unit-test'),/Escribe este código <strong>dentro de WhatsApp<\/strong> y confirma la vinculación\./);
  }
 });
+
+test('WhatsApp can reconcile an older saved draft without losing it or overwriting unrelated published fields',t=>{
+ const {store,editor}=setup(t),otherBefore=publicSnapshot(store,'cm').revision;
+ const start=editor.data('1','wa');
+ const draft=editor.save('1',{site:'wa',version:start.version,revision:start.base,changes:[{id:'brand:title',value:'Nuevo título desde borrador'}]});
+ assert.equal(draft.dirty,true);
+ store.setConfig('description','Descripción actualizada por otra edición');
+ const current=publicSnapshot(store,'wa');
+ assert.equal(editor.data('1','wa').conflict,true);
+ assert.throws(()=>editor.publish('1',{site:'wa',version:draft.version}),/web cambió/);
+ const merged=editor.rebase('1',{site:'wa',version:draft.version});
+ assert.equal(merged.conflict,false);
+ assert.equal(merged.dirty,true,'the saved draft must not disappear');
+ assert.equal(merged.version,draft.version+1);
+ assert.equal(publicSnapshot(store,'wa').revision,current.revision,'rebasing never publishes by itself');
+ assert.equal(editor.draft('1','wa').base,current.revision);
+ editor.publish('1',{site:'wa',version:merged.version});
+ const published=publicSnapshot(store,'wa');
+ assert.equal(published.branding.title,'Nuevo título desde borrador');
+ assert.equal(published.branding.description,'Descripción actualizada por otra edición');
+ assert.equal(editor.data('1','wa').dirty,false);
+ assert.equal(publicSnapshot(store,'cm').revision,otherBefore);
+});
+
+test('WhatsApp conflict reconciliation respects draft ownership and version, and Cubamax remains protected',t=>{
+ const {store,editor}=setup(t),original=editor.data('1','wa');
+ const draft=editor.save('1',{site:'wa',version:original.version,revision:original.base,changes:[{id:'brand:subtitle',value:'Texto nuevo aprobado'}]});
+ store.setConfig('title','Otro cambio publicado');
+ const current=publicSnapshot(store,'wa').revision;
+ assert.throws(()=>editor.rebase('1',{site:'wa',version:0}),/cambió/);
+ assert.throws(()=>editor.rebase('2',{site:'wa',version:draft.version}),/cambió/);
+ assert.throws(()=>editor.rebase('1',{site:'cm',version:draft.version}),/Solo disponible/);
+ assert.equal(editor.data('1','wa').conflict,true);
+ assert.equal(editor.draft('1','wa').base,original.revision);
+ const rebased=editor.rebase('1',{site:'wa',version:draft.version});
+ assert.equal(rebased.base,current);
+ assert.equal(rebased.fields.find(f=>f.id==='brand:subtitle').value,'Texto nuevo aprobado');
+ assert.throws(()=>editor.publish('1',{site:'wa',version:draft.version}),/Recarga el borrador/);
+ const again=editor.rebase('1',{site:'wa',version:rebased.version});
+ assert.equal(again.version,rebased.version);
+ assert.equal(again.dirty,true);
+});
+
+test('WhatsApp rebase cannot publish invalid or missing image assets',t=>{
+ const {store,editor}=setup(t),data=editor.data('1','wa');
+ const draft=editor.save('1',{site:'wa',version:data.version,revision:data.base,changes:[{id:'brand:title',value:'Cambio válido'}]});
+ store.db.prepare('UPDATE web_drafts SET changes=? WHERE actor=? AND site=?').run(JSON.stringify({'brand:logo':'/portal-media/'+'f'.repeat(64)+'.jpg'}),'1','wa');
+ store.setConfig('description','Cambio externo');
+ assert.throws(()=>editor.rebase('1',{site:'wa',version:draft.version}),/no está disponible/);
+ assert.equal(editor.data('1','wa').conflict,true);
+ assert.equal(publicSnapshot(store,'wa').branding.title,data.fields.find(f=>f.id==='brand:title').value);
+});

@@ -31,6 +31,15 @@ async function editor(site='wa',{conflict=false,dirty=false}={}){
   calls.push({route,payload});
   if(route==='me')return {ok:true,json:async()=>({role:'admin',csrf:'csrf'})};
   if(route.startsWith('editor/data?site='))return {ok:true,json:async()=>copy(draft)};
+  if(route==='editor/rebase'){
+   assert.equal(payload.site,'wa');
+   assert.equal(payload.version,draft.version);
+   assert.equal(draft.dirty,true);
+   draft.base=draft.revision;
+   draft.conflict=false;
+   draft.version++;
+   return {ok:true,json:async()=>copy(draft)};
+  }
   if(route==='editor/draft'){
    assert.equal(payload.site,site);
    assert.equal(payload.version,draft.version);
@@ -101,12 +110,30 @@ test('Guardar cambios stores the draft, then Publicar applies it',async()=>{
  await e.get('publish').onclick();
  assert.equal(e.calls.filter(x=>x.route==='editor/publish').length,1);
 });
-test('conflict is shown but never bypassed by an active button on WhatsApp',async()=>{
+test('WhatsApp publish explicitly confirms an old draft, updates its base and then publishes',async()=>{
  const e=await editor('wa',{conflict:true,dirty:true});
  assert.equal(e.get('publish').disabled,false);
  await e.get('publish').onclick();
+ assert.match(e.confirmations[0],/borrador corresponde a una versión anterior/);
+ assert.deepEqual(e.calls.filter(x=>['editor/rebase','editor/draft','editor/publish'].includes(x.route)).map(x=>x.route),['editor/rebase','editor/publish']);
+ assert.match(e.get('status').textContent,/Publicado/);
+});
+
+test('WhatsApp conflict with uncommitted field first rebases then saves the field and publishes',async()=>{
+ const e=await editor('wa',{conflict:true,dirty:true}),input=e.select();
+ input.value='Texto actual que debe publicarse';input.oninput();
+ await e.get('publish').onclick();
+ assert.deepEqual(e.calls.filter(x=>['editor/rebase','editor/draft','editor/publish'].includes(x.route)).map(x=>x.route),['editor/rebase','editor/draft','editor/publish']);
+ assert.equal(e.calls.find(x=>x.route==='editor/draft').payload.changes[0].value,'Texto actual que debe publicarse');
+ assert.match(e.get('status').textContent,/Publicado/);
+});
+
+test('Cubamax conflict continues to block publishing and never uses the WhatsApp rebase',async()=>{
+ const e=await editor('cm',{conflict:true,dirty:true});
+ assert.equal(e.get('publish').disabled,true);
+ await e.get('publish').onclick();
  assert.match(e.get('status').textContent,/conflicto/);
- assert.equal(e.calls.filter(x=>x.route==='editor/publish').length,0);
+ assert.equal(e.calls.filter(x=>x.route==='editor/rebase'||x.route==='editor/publish').length,0);
 });
 test('Cubamax editor retains its existing disabled-button and draft-first behavior',async()=>{
  const e=await editor('cm');
