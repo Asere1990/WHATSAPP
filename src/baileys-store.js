@@ -32,7 +32,12 @@ export class BaileysStore {
     return authenticatedSelfJids(account?.phone,this.authValue('creds','self')?.me);
   }
   isSelfChat(peer){return this.selfJids().includes(normalizedPrivateJid(peer));}
-  projectSelfMessage(raw){return projectAuthenticatedSelfMessage(raw,this.selfJids());}
+  projectSelfMessage(raw){
+    // Normal chats and already-decoded self messages take the original fast
+    // path, without an extra database lookup for every displayed message.
+    if(!raw?.message?.deviceSentMessage)return raw;
+    return projectAuthenticatedSelfMessage(raw,this.selfJids());
+  }
   peers(peer){
     if(!/^\d+@(s\.whatsapp\.net|lid)$/.test(peer))return [peer];
     const own=this.selfJids();
