@@ -26,7 +26,7 @@ export class OfflineMediaArchive{
     created INTEGER NOT NULL,updated INTEGER NOT NULL,
     PRIMARY KEY(account,message));
     CREATE INDEX IF NOT EXISTS offline_media_due ON offline_media(account,status,next_try,created);`);
-  this.accounts=null;this.timer=null;this.busy=false;this.closed=false;
+  this.accounts=null;this.timer=null;this.timerAt=0;this.busy=false;this.closed=false;
   this.focusAccount=null;this.focusPeer=null;this.roundRobin=0;this.seedIds=new Set();
   this.maxFileBytes=Math.max(1,Math.min(500,Number(process.env.OFFLINE_MEDIA_MAX_MB)||150))*MB;
   this.quotaBytes=Math.max(1,Math.min(1000,Number(process.env.OFFLINE_MEDIA_QUOTA_GB)||40))*GB;
@@ -67,7 +67,7 @@ export class OfflineMediaArchive{
   if(!mediaTypes.has(d.type)||!d.media||d.ephemeral||d.viewOnce)return false;
   const key=JSON.stringify([raw.key.remoteJid,raw.key.id,!!raw.key.fromMe,raw.key.participant||'']),now=Date.now();
   this.newTask.run(account,key,String(raw.key.remoteJid),now,now);
-  this.wake(2500);
+  this.wake(1500);
   return true;
  }
  focus(account,peer){
@@ -102,18 +102,22 @@ export class OfflineMediaArchive{
   if(!upper){this.store.setConfig(key,'done');this.seedIds.delete(account);return;}
   const rows=this.db.prepare(`SELECT rowid,value FROM baileys_data
     WHERE account=? AND kind='message' AND rowid<=?
-    ORDER BY rowid DESC LIMIT 120`).all(account,upper);
+    ORDER BY rowid DESC LIMIT 250`).all(account,upper);
   for(const row of rows)try{this.track(account,JSON.parse(row.value, (k,v)=>v));}catch{}
-  if(rows.length<120){this.store.setConfig(key,'done');this.seedIds.delete(account);}
+  if(rows.length<250){this.store.setConfig(key,'done');this.seedIds.delete(account);}
   else {this.store.setConfig(key,String(Number(rows.at(-1).rowid)-1));this.seedIds.add(account);}
   this.wake(3000);
  }
  // Existing archive remains available during a network outage. Seeding does
  // not require connection, but downloads only run for authorized ready sessions.
  wake(ms=1000){
-  if(this.closed||this.timer||this.busy)return;
+  if(this.closed||this.busy)return;
+  const next=Date.now()+ms;
+  if(this.timer&&this.timerAt<=next)return;
+  if(this.timer)clearTimeout(this.timer);
+  this.timerAt=next;
   this.timer=setTimeout(()=>{
-   this.timer=null;
+   this.timer=null;this.timerAt=0;
    this.pump().catch(error=>console.error('WHATSAPP: archive_worker_error',error.code||error.message||'error'));
   },ms);this.timer.unref?.();
  }
@@ -196,10 +200,11 @@ export class OfflineMediaArchive{
  async pump(){
   if(this.busy||this.closed)return;
   this.busy=true;
+  let indexed=false,downloaded=false;
   try{
    // Re-index existing history in short, resumable batches before fetching.
    const seed=[...this.seedIds].find(id=>this.allowed(id));
-   if(seed)this.seed(seed);
+   if(seed){this.seed(seed);indexed=true;}
    const entries=[...(this.accounts?.live||new Map()).entries()]
     .filter(([id,entry])=>entry?.ready&&this.allowed(id));
    if(!entries.length)return;
@@ -222,13 +227,14 @@ export class OfflineMediaArchive{
        status:row.status,error:String(error.code||error.name||'DOWNLOAD_FAILED').slice(0,50)
      }));
     }
+    downloaded=true;
     break;
    }
   }finally{
    this.busy=false;
    if(!this.closed){
-    // Keep the queue durable. A reconnect immediately wakes it again.
-    this.wake(18000);
+    // Prioritize efficient catch-up without flooding the WhatsApp transport.
+    this.wake(indexed?400:downloaded?2500:18000);
    }
   }
  }
