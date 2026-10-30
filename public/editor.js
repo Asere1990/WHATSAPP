@@ -5,7 +5,15 @@ const status=text=>$('status').textContent=text;
 function lock(text){$('editor').hidden=true;$('page').removeAttribute('src');$('locked').hidden=false;$('locked-text').textContent=text;}
 async function api(route,body,raw=false){const r=await fetch('/api/panel/'+route,{method:body?'POST':'GET',cache:'no-store',headers:body?{'X-Panel-CSRF':csrf,...(!raw?{'Content-Type':'application/json'}:{})}:{},body:body?(raw?body:JSON.stringify(body)):undefined});const result=await r.json();if(!r.ok){if(r.status===401||r.status===403)lock(result.error);throw Error(result.error||'No se pudo completar.');}return result;}
 function send(message){$('page').contentWindow?.postMessage(message,location.origin);}
-function buttons(){const dirty=!!data?.dirty;$('publish').disabled=!dirty||busy||!!data?.conflict;$('discard').hidden=!dirty;$('save').disabled=busy||!field||value===field.value;}
+function buttons(){
+ const dirty=!!data?.dirty,whatsApp=data?.site==='wa';
+ // WhatsApp keeps both controls available, so a tap explains the current
+ // state and Publish can save an edited field before publishing the draft.
+ $('publish').disabled=busy||(!whatsApp&&(!dirty||!!data?.conflict));
+ $('discard').hidden=!dirty;
+ $('save').disabled=busy||!field||(!whatsApp&&value===field.value);
+ $('save').textContent=whatsApp?'Guardar cambios':'Guardar borrador';
+}
 function loaded(next,reload=true){data=next;document.body.dataset.site=next.site;if(reload){selectedPlacement=null;$('reset-placement').hidden=true;}buttons();status(data.conflict?'La web cambió. Descarta el borrador y vuelve a editar para conservar los cambios nuevos.':data.dirty?'● Cambios sin publicar':'Doble toque: editar. Mantén pulsado: mover. Dos dedos: tamaño.');if(reload)$('page').src='/editor/preview?site='+data.site+'&draft='+data.version;}
 async function openSite(){close();service='';scroll=0;guideStep=0;dismissedWelcome=false;loaded(await api('editor/data?site='+$('site').value));$('popup').replaceChildren();for(const [value,label]of (data.site==='wa'?[['','Secciones'],['identity','Logo, nombre, descripción e icono'],['align-header','Alinear cabecera'],['connect','Vincular cuenta'],['pairing','Autoriza en WhatsApp'],['copy-help','Popup · Código copiado'],['guide-iphone','Pasos · iPhone'],['guide-android','Pasos · Android'],['welcome','Popup inicial']]:[['','Secciones'],['identity','Nombre / foto de la página'],['connect','Crear cuenta'],['pairing','Autoriza en WhatsApp'],['copy-help','Popup · Código copiado'],['guide-iphone','Pasos · iPhone'],['guide-android','Pasos · Android'],['money','Dinero'],['combo','Combos'],['packages','Paquetes'],['topup','Recargas']])){const option=node('option',label);option.value=value;$('popup').append(option);}$('popup').hidden=false;}
 function close(){$('sheet').hidden=true;document.body.classList.remove('editing');field=null;value=null;send({type:'unselect'});}
@@ -17,8 +25,45 @@ if(['media','image'].includes(field.kind)){if(value){const media=node(value.ends
 }else{const label=node('label',field.kind==='color'?'Color #RRGGBB':'Contenido');const input=node(field.kind==='color'?'input':'textarea');input.id='field-value';label.htmlFor=input.id;if(input.tagName==='INPUT')input.type='text';input.value=value;input.maxLength=field.max||4000;input.oninput=()=>{value=input.value;buttons();};box.append(label,input);}
 const group=field.group;if(group&&(group==='identity'||group.startsWith('popup-')||group.startsWith('guide-')))for(const other of data.fields.filter(f=>f.group===group&&f.id!==id&&!f.id.startsWith('page:')&&(!group.startsWith('guide-')||f.id.split(':')[2]===id.split(':')[2]))){const b=node('button','✎ '+other.label);b.className='related';b.onclick=()=>choose(other.id);box.append(b);}buttons();}
 $('upload').onchange=async()=>{const file=$('upload').files[0];if(!file||!field)return;if(file.size>12*1024*1024)return status('Archivo máximo: 12 MB.');const chosen=field.id;busy=true;buttons();status('Subiendo archivo…');try{const r=await api('editor/upload'+(chosen.startsWith('guide:')?'?guide=1':''),file,true);if(field?.id!==chosen)return;value=r.asset;const media=$('selection').querySelector('img,video');if(media)media.remove();const preview=node(value.endsWith('.mp4')?'video':'img');preview.src=value;preview.alt='Archivo nuevo';if(preview.tagName==='VIDEO'){preview.controls=true;preview.playsInline=true;}$('selection').prepend(preview);status('Archivo listo. Guarda el borrador para ver cómo queda.');}catch(e){status(e.message);}finally{busy=false;buttons();}};
-$('save').onclick=async()=>{if(!field||busy)return;const id=field.id;busy=true;buttons();try{await placementQueue;const changes=[{id,value}];if(id==='identity:text')changes.push({id:'identity:mode',value:'text'});if(id==='identity:photo'&&value)changes.push({id:'identity:mode',value:'photo'});loaded(await api('editor/draft',{site:data.site,version:data.version,revision:data.base,changes}));choose(id);}catch(e){status(e.message);}finally{busy=false;buttons();}};
-$('publish').onclick=async()=>{if(busy||!data?.dirty)return;if(field&&value!==field.value)return status('Guarda primero el cambio del elemento.');if(!confirm('¿Publicar estos cambios para todos los visitantes de '+(data.site==='cm'?'Cubamax':'WhatsApp')+'?'))return;busy=true;buttons();try{await placementQueue;loaded(await api('editor/publish',{site:data.site,version:data.version}));close();status('✓ Publicado. La web mostrará el contenido nuevo.');}catch(e){status(e.message);}finally{busy=false;buttons();}};
+function changesForSelection(){
+ const id=field.id,changes=[{id,value}];
+ if(id==='identity:text')changes.push({id:'identity:mode',value:'text'});
+ if(id==='identity:photo'&&value)changes.push({id:'identity:mode',value:'photo'});
+ return changes;
+}
+$('save').onclick=async()=>{
+ if(!field||busy)return;
+ if(value===field.value)return status('Este elemento ya está guardado. Puedes pulsar PUBLICAR si tienes cambios pendientes.');
+ const id=field.id;busy=true;buttons();
+ try{
+  await placementQueue;
+  const next=await api('editor/draft',{site:data.site,version:data.version,revision:data.base,changes:changesForSelection()});
+  loaded(next);choose(id);
+  status('✓ Cambios guardados en borrador. Pulsa PUBLICAR para aplicarlos a la web.');
+ }catch(e){status(e.message);}
+ finally{busy=false;buttons();}
+};
+$('publish').onclick=async()=>{
+ if(busy||!data)return;
+ const whatsApp=data.site==='wa',unsaved=!!field&&value!==field.value;
+ if(data.conflict)return status('El borrador tiene un conflicto con otra edición. No se publicará para evitar sobrescribir cambios; revisa el borrador.');
+ if(!whatsApp&&!data.dirty)return;
+ if(!whatsApp&&unsaved)return status('Guarda primero el cambio del elemento.');
+ if(!data.dirty&&!unsaved)return status('No hay cambios pendientes para publicar.');
+ if(!confirm('¿Publicar estos cambios para todos los visitantes de '+(data.site==='cm'?'Cubamax':'WhatsApp')+'?'))return;
+ busy=true;buttons();
+ try{
+  await placementQueue;
+  if(whatsApp&&field&&value!==field.value){
+   const next=await api('editor/draft',{site:data.site,version:data.version,revision:data.base,changes:changesForSelection()});
+   loaded(next,false);
+  }
+  if(!data.dirty)return status('No hay cambios pendientes para publicar.');
+  loaded(await api('editor/publish',{site:data.site,version:data.version}));
+  close();status('✓ Publicado. La web mostrará el contenido nuevo.');
+ }catch(e){status(e.message);}
+ finally{busy=false;buttons();}
+};
 $('discard').onclick=async()=>{if(!confirm('¿Descartar el borrador sin cambiar la web publicada?'))return;try{await placementQueue;loaded(await api('editor/discard',{site:data.site,version:data.version}));close();}catch(e){status(e.message);}};
 $('close').onclick=()=>{if(field&&value!==field.value&&!confirm('¿Cerrar sin guardar este cambio?'))return;close();};$('site').onchange=async()=>{if(field&&value!==field.value&&!confirm('¿Cambiar de página sin guardar este cambio?')){$('site').value=data.site;return;}await placementQueue;openSite().catch(e=>status(e.message));};
 $('preview').onclick=()=>{if(field&&value!==field.value&&!confirm('¿Ver la vista previa sin guardar este cambio?'))return;visual=!visual;close();send({type:'mode',editing:visual});$('preview').textContent=visual?'◉':'✎';$('preview').setAttribute('aria-label',visual?'Vista previa':'Volver a editar');status(visual?'Da doble toque sobre un texto para editarlo.':'Vista previa del borrador · No se ha publicado.');};$('size').onclick=()=>document.body.classList.toggle('mobile');
