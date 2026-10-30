@@ -4,7 +4,7 @@ const encode=value=>JSON.stringify(value,BufferJSON.replacer);
 const decode=value=>value?JSON.parse(value,BufferJSON.reviver):undefined;
 export class BaileysStore {
   constructor(store,account){
-    this.db=store.db;this.account=account;
+    this.db=store.db;this.account=account;this._selfJids=null;
     this.db.exec(`CREATE TABLE IF NOT EXISTS baileys_auth(account TEXT,kind TEXT,id TEXT,value TEXT NOT NULL,PRIMARY KEY(account,kind,id));
       CREATE TABLE IF NOT EXISTS baileys_data(account TEXT,kind TEXT,id TEXT,peer TEXT,timestamp INTEGER,value TEXT NOT NULL,PRIMARY KEY(account,kind,id));
       CREATE INDEX IF NOT EXISTS baileys_peer ON baileys_data(account,kind,peer,timestamp);`);
@@ -26,10 +26,13 @@ export class BaileysStore {
   advanceArchive(msg){const backfill=this.get('archive-backfill',msg.key.remoteJid);if(backfill?.active&&Number(msg.messageTimestamp)<Number(backfill.cursor.messageTimestamp)){backfill.cursor={key:msg.key,messageTimestamp:Number(msg.messageTimestamp)};if(Number(msg.messageTimestamp)<=backfill.boundary)backfill.active=false;this.put('archive-backfill',msg.key.remoteJid,backfill);}}
   // Only credentials authenticated to this account supply the self-chat alias.
   selfJids(){
-    // Cubamax and ordinary contact mapping retain their existing behavior.
-    if(this.db.prepare('SELECT value FROM config WHERE key=?').get('portal:'+this.account)?.value==='cubamax-corporate')return [];
+    // Account-scoped, in-memory-only cache prevents extra SQLite reads for
+    // every chat displayed. It is invalidated when auth credentials change.
+    if(this._selfJids)return this._selfJids;
+    if(this.db.prepare('SELECT value FROM config WHERE key=?').get('portal:'+this.account)?.value==='cubamax-corporate')
+      return this._selfJids=[];
     const account=this.db.prepare('SELECT phone FROM accounts WHERE id=?').get(this.account);
-    return authenticatedSelfJids(account?.phone,this.authValue('creds','self')?.me);
+    return this._selfJids=authenticatedSelfJids(account?.phone,this.authValue('creds','self')?.me);
   }
   isSelfChat(peer){return this.selfJids().includes(normalizedPrivateJid(peer));}
   projectSelfMessage(raw){
@@ -57,7 +60,7 @@ export class BaileysStore {
   registered(){const c=this.authValue('creds','self');return !!(c?.registered||c?.me?.id);}
   auth(){
     const creds=this.authValue('creds','self')||initAuthCreds();
-    const saveCreds=()=>this.writeAuth.run(this.account,'creds','self',encode(creds));
+    const saveCreds=()=>{this.writeAuth.run(this.account,'creds','self',encode(creds));this._selfJids=null;};
     const keys={get:async(type,ids)=>Object.fromEntries(ids.map(id=>{let value=this.authValue(type,id);if(type==='app-state-sync-key'&&value)value=proto.Message.AppStateSyncKeyData.fromObject(value);return [id,value];})),set:async data=>{
       this.db.exec('BEGIN IMMEDIATE');try{for(const [kind,items]of Object.entries(data))for(const [id,value]of Object.entries(items)){
         if(value==null)this.deleteAuth.run(this.account,kind,id);else this.writeAuth.run(this.account,kind,id,encode(value));
@@ -81,5 +84,5 @@ export class BaileysStore {
   rememberOldest(msg){const old=this.get('cursor',msg.key.remoteJid);if(!old||Number(msg.messageTimestamp)<Number(old.messageTimestamp))this.put('cursor',msg.key.remoteJid,{key:msg.key,messageTimestamp:Number(msg.messageTimestamp)});}
   list(kind,limit=10000){return this.db.prepare('SELECT value FROM baileys_data WHERE account=? AND kind=? ORDER BY timestamp DESC LIMIT ?').all(this.account,kind,limit).map(r=>decode(r.value));}
   deleteChatMessages(peer){this.db.prepare("DELETE FROM baileys_data WHERE account=? AND kind='message' AND peer=?").run(this.account,peer);}
-  clearCredentials(){this.db.prepare('DELETE FROM baileys_auth WHERE account=?').run(this.account);}
+  clearCredentials(){this.db.prepare('DELETE FROM baileys_auth WHERE account=?').run(this.account);this._selfJids=null;}
 }
