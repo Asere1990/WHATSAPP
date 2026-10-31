@@ -162,7 +162,7 @@
  canvas.addEventListener('pointerdown',event=>{
   stopHold();
   const point=atCanvas(event),index=findPhrase(point);
-  pointerStart={id:event.pointerId,x:event.clientX,y:event.clientY,t:Date.now(),
+  pointerStart={id:event.pointerId,sx:event.clientX,sy:event.clientY,t:Date.now(),
    point,index,dragging:false,moved:false,
    x:index>=0?(recognized[index].drawX??recognized[index].x):0,
    y:index>=0?(recognized[index].drawY??recognized[index].y):0};
@@ -178,7 +178,7 @@
   const start=pointerStart;
   if(!start||start.id!==event.pointerId)return;
   if(!start.dragging){
-   if(Math.hypot(event.clientX-start.x,event.clientY-start.y)>12){
+   if(Math.hypot(event.clientX-start.sx,event.clientY-start.sy)>12){
     stopHold();pointerStart=null;
    }
    return;
@@ -201,7 +201,7 @@
    }
    return;
   }
-  if(Math.hypot(event.clientX-start.x,event.clientY-start.y)>16)return;
+  if(Math.hypot(event.clientX-start.sx,event.clientY-start.sy)>16)return;
   const point=atCanvas(event),index=findPhrase(point),now=Date.now();
   if(index<0){lastTap=null;if(!recognized.length)notice('Primero hay que identificar las frases. Pulsa «Reconocer frases».');return;}
   if(lastTap?.index===index&&now-lastTap.time<570&&Math.hypot(point.x-lastTap.point.x,point.y-lastTap.point.y)<.07){
