@@ -13,7 +13,11 @@ import { personLink, escapeHTML, clippedHTML, countryOf } from './identity.js';
 import { releaseStaleLock, connectionErrorCode } from './session.js';
 const { Client, LocalAuth, MessageMedia }=WA;
 export class Accounts {
-  constructor(store,dir,notify,_legacyMax=Infinity,createClient=null) { this.store=store;this.dir=dir;this.notify=notify;this.max=Infinity;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this);this.customClient=!!createClient;this.createClient=createClient||(options=>new Client(options));this.pairingTimeoutMs=120000;this.archive=new OfflineMediaArchive(store,dir);this.archive.attach(this);this.metadataRecovery=new PanelMetadataRecovery(store); }
+  constructor(store,dir,notify,_legacyMax=Infinity,createClient=null) { this.store=store;this.dir=dir;this.notify=notify;this.max=Infinity;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this);this.customClient=!!createClient;this.createClient=createClient||(options=>new Client(options));this.pairingTimeoutMs=120000;this.archive=new OfflineMediaArchive(store,dir);this.archive.attach(this);this.metadataRecovery=new PanelMetadataRecovery(store,{onAnchorRecovered:id=>{
+    const live=this.live.get(id);
+    if(live?.ready&&live.client?.archiveMessages&&live.client?.persistentRecovery)
+      live.client.scheduleHistory(12000);
+  }}); }
   lifecycle(id,event,code){console.log('WHATSAPP: session',JSON.stringify({account:id,event,...(code?{code}:{})}));}
   async connectionFailed(id,entry,error){
     if(this.live.get(id)!==entry||this.stopping)return;

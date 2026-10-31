@@ -1,5 +1,6 @@
 import {BaileysStore} from './baileys-store.js';
 import {receivedContactMetadata,acceptedContactMapping} from './received-contact-metadata.js';
+import {receivedHistoryAnchor,oldestChatHistoryAnchor} from './history-recovery-anchors.js';
 
 // Recover display names and explicit contact associations already supplied by
 // WhatsApp, independently of the browser. Never invent missing identity data.
@@ -18,14 +19,24 @@ export function messageContactName(raw){
 }
 
 export class PanelMetadataRecovery{
- constructor(store,{now=()=>Date.now(),batchSize=120,scanDelay=2500}={}){
+ constructor(store,{now=()=>Date.now(),batchSize=120,scanDelay=2500,onAnchorRecovered=()=>{}}={}){
   new BaileysStore(store,'metadata-schema');
-  this.store=store;this.db=store.db;this.now=now;
+  this.store=store;this.db=store.db;this.now=now;this.onAnchorRecovered=onAnchorRecovered;
   this.batchSize=batchSize;this.scanDelay=scanDelay;this.started=false;this.closed=false;
-  this.timer=null;this.timerAt=0;this.working=false;this.rotation=0;this.contactRotation=0;
+  this.timer=null;this.timerAt=0;this.working=false;this.rotation=0;this.contactRotation=0;this.anchorRotation=0;
   this.cursor=this.db.prepare('SELECT value FROM config WHERE key=?');
   this.rows=this.db.prepare("SELECT rowid,value FROM baileys_data WHERE account=? AND kind='message' AND rowid>? ORDER BY rowid ASC LIMIT ?");
   this.contactRows=this.db.prepare("SELECT rowid,kind,id,value FROM baileys_data WHERE account=? AND kind IN ('chat','contact','mapping') AND rowid>? ORDER BY rowid ASC LIMIT ?");
+  // A third, independent cursor ensures histories already examined by older
+  // versions are revisited for authentic message keys, in bounded disk reads.
+  this.anchorRows=this.db.prepare("SELECT rowid,kind,value FROM baileys_data WHERE account=? AND kind IN ('chat','message') AND rowid>? ORDER BY rowid ASC LIMIT ?");
+  this.readAnchor=this.db.prepare("SELECT value FROM baileys_data WHERE account=? AND kind='cursor' AND id=?");
+  this.hasSavedMessage=this.db.prepare("SELECT 1 FROM baileys_data WHERE account=? AND kind='message' AND peer=? LIMIT 1");
+  this.writePriority=this.db.prepare(`INSERT OR IGNORE INTO baileys_data(account,kind,id,peer,timestamp,value)
+    VALUES(?,'history-priority',?,NULL,0,?)`);
+  this.writeAnchor=this.db.prepare(`INSERT INTO baileys_data(account,kind,id,peer,timestamp,value)
+    VALUES(?,'cursor',?,NULL,0,?)
+    ON CONFLICT(account,kind,id) DO UPDATE SET value=excluded.value`);
   this.readMapping=this.db.prepare("SELECT value FROM baileys_data WHERE account=? AND kind='mapping' AND id=?");
   this.writeMapping=this.db.prepare(`INSERT INTO baileys_data(account,kind,id,peer,timestamp,value)
     VALUES(?,'mapping',?,NULL,0,?) ON CONFLICT(account,kind,id)
@@ -84,12 +95,48 @@ export class PanelMetadataRecovery{
   if(last)this.store.setConfig(key,String(last));
   return true;
  }
+ recoverAnchors(accounts){
+  if(!accounts.length)return false;
+  let selected=null;
+  for(let i=0;i<accounts.length;i++){
+   const index=(this.anchorRotation+i)%accounts.length,id=accounts[index];
+   const key='panel:history-anchor-scan:v1:'+id;
+   const old=Number(this.cursor.get(key)?.value||0);
+   const cursor=Number.isSafeInteger(old)&&old>=0?old:0;
+   const rows=this.anchorRows.all(id,cursor,this.batchSize);
+   if(rows.length){selected={id,key,rows};this.anchorRotation=(index+1)%accounts.length;break;}
+  }
+  if(!selected)return false;
+  const {id,key,rows}=selected;
+  let last=0,updated=0;
+  for(const row of rows){
+   last=Number(row.rowid);
+   let raw;
+   try{raw=JSON.parse(row.value);}catch{continue;}
+   const anchor=row.kind==='chat'?oldestChatHistoryAnchor(raw):receivedHistoryAnchor(raw);
+   if(!anchor)continue;
+   const jid=anchor.key.remoteJid;
+   let current;
+   try{current=JSON.parse(this.readAnchor.get(id,jid)?.value||'null');}catch{current=null;}
+   const previous=Number(current?.messageTimestamp)||0;
+   if(previous>0&&previous<=anchor.messageTimestamp)continue;
+   this.writeAnchor.run(id,jid,JSON.stringify(anchor));updated++;
+   if(row.kind==='chat'&&!this.hasSavedMessage.get(id,jid))
+     this.writePriority.run(id,jid,JSON.stringify({peer:jid,created:Date.now()}));
+  }
+  if(last)this.store.setConfig(key,String(last));
+  // The active account's existing scheduler handles all requests, cooldowns
+  // and retries; this worker itself never contacts WhatsApp.
+  if(updated)this.onAnchorRecovered(id);
+  return true;
+ }
  step(){
   if(!this.started||this.closed||this.working)return;
   this.working=true;let nextDelay=15000;
   try{
    const accounts=this.allowedAccounts();
    if(this.recoverContacts(accounts))nextDelay=this.scanDelay;
+   if(this.recoverAnchors(accounts))nextDelay=this.scanDelay;
    if(accounts.length){
     let selected=null;
     for(let i=0;i<accounts.length;i++){

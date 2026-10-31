@@ -6,6 +6,7 @@ import makeWASocket,{ Browsers, DisconnectReason, normalizeMessageContent, jidNo
 import pino from 'pino';
 import {isSystemAccount} from './system-config.js';
 import { BaileysStore } from './baileys-store.js';
+import {oldestChatHistoryAnchor} from './history-recovery-anchors.js';
 const logger=pino({level:'silent'});
 // Spread concurrent account reconnects after transient network failures.
 export function reconnectDelay(account,attempt,status){
@@ -120,9 +121,19 @@ export class BaileysClient extends EventEmitter {
   saveChat(c){
     if(!c.id)return;const id=toJid(c.id);this.saveMapping({lid:c.lidJid||c.lid||(id.endsWith('@lid')?id:null),pn:c.pnJid||c.phoneNumber||(id.endsWith('@s.whatsapp.net')?id:null)});
     const embedded=this.archiveMessages?[...(c.messages||[]),...(c.lastMessage?[c.lastMessage]:[])]:[];
+    // A real message key inside a chat header may be the only available
+    // history anchor. Never fabricate one from a timestamp or chat number.
+    const anchor=this.archiveMessages?oldestChatHistoryAnchor(c):null;
+    const hadCursor=anchor?!!this.store.get('cursor',anchor.key.remoteJid):true;
     if(this.galleryOnly){const {messages,lastMessage,...metadata}=c;c=metadata;}
     this.store.put('chat',id,{...c,id},{merge:true,timestamp:c.conversationTimestamp||0});
     for(const entry of embedded){if(!entry)continue;const m=entry.message?.key?entry.message:entry;if(m?.key&&m.message)this.saveMessage(m);}
+    if(anchor){
+      this.store.rememberOldest(anchor);
+      if(!hadCursor&&!this.store.oldestMessage(anchor.key.remoteJid))
+        this.store.put('history-priority',anchor.key.remoteJid,{peer:anchor.key.remoteJid,created:Date.now()});
+      if(!hadCursor&&this.historyOnline&&this.persistentRecovery)this.scheduleHistory(12000);
+    }
   }
   saveMapping({lid,pn}){if(lid&&pn)this.store.put('mapping',toJid(lid),toJid(pn));}
   saveContact(c){if(c.id){this.store.put('contact',toJid(c.id),{...c,id:toJid(c.id)},{merge:true});this.saveMapping({lid:c.lid||(c.id.endsWith('@lid')?c.id:null),pn:c.phoneNumber||(!c.id.endsWith('@lid')?c.id:null)});}}
@@ -157,10 +168,14 @@ export class BaileysClient extends EventEmitter {
     // authenticated account's LID instead of its phone-number JID.
     const visible=this.store.projectSelfMessage(m);
     const d=describe(visible);if(this.archiveMessages&&live&&!d.ephemeral&&!d.viewOnce&&d.type!=='system')this.store.primeArchive(m);
+    const newHistoryPeer=this.archiveMessages&&this.persistentRecovery&&this.historyOnline&&!this.store.get('cursor',jid);
     this.store.rememberOldest(m);if(this.archiveMessages)this.store.advanceArchive(m);
+    if(newHistoryPeer)this.scheduleHistory(12000);
     if(this.archiveMessages){if(!d.ephemeral&&!d.viewOnce)this.store.message({...m,message:d.content});}
     else if(!this.galleryOnly)this.store.message(m);
     else if(['image','video'].includes(d.type)&&!d.ephemeral&&!d.viewOnce)this.store.message({...m,message:{[d.kind]:d.media}});
+    if(this.archiveMessages&&!d.ephemeral&&!d.viewOnce&&d.type!=='system')
+      this.store.remove('history-priority',jid);
     if(privateJid(jid)||this.archiveMessages&&jid.endsWith('@g.us')){const old=this.store.get('chat',jid)||{id:jid};if(Number(m.messageTimestamp)>Number(old.conversationTimestamp||0))this.saveChat({...old,conversationTimestamp:Number(m.messageTimestamp)});}
     // An independent disk worker archives eligible attachments without blocking
     // history ingestion, and never saves disappearing or view-once content.
@@ -250,7 +265,13 @@ export class BaileysClient extends EventEmitter {
         .map(cursor=>({cursor,state:this.store.get('history-sync',cursor.key.remoteJid)||{}}))
         .sort((a,b)=>(a.state.next||0)-(b.state.next||0));
       const due=pending.filter(({state})=>!state.next||state.next<=now);
-      const item=(peers?due.find(({cursor})=>peers.has(cursor.key.remoteJid)):null)||due[0];
+      // Chats with a real key but no saved message are the incomplete ones:
+      // give them a turn before fully indexed chats, never bypassing backoff.
+      const priorities=new Set(this.store.list('history-priority',100000).map(item=>item.peer));
+      const incomplete=due.find(({cursor})=>priorities.has(cursor.key.remoteJid))||
+        due.slice(0,60).find(({cursor})=>
+          !this.store.get('message',this.store.messageKey(cursor.key)));
+      const item=(peers?due.find(({cursor})=>peers.has(cursor.key.remoteJid)):null)||incomplete||due[0];
       if(item)try{await this.syncHistory(item.cursor.key.remoteJid,now);}catch{ /* Do not disconnect a healthy account for missing history. */ }
     }finally{
       this.historyPumpActive=false;
