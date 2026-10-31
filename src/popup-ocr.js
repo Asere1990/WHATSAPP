@@ -35,8 +35,18 @@ export function validatePopupLayers(value){
   const source=layer.source;
   if(source!==undefined&&!(typeof source==='string'&&/^\/portal-media\/[a-f0-9]{64}\.(?:png|jpg|gif|webp)$/.test(source)))
    fail(400,'La frase no pertenece a una fotografía válida.');
+  // OCR coordinates identify only the text to ERASE from the photo. A new
+  // placement is separate, so moving a phrase never erases the wrong area.
+  const relocated=layer.drawX!==undefined||layer.drawY!==undefined;
+  if(relocated&&(!number(layer.drawX,0,1)||!number(layer.drawY,0,1)||
+    layer.drawX+layer.w>1.002||layer.drawY+layer.h>1.002))
+   fail(400,'La nueva ubicación debe quedar dentro de la foto.');
+  if(layer.styled!==undefined&&typeof layer.styled!=='boolean')
+   fail(400,'La configuración de letra no es válida.');
   return {id,x:round(layer.x),y:round(layer.y),w:round(layer.w),h:round(layer.h),
-   original,text,color,fontSize:Math.round(size*10)/10,weight,family,...(source?{source}:{})};
+   original,text,color,fontSize:Math.round(size*10)/10,weight,family,
+   ...(relocated?{drawX:round(layer.drawX),drawY:round(layer.drawY)}:{}),
+   ...(layer.styled?{styled:true}:{}),...(source?{source}:{})};
  });
 }
 export function parseTesseractTsv(tsv,width,height){
