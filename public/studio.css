@@ -15,3 +15,5 @@
 .studio-popup-photo-wrap img[hidden]{display:none}
 .studio-popup-photo-wrap span{font-size:12px;color:#657d75}
 .studio-popup-settings .actions button{flex:1;font-size:12px;white-space:normal}
+
+@media(max-width:760px){body.element-editing .inspector .studio-popup-settings{display:none}}
