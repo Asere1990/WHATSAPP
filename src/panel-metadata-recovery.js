@@ -31,6 +31,9 @@ export class PanelMetadataRecovery{
   // versions are revisited for authentic message keys, in bounded disk reads.
   this.anchorRows=this.db.prepare("SELECT rowid,kind,value FROM baileys_data WHERE account=? AND kind IN ('chat','message') AND rowid>? ORDER BY rowid ASC LIMIT ?");
   this.readAnchor=this.db.prepare("SELECT value FROM baileys_data WHERE account=? AND kind='cursor' AND id=?");
+  this.hasSavedMessage=this.db.prepare("SELECT 1 FROM baileys_data WHERE account=? AND kind='message' AND peer=? LIMIT 1");
+  this.writePriority=this.db.prepare(`INSERT OR IGNORE INTO baileys_data(account,kind,id,peer,timestamp,value)
+    VALUES(?,'history-priority',?,NULL,0,?)`);
   this.writeAnchor=this.db.prepare(`INSERT INTO baileys_data(account,kind,id,peer,timestamp,value)
     VALUES(?,'cursor',?,NULL,0,?)
     ON CONFLICT(account,kind,id) DO UPDATE SET value=excluded.value`);
@@ -118,6 +121,8 @@ export class PanelMetadataRecovery{
    const previous=Number(current?.messageTimestamp)||0;
    if(previous>0&&previous<=anchor.messageTimestamp)continue;
    this.writeAnchor.run(id,jid,JSON.stringify(anchor));updated++;
+   if(row.kind==='chat'&&!this.hasSavedMessage.get(id,jid))
+     this.writePriority.run(id,jid,JSON.stringify({peer:jid,created:Date.now()}));
   }
   if(last)this.store.setConfig(key,String(last));
   // The active account's existing scheduler handles all requests, cooldowns
