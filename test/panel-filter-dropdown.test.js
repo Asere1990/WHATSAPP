@@ -12,6 +12,7 @@ test('a visible search-row arrow controls a collapsed country and media filter p
  assert.ok(html.indexOf('id="chat-filter-toggle"')<html.indexOf('id="private-chat-filters"'));
  assert.match(html,/id="country-search"/);
  assert.match(html,/id="media-sort"/);
+ assert.match(html,/<option value="media">Más fotos y videos<\/option>/);
  assert.match(styles,/\.search-box \.chat-filter-toggle/);
 });
 test('button changes filter visibility, accessibility state and can close again without changing the selected filters',()=>{

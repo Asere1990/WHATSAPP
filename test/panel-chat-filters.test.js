@@ -46,6 +46,10 @@ test('media sorts rank indexed photos or videos without loading message content 
  const videos=f.list.page(f.a.id,f.db,{sort:'videos'});
  assert.deepEqual(videos.items.map(c=>c.peer),[es,cu,us]);
  assert.equal(videos.items[0].videos,3);
+ const combined=f.list.page(f.a.id,f.db,{sort:'media'});
+ assert.deepEqual(combined.items.map(c=>c.peer),[es,cu,us],'combined sort adds indexed photos and videos per chat');
+ assert.equal(combined.items[0].photos+combined.items[0].videos,4);
+ assert.equal(combined.items[1].photos+combined.items[1].videos,2);
  assert.deepEqual(f.list.page(f.a.id,f.db,{country:'España',sort:'videos'}).items.map(c=>c.peer),[es]);
 });
 
@@ -58,4 +62,25 @@ test('media sorting does not double-count a photo repeated through phone and LID
  const ranked=f.list.page(f.a.id,f.db,{sort:'photos'});
  assert.equal(ranked.items.length,1);
  assert.equal(ranked.items[0].photos,2,'duplicate logical media is counted once');
+});
+
+test('combined media sort sums both formats, preserves recent ties and never duplicates LID photos',t=>{
+ const f=make(t),lid='34567890@lid';
+ f.db.put('mapping',lid,cu);
+ f.chat(cu,'Cuba',150);f.chat(lid,'Alias Cuba',145);
+ f.chat(es,'España',120);f.chat(us,'Estados Unidos',100);
+ // Cuba: 1 distinct photo + 2 videos (three), the LID copy is not extra.
+ f.media(cu,'p1','photo');f.media(lid,'p1','photo');
+ f.media(cu,'v1','video');f.media(cu,'v2','video');
+ // Spain: 3 photos, no video; it ties with Cuba, so Cuba stays first by timestamp.
+ f.media(es,'p2','photo');f.media(es,'p3','photo');f.media(es,'p4','photo');
+ // US: 1 video, less than the first two chats.
+ f.media(us,'v3','video');
+ const result=f.list.page(f.a.id,f.db,{sort:'media'});
+ assert.deepEqual(result.items.map(c=>c.peer),[cu,es,us]);
+ assert.equal(result.items[0].photos,1);
+ assert.equal(result.items[0].videos,2);
+ assert.deepEqual(result.items.map(c=>c.photos+c.videos),[3,3,1]);
+ assert.deepEqual(f.list.page(f.a.id,f.db,{sort:'videos'}).items.map(c=>c.peer),[cu,us,es]);
+ assert.deepEqual(f.list.page(f.a.id,f.db,{sort:'photos'}).items.map(c=>c.peer),[es,cu,us]);
 });
