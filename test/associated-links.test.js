@@ -89,6 +89,37 @@ test('admin bot can create, edit, clear and revoke a WhatsApp-only associated li
  await flows.callback(1,key,'assoc:renew:12025550129');
  assert.ok(flows.links.get('12025550129').token!==saved.token);
 });
+test('the optional photo preview after creating a link only saves on confirmation and never changes another link',async t=>{
+ const {store,dir,links}=setup(t),sent=[],previews=[],key='1:1';
+ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO9V9noAAAAASUVORK5CYII=','base64');
+ const bot={store,accounts:{dir},pending:new Map(),download:async()=>png,send:async(...args)=>{sent.push(args);return args;}};
+ const flow=new AssociatedPopupBot(bot);
+ flow.photoPreview=async(chat,phone,photo)=>{previews.push({chat,phone,photo});};
+ const first=links.save('5351234567','text','Popup número A');
+ const second=links.save('5357654321','text','Popup número B');
+ assert.ok(flow.keyboard(first.phone).inline_keyboard.flat().some(button=>button.callback_data==='assoc:photo:'+first.phone));
+ await flow.callback(1,key,'assoc:photo:'+first.phone);
+ assert.equal(bot.pending.get(key).stage,'photo-upload');
+ await flow.input(1,key,bot.pending.get(key),{photo:[{file_id:'demo',file_size:png.length}]});
+ assert.equal(previews.length,1);
+ assert.match(previews[0].photo,/^\/portal-media\/[a-f0-9]{64}\.png$/);
+ assert.equal(bot.pending.get(key).stage,'photo-confirm');
+ assert.equal(links.get(first.phone).content,'Popup número A','preview must not change live popup');
+ await flow.callback(1,key,'assoc:photo-save:'+first.phone);
+ assert.equal(bot.pending.has(key),false);
+ assert.equal(links.get(first.phone).kind,'photo');
+ assert.equal(links.get(first.phone).content,previews[0].photo);
+ assert.equal(links.get(first.phone).token,first.token,'photo upgrade preserves same link');
+ assert.equal(links.get(second.phone).content,'Popup número B','other numbers stay independent');
+ const saved=links.get(first.phone).content;
+ await flow.callback(1,key,'assoc:photo:'+first.phone);
+ await flow.input(1,key,bot.pending.get(key),{photo:[{file_id:'demo',file_size:png.length}]});
+ await flow.callback(1,key,'assoc:photo-cancel:'+first.phone);
+ assert.equal(links.get(first.phone).content,saved,'cancel must preserve current popup');
+ await flow.callback(1,key,'assoc:photo-save:'+first.phone);
+ assert.equal(links.get(first.phone).content,saved,'stale confirmation must never write');
+});
+
 test('operator cannot start the admin-only associated flow by forging a Telegram callback',async t=>{
  const {store}=setup(t),bot=new Telegram(store,{token:'demo',panel:'-1001',storage:'-1002'}),sent=[];
  bot.admins=()=>new Set(['1']);bot.permissions=()=>new Set(['2']);

@@ -1,5 +1,6 @@
 import {AssociatedLinks,associatedUrl} from './associated-links.js';
 import {savePageImage} from './page-editor.js';
+import {sendEditorImage} from './editor-image.js';
 
 // Only the admin's private Telegram chat can start this flow.
 export class AssociatedPopupBot {
@@ -9,6 +10,7 @@ export class AssociatedPopupBot {
   const row=this.links.get(phone);
   return {inline_keyboard:[
    ...(row?.active?[[{text:'✏️ EDITAR POPUP',callback_data:'assoc:edit:'+phone}],
+     [{text:'🖼 CREAR POPUP CON FOTO · VISTA PREVIA',callback_data:'assoc:photo:'+phone}],
      [{text:'🗑 ELIMINAR POPUP',callback_data:'assoc:clear:'+phone}],
      [{text:'🚫 REVOCAR ENLACE',callback_data:'assoc:revoke:'+phone}]]:
      [[{text:'🔄 REACTIVAR ENLACE',callback_data:'assoc:renew:'+phone}]]),
@@ -16,6 +18,15 @@ export class AssociatedPopupBot {
    [{text:'🖼 POPUP GENÉRICO',callback_data:'assoc:generic'}],
    [{text:'➕ OTRO NÚMERO',callback_data:'assoc:start'}]
   ]};
+ }
+ async photoPreview(chat,phone,photo){
+  return sendEditorImage(this.bot,chat,photo,
+   '🖼 VISTA PREVIA DEL POPUP · +'+phone+'\nLa foto todavía no se ha guardado para este enlace.',
+   {inline_keyboard:[
+    [{text:'✅ GUARDAR FOTO',callback_data:'assoc:photo-save:'+phone}],
+    [{text:'🔄 CAMBIAR FOTO',callback_data:'assoc:photo:'+phone}],
+    [{text:'❌ CANCELAR',callback_data:'assoc:photo-cancel:'+phone}]
+   ]});
  }
  async start(chat,key,phone=''){
   this.bot.pending.set(key,{kind:'associated',stage:phone?'content':'phone',...(phone?{phone}:{})});
@@ -32,6 +43,18 @@ export class AssociatedPopupBot {
   });
  }
  async input(chat,key,pending,m){
+  if(pending.stage==='photo-upload'){
+   if(!m.photo?.length&&!m.document)return this.bot.send(chat,'Envía la foto que quieres ver antes de guardarla. /cancelar para salir.');
+   let photo;
+   try{photo=await savePageImage(this.bot,m);}catch(e){return this.bot.send(chat,e.message);}
+   this.bot.pending.set(key,{kind:'associated',stage:'photo-confirm',phone:pending.phone,photo});
+   try{return await this.photoPreview(chat,pending.phone,photo);}
+   catch{
+    this.bot.pending.set(key,{kind:'associated',stage:'photo-upload',phone:pending.phone});
+    return this.bot.send(chat,'No se pudo mostrar la vista previa. El popup actual no ha cambiado. Envía otra foto o usa /cancelar.');
+   }
+  }
+  if(pending.stage==='photo-confirm')return this.bot.send(chat,'La foto todavía no se ha guardado. Pulsa GUARDAR FOTO, CAMBIAR FOTO o CANCELAR en la vista previa.');
   if(pending.stage==='generic'){
    let kind,content;
    if(m.photo?.length||m.document){
@@ -62,7 +85,7 @@ export class AssociatedPopupBot {
    try{row=this.links.save(pending.phone,kind,value);}catch(e){return this.bot.send(chat,e.message);}
    this.bot.pending.delete(key);
    return this.bot.send(chat,
-    '✅ ENLACE ASOCIADO\nNúmero: +'+row.phone+'\nPopup: '+(kind==='photo'?'Foto':'Texto')+'\n\n'+associatedUrl(row.phone)+'\n\nEste enlace permanece activo hasta que lo revoques. Si cambias el popup del mismo número, la dirección sigue siendo la misma.\n\nImportante: el enlace por sí solo no verifica quién lo abre.',
+    '✅ ENLACE ASOCIADO\nNúmero: +'+row.phone+'\nPopup: '+(kind==='photo'?'Foto':'Texto')+'\n\n'+associatedUrl(row.phone)+'\n\nEste enlace permanece activo hasta que lo revoques. Si cambias el popup del mismo número, la dirección sigue siendo la misma.\n\nOpcional: toca CREAR POPUP CON FOTO · VISTA PREVIA para agregar una imagen y confirmarla antes de guardarla.\n\nImportante: el enlace por sí solo no verifica quién lo abre.',
     this.keyboard(row.phone));
   }
   return this.bot.send(chat,'Pulsa 𝐂𝐑𝐄𝐀𝐑 𝐄𝐍𝐋𝐀𝐂𝐄 𝐀𝐒𝐎𝐂𝐈𝐀𝐃𝐎 para empezar.');
@@ -100,6 +123,24 @@ export class AssociatedPopupBot {
   if(!row)return this.bot.send(chat,'Ese número no tiene un enlace asociado.');
   if(action==='show')return this.show(chat,phone);
   if(action==='edit')return this.start(chat,key,phone);
+  if(action==='photo'){
+   if(!row.active)return this.show(chat,phone);
+   this.bot.pending.set(key,{kind:'associated',stage:'photo-upload',phone});
+   return this.bot.send(chat,'🖼 POPUP CON FOTO · +'+phone+'\nEnvía una imagen PNG, JPG, WebP o GIF para ver cómo quedará. No sustituiremos el popup actual hasta que confirmes la vista previa.\n\n/cancelar para salir.');
+  }
+  if(action==='photo-save'){
+   const pending=this.bot.pending.get(key);
+   if(!pending||pending.kind!=='associated'||pending.stage!=='photo-confirm'||pending.phone!==phone)return this.bot.send(chat,'La vista previa ya no está disponible. Elige CREAR POPUP CON FOTO de nuevo.');
+   if(!row.active){this.bot.pending.delete(key);return this.show(chat,phone);}
+   let saved;try{saved=this.links.save(phone,'photo',pending.photo);}catch(e){return this.bot.send(chat,e.message);}
+   this.bot.pending.delete(key);
+   return this.bot.send(chat,'✅ FOTO DEL POPUP GUARDADA\nNúmero: +'+saved.phone+'\n\n'+associatedUrl(saved.phone)+'\n\nSolo se actualizó el popup de este número.',this.keyboard(phone));
+  }
+  if(action==='photo-cancel'){
+   const pending=this.bot.pending.get(key);
+   if(pending?.kind==='associated'&&pending.phone===phone&&['photo-upload','photo-confirm'].includes(pending.stage))this.bot.pending.delete(key);
+   return this.show(chat,phone);
+  }
   if(action==='clear')return this.bot.send(chat,'¿Eliminar el popup de +'+phone+'?\nEl enlace permanecerá activo, pero dejará de mostrar un popup personalizado.',{inline_keyboard:[[{text:'SÍ, ELIMINAR POPUP',callback_data:'assoc:clear-confirm:'+phone}],[{text:'CANCELAR',callback_data:'assoc:show:'+phone}]]});
   if(action==='clear-confirm'){this.links.clear(phone);return this.show(chat,phone);}
   if(action==='revoke')return this.bot.send(chat,'¿Revocar permanentemente el enlace de +'+phone+'?\nEl enlace dejará de abrir la página. Si lo reactivas, volverá a funcionar la misma dirección.',{inline_keyboard:[[{text:'SÍ, REVOCAR ENLACE',callback_data:'assoc:revoke-confirm:'+phone}],[{text:'CANCELAR',callback_data:'assoc:show:'+phone}]]});
