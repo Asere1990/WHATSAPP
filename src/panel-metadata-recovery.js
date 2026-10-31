@@ -1,3 +1,5 @@
+import {BaileysStore} from './baileys-store.js';
+
 // Recover display names already supplied by WhatsApp, independently of the
 // browser. The existing SQLite database and authorization boundary are reused.
 // No network requests, credential changes, media downloads or message rewrites.
@@ -17,6 +19,9 @@ export function messageContactName(raw){
 
 export class PanelMetadataRecovery{
  constructor(store,{now=()=>Date.now(),batchSize=120,scanDelay=2500}={}){
+  // The worker is created before WhatsApp sessions initialize; ensure the
+  // existing Baileys tables exist before preparing any SELECT statements.
+  new BaileysStore(store,'metadata-schema');
   this.store=store;this.db=store.db;this.now=now;
   this.batchSize=batchSize;this.scanDelay=scanDelay;this.started=false;this.closed=false;
   this.timer=null;this.timerAt=0;this.working=false;this.rotation=0;
