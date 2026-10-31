@@ -32,8 +32,13 @@
    if(!current||!callback)return;
    save.disabled=true;
    try{
+    const newSize=Math.min(500,Math.max(6,Number(size.value)||current.fontSize));
+    const restyled=!!current.styled||newSize!==Number(current.fontSize)||
+      color.value!==current.color||weight.value!==String(current.weight)||
+      family.value!==current.family;
     const edit={...current,text:input.value.slice(0,280),color:color.value,
-     fontSize:Math.min(500,Math.max(6,Number(size.value)||current.fontSize)),weight:weight.value,family:family.value};
+      fontSize:newSize,weight:weight.value,family:family.value,
+      ...(restyled?{styled:true}:{})};
     await callback(edit);
     dialog.close();
    }catch(e){note.textContent=e.message||'No se pudo guardar. Inténtalo de nuevo.';}

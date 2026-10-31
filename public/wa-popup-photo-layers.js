@@ -9,7 +9,7 @@
  if(!content)return;
  const validPhoto=/^\/portal-media\/[a-f0-9]{64}\.(?:png|jpg|gif|webp)$/;
  let paint=null,targets=null,activeLayers=[],currentPhoto='',active=false;
- let onTextDoubleTap=null;
+ let onTextDoubleTap=null,onTextDragEnd=null;
  const inEditor=()=>document.body?.dataset?.visualPreview==='true';
  function nodes(){
   if(paint&&targets)return;
@@ -29,7 +29,8 @@
   const draw=globalThis.SiteInitialPopup?.paintInto;
   if(typeof draw!=='function'){paint.hidden=true;return;}
   draw({photo,paint,targets,cover:content},activeLayers,{
-   onTextDoubleTap:inEditor()?onTextDoubleTap:null
+   onTextDoubleTap:inEditor()?onTextDoubleTap:null,
+   onTextDragEnd:inEditor()?onTextDragEnd:null
   });
   dialog.classList.toggle('has-ocr-paint',!paint.hidden);
  }
@@ -53,8 +54,9 @@
   if(photo.complete&&photo.naturalWidth&&photo.getAttribute('src')===currentPhoto)updatePreview();
   else {paint.hidden=true;targets.hidden=true;dialog.classList.remove('has-ocr-paint');}
  }
- function enableEditing(callback){
+ function enableEditing(callback,moveCallback){
   onTextDoubleTap=typeof callback==='function'?callback:null;
+  onTextDragEnd=typeof moveCallback==='function'?moveCallback:null;
   updatePreview();
  }
  globalThis.WelcomePhotoOCR={render,enableEditing};

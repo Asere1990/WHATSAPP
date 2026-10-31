@@ -19,6 +19,7 @@
 .site-initial-paint{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
 .site-initial-cover{isolation:isolate}
 .site-initial-targets{position:absolute;inset:0;z-index:3;pointer-events:none}
-.site-initial-target{position:absolute;box-sizing:border-box;background:rgba(34,166,111,.04);border:1px dashed rgba(19,172,106,.75);border-radius:3px;padding:0;min-width:10px;min-height:8px;pointer-events:auto;touch-action:manipulation;cursor:text}
+.site-initial-target{position:absolute;box-sizing:border-box;background:rgba(34,166,111,.04);border:1px dashed rgba(19,172,106,.75);border-radius:3px;padding:0;min-width:10px;min-height:8px;pointer-events:auto;touch-action:none;cursor:grab}
+.site-initial-target.is-dragging{cursor:grabbing;border-style:solid;background:rgba(34,166,111,.16)}
 .site-initial-target:focus-visible{outline:3px solid #06c98c;outline-offset:1px}
 .site-initial-popup.has-photo .site-initial-cover[style*="aspect-ratio"]{min-height:0}

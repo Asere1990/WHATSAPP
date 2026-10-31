@@ -32,7 +32,8 @@
  // Background reconstruction is approximate on patterned/photographic surfaces.
  function redraw(dialog,layers){
   const {photo,paint,cover}=dialog.initialParts;
-  const edited=layers.filter(a=>a.text!==a.original);
+  const edited=layers.filter(a=>a.text!==a.original||a.styled===true||
+    (Number.isFinite(a.drawX)&&a.drawX!==a.x)||(Number.isFinite(a.drawY)&&a.drawY!==a.y));
   if(!edited.length||!photo.complete||!photo.naturalWidth||!photo.naturalHeight){paint.hidden=true;return;}
   const scale=Math.min(1,1600/photo.naturalWidth,2400/photo.naturalHeight),w=Math.round(photo.naturalWidth*scale),h=Math.round(photo.naturalHeight*scale);
   if(!w||!h)return;
@@ -59,36 +60,93 @@
    const phrase=layer.text.slice(0,280).trim();if(!phrase)continue;
    const family=['Arial','Helvetica','Georgia','Times New Roman','Verdana','system-ui'].includes(layer.family)?layer.family:'Arial';
    const weight=['400','500','600','700','800','900'].includes(String(layer.weight))?String(layer.weight):'700';
-   let font=clamp(Number(layer.fontSize||height)*scale,6,500);
-   const maxWidth=Math.max(1,width-4);
+   // The original OCR rectangle identifies what to erase. Explicit font
+   // size is in ORIGINAL photo pixels, never shrunk to fit the old box.
+   const font=Math.max(1,Number(layer.fontSize||height/scale)*scale);
+   const textX=clamp(Math.round((layer.drawX??layer.x)*w),0,w-1);
+   const textY=clamp(Math.round((layer.drawY??layer.y)*h),0,h-1);
    ctx.font=weight+' '+font+'px "'+family+'"';
-   let measured=ctx.measureText(phrase).width;
-   if(measured>maxWidth){font=Math.max(5,font*maxWidth/Math.max(1,measured));ctx.font=weight+' '+font+'px "'+family+'"';}
    const background=ctx.getImageData(clamp(x+2,0,w-1),clamp(y+1,0,h-1),1,1).data;
    const bright=(background[0]*0.21+background[1]*0.72+background[2]*0.07)>170;
    ctx.fillStyle=validColor.test(layer.color||'')?(layer.color.toLowerCase()==='#ffffff'&&bright?'#151515':layer.color):(bright?'#151515':'#ffffff');
    ctx.textAlign='left';ctx.textBaseline='middle';
-   ctx.fillText(phrase,x+2,y+height/2,maxWidth);
+   ctx.fillText(phrase,textX+2,textY+height/2);
   }
   paint.hidden=false;
  }
  function setTargets(dialog,layers,options){
-  const {targets}=dialog.initialParts;
+  const {targets,cover}=dialog.initialParts;
   if(typeof targets.replaceChildren==='function')targets.replaceChildren();else targets.children=[];
-  if(typeof options.onTextDoubleTap!=='function'||!layers.length){targets.hidden=true;return;}
+  const editable=typeof options.onTextDoubleTap==='function'||typeof options.onTextDragEnd==='function';
+  if(!editable||!layers.length){targets.hidden=true;return;}
   targets.hidden=false;
-  layers.forEach((layer,index)=>{
-   const target=make('button','site-initial-target');
+  // Never mutate the public snapshot while moving the phrase in a draft.
+  const preview=layers.map(layer=>({...layer}));
+  layers.forEach((_,index)=>{
+   const layer=preview[index],target=make('button','site-initial-target');
    target.type='button';target.setAttribute('aria-label','Doble toque para editar: '+layer.text.slice(0,100));
-   target.title='Doble toque para editar frase';
-   target.style.left=(layer.x*100)+'%';target.style.top=(layer.y*100)+'%';
+   target.title='Doble toque para editar; mantener pulsado para mover';
+   target.style.left=((layer.drawX??layer.x)*100)+'%';
+   target.style.top=((layer.drawY??layer.y)*100)+'%';
    target.style.width=(layer.w*100)+'%';target.style.height=(layer.h*100)+'%';
    target.dataset.layerIndex=String(index);
-   let last=0;
+   let last=0,press=null,skipClickUntil=0,raf=false;
+   const cancelTimer=()=>{if(press?.timer&&typeof clearTimeout==='function')clearTimeout(press.timer);};
+   const repaint=()=>{
+    if(typeof requestAnimationFrame==='function'){
+     if(raf)return;raf=true;requestAnimationFrame(()=>{raf=false;redraw(dialog,preview);});
+    }else redraw(dialog,preview);
+   };
+   target.addEventListener('pointerdown',event=>{
+    if(typeof options.onTextDragEnd!=='function'||event.button>0)return;
+    if(press)cancelTimer();
+    press={id:event.pointerId,sx:event.clientX,sy:event.clientY,
+     x:layer.drawX??layer.x,y:layer.drawY??layer.y,active:false,moved:false,timer:null};
+    if(typeof setTimeout==='function')press.timer=setTimeout(()=>{
+     if(!press||press.id!==event.pointerId)return;
+     press.active=true;last=0;
+     target.classList?.add?.('is-dragging');
+     target.setPointerCapture?.(event.pointerId);
+    },420);
+   });
+   target.addEventListener('pointermove',event=>{
+    if(!press||press.id!==event.pointerId)return;
+    if(!press.active){
+     if(Math.hypot(event.clientX-press.sx,event.clientY-press.sy)>12){cancelTimer();press=null;}
+     return;
+    }
+    event.preventDefault?.();
+    const rect=cover.getBoundingClientRect?.();
+    if(!rect?.width||!rect?.height)return;
+    const drawX=clamp(press.x+(event.clientX-press.sx)/rect.width,0,Math.max(0,1-layer.w));
+    const drawY=clamp(press.y+(event.clientY-press.sy)/rect.height,0,Math.max(0,1-layer.h));
+    layer.drawX=Math.round(drawX*10000)/10000;
+    layer.drawY=Math.round(drawY*10000)/10000;
+    press.moved=press.moved||layer.drawX!==press.x||layer.drawY!==press.y;
+    target.style.left=(layer.drawX*100)+'%';target.style.top=(layer.drawY*100)+'%';
+    repaint();
+   });
+   const finish=event=>{
+    if(!press||event.pointerId!==press.id)return;
+    const done=press;cancelTimer();press=null;
+    if(done.active){
+     skipClickUntil=Date.now()+650;
+     target.classList?.remove?.('is-dragging');
+     target.releasePointerCapture?.(event.pointerId);
+     if(done.moved){
+      redraw(dialog,preview);
+      options.onTextDragEnd(index,{drawX:layer.drawX,drawY:layer.drawY});
+     }
+     event.preventDefault?.();
+    }
+   };
+   target.addEventListener('pointerup',finish);
+   target.addEventListener('pointercancel',event=>{cancelTimer();press=null;target.classList?.remove?.('is-dragging');});
    target.addEventListener('click',event=>{
     event.preventDefault();
+    if(Date.now()<skipClickUntil)return;
     const now=Date.now();
-    if(now-last<480){last=0;options.onTextDoubleTap(index,layer);}
+    if(now-last<480){last=0;options.onTextDoubleTap?.(index,layer);}
     else last=now;
    });
    targets.append(target);
