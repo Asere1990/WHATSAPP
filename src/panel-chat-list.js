@@ -98,7 +98,7 @@ export class PanelChatList{
    const items=page.map(c=>{
     const name=this.name(account,c);
     const result={
-     peer:c.peer,name,phone:isPhone(c.peer)?'+'+c.peer.split('@')[0]:null,
+     peer:c.peer,aliases:[...c.aliases],name,phone:isPhone(c.peer)?'+'+c.peer.split('@')[0]:null,
      avatar:this.profiles.url(account,c.peer),timestamp:c.timestamp,
      unread:c.unread,group:c.group
     };

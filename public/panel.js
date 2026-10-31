@@ -2,6 +2,68 @@
  window.addEventListener('hashchange',()=>{if(location.hash)location.reload();});
  const $=id=>document.getElementById(id),state={me:null,account:null,chat:null,mode:'messages',items:[],next:null,chatsNext:null,epoch:0,busy:false};let csrf='',searchTimer,noticeTimer,focusChain=Promise.resolve(),lastFocus='',lastFocusAt=0,refreshBusy=false,lastAccountsAt=0,lastChatsAt=0;
  const chatRequests=new Set(),loadedChatPeers=new Set();
+ const liveChatRows=new Map();
+ let chatListGeneration=0,detailsRefreshAt=0,detailsRefreshPage=0,detailsRefreshTurn=0,detailsRefreshBusy=false;
+ function resetChatDetails(){chatListGeneration++;liveChatRows.clear();detailsRefreshAt=0;detailsRefreshPage=0;detailsRefreshTurn=0;}
+ const chatPreview=chat=>chat.preview?((chat.lastFromMe?'Tú: ':'')+chat.preview):(chat.group?'Grupo':'Sin mensajes sincronizados');
+ function updateChatRow(chat){
+  const aliases=[...new Set([chat.peer,...(Array.isArray(chat.aliases)?chat.aliases:[])])];
+  const rows=[...new Set(aliases.map(peer=>liveChatRows.get(peer)).filter(Boolean))];
+  if(!rows.length)return false;
+  const button=rows[0],current=button._chat,previous=current.peer;
+  const list=$('chats'),scroll=list.scrollTop;
+  for(const duplicate of rows.slice(1)){
+   liveChatRows.delete(duplicate._chat.peer);loadedChatPeers.delete(duplicate._chat.peer);
+   duplicate.remove();
+  }
+  Object.assign(current,chat);
+  liveChatRows.delete(previous);loadedChatPeers.delete(previous);
+  liveChatRows.set(chat.peer,button);loadedChatPeers.add(chat.peer);
+  button.dataset.peer=chat.peer;
+  const copy=button.querySelector('.chat-copy');
+  copy.querySelector('strong').textContent=chat.name;
+  const preview=copy.querySelector('.chat-preview');
+  let phone=copy.querySelector('.chat-phone');
+  if(chat.phone&&!chat.group){
+   if(!phone){phone=node('small','chat-phone');copy.insertBefore(phone,preview);}
+   phone.textContent=chat.phone;
+  }else phone?.remove();
+  preview.textContent=chatPreview(chat);
+  const avatar=button.querySelector('.avatar');
+  avatarPhoto(avatar,chat.avatar,chat.name);
+  if(!avatar.querySelector('img'))avatar.textContent=chat.group?'▧':chat.name.slice(0,1).toUpperCase();
+  const meta=button.querySelector('.chat-meta'),stamp=meta.querySelector('time');
+  if(stamp&&chat.timestamp)stamp.textContent=new Date(chat.timestamp*1000).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
+  const unread=meta.querySelector('.unread');
+  if(unread){if(chat.unread)unread.textContent=String(chat.unread);else unread.remove();}
+  else if(chat.unread)meta.append(node('span','unread',String(chat.unread)));
+  if(state.chat&&aliases.includes(state.chat.peer)){
+   Object.assign(state.chat,chat);
+   $('chat-name').textContent=chat.name;
+   $('chat-detail').textContent=chat.phone&&!chat.group?chat.phone:state.account.name+(chat.group?' · Grupo':'');
+  }
+  list.scrollTop=scroll;
+  return true;
+ }
+ async function refreshLoadedChatDetails(){
+  if(!state.me||!state.account||document.hidden||document.body.dataset.view!=='chats'||detailsRefreshBusy||chatRequests.size||Date.now()-detailsRefreshAt<20000)return;
+  const list=$('chats'),rows=[...list.querySelectorAll('.chat-item')];
+  if(!rows.length)return;
+  const id=state.account.id,query=$('search').value,generation=chatListGeneration;
+  const pages=Math.max(1,Math.ceil(rows.length/50)),bounds=list.getBoundingClientRect();
+  const visible=rows.findIndex(row=>{const r=row.getBoundingClientRect();return r.bottom>bounds.top&&r.top<bounds.bottom;});
+  const offset=(detailsRefreshTurn++%2===0&&visible>=0?Math.floor(visible/50):detailsRefreshPage++%pages)*50;
+  const requestKey=JSON.stringify(['contact-refresh',id,query,offset]);
+  detailsRefreshBusy=true;detailsRefreshAt=Date.now();chatRequests.add(requestKey);
+  try{
+   const data=await api('chats?account='+encodeURIComponent(id)+'&q='+encodeURIComponent(query)+'&offset='+offset,undefined,15000);
+   if(!state.me||state.account?.id!==id||generation!==chatListGeneration||$('search').value!==query||document.body.dataset.view!=='chats')return;
+   for(const chat of data.items)updateChatRow(chat);
+  }catch(error){
+   // Keep the current list on transient errors and respect rate-limit backoff.
+   if(error.status===429)detailsRefreshAt=Date.now()+40000;
+  }finally{chatRequests.delete(requestKey);detailsRefreshBusy=false;}
+ }
  // The rest of the directory is added in small, sequential batches, so
  // opening a chat, viewing the gallery or syncing WhatsApp stays responsive.
  let autoChatsTimer=null,autoChatsVersion=0;
@@ -42,7 +104,7 @@
  }
  const accountStatus=a=>a.connected?'Conectada':({connecting:'Reconectando…',needs_pairing:'Requiere vinculación',auth_failure:'Requiere vinculación',error:'Error de conexión',expired:'Conexión interrumpida',disconnected:'Sin conexión'})[a.status]||'Sin conexión';
  function notice(text){$('notice').textContent=text;$('notice').hidden=!text;clearTimeout(noticeTimer);if(text)noticeTimer=setTimeout(()=>{$('notice').hidden=true;},8000);}
- function locked(text){pauseAutoChats();lastAccountsAt=0;lastChatsAt=0;chatRequests.clear();loadedChatPeers.clear();if($('contact-info-dialog').open)$('contact-info-dialog').close();state.me=null;state.account=null;state.chat=null;csrf='';$('accounts').replaceChildren();$('chats').replaceChildren();$('thread').replaceChildren();$('media-dialog').close();$('media-body').replaceChildren();$('message').value='';$('workspace').hidden=true;$('login').hidden=false;$('login-status').textContent=text||'Abre tu acceso personal desde Telegram: /panel.';}
+ function locked(text){resetChatDetails();pauseAutoChats();lastAccountsAt=0;lastChatsAt=0;chatRequests.clear();loadedChatPeers.clear();if($('contact-info-dialog').open)$('contact-info-dialog').close();state.me=null;state.account=null;state.chat=null;csrf='';$('accounts').replaceChildren();$('chats').replaceChildren();$('thread').replaceChildren();$('media-dialog').close();$('media-body').replaceChildren();$('message').value='';$('workspace').hidden=true;$('login').hidden=false;$('login-status').textContent=text||'Abre tu acceso personal desde Telegram: /panel.';}
 
  async function api(path,body,timeout=0){
   let response;
@@ -101,7 +163,7 @@
     $('accounts').append(button);
    }
    if(!data.items.length)$('accounts').append(node('p','empty','Aún no hay cuentas disponibles. Vincula una desde tu enlace de Telegram.'));
-   if(old&&!data.items.some(a=>a.id===old)){state.account=null;clearConversation();$('chats').replaceChildren();view('accounts');}
+   if(old&&!data.items.some(a=>a.id===old)){resetChatDetails();state.account=null;clearConversation();$('chats').replaceChildren();view('accounts');}
    else if(old){state.account=data.items.find(a=>a.id===old);accountHeader();}
   }catch(error){
    finish('No se pudieron consultar las cuentas. Puedes volver a intentarlo.');
@@ -117,7 +179,7 @@
  }
 
  async function chooseAccount(account){
-  pauseAutoChats();loadedChatPeers.clear();
+  resetChatDetails();pauseAutoChats();loadedChatPeers.clear();
   state.account=account;state.chatSignature=null;state.chatsNext=null;lastChatsAt=0;
   clearConversation();$('search').value='';$('chats').replaceChildren();
   accountHeader();view('chats');reportFocus();
@@ -142,22 +204,24 @@
    if(!append&&state.chatSignature===signature){resumeAutoChats();return;}
    state.chatSignature=append?null:signature;
    if(!append){$('chats').replaceChildren();loadedChatPeers.clear();}
+   if(!append)liveChatRows.clear();
    state.chatsNext=data.next;$('more-chats').hidden=data.next===null;
    for(const chat of data.items){
+    if(updateChatRow(chat))continue;
     if(loadedChatPeers.has(chat.peer))continue;
     loadedChatPeers.add(chat.peer);
     const button=node('button','chat-item'+(state.chat?.peer===chat.peer?' active':'')),
      avatar=node('span','avatar',chat.group?'▧':chat.name.slice(0,1).toUpperCase()),copy=node('span','chat-copy');
+    button._chat=chat;button.dataset.peer=chat.peer;liveChatRows.set(chat.peer,button);
     avatarPhoto(avatar,chat.avatar,chat.name);
     copy.append(node('strong','',chat.name));
     if(chat.phone&&!chat.group)copy.append(node('small','chat-phone',chat.phone));
-    copy.append(node('small','chat-preview',
-     (chat.lastFromMe?'Tú: ':'')+(chat.preview||(chat.group?'Grupo':chat.peer.split('@')[0]))));
+    copy.append(node('small','chat-preview',chatPreview(chat)));
     const meta=node('span','chat-meta');
     if(chat.timestamp)meta.append(node('time','',new Date(chat.timestamp*1000).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})));
     button.append(avatar,copy,meta);
     if(chat.unread)meta.append(node('span','unread',String(chat.unread)));
-    button.onclick=()=>chooseChat(chat).catch(e=>notice(e.message));
+    button.onclick=()=>chooseChat(button._chat).catch(e=>notice(e.message));
     $('chats').append(button);
    }
    if(!$('chats').children.length)$('chats').append(node('p','empty',
@@ -176,7 +240,7 @@
    if(state.account?.id!==id||hadRows||!$('chats-load-state').classList.contains('is-error'))finish();
   }
  }
- async function chooseChat(chat){pauseAutoChats();state.epoch++;state.chat=chat;state.items=[];state.next=null;state.itemSignature=null;state.mode='messages';$('chat-name').textContent=chat.name;$('chat-detail').textContent=chat.phone&&!chat.group?chat.phone:state.account.name+(chat.group?' · Grupo':'');$('chat-avatar').textContent=chat.group?'▧':chat.name.slice(0,1).toUpperCase();avatarPhoto($('chat-avatar'),chat.avatar,chat.name);$('contact-info-trigger').classList.toggle('is-contact',!chat.group);$('contact-info-trigger').setAttribute('aria-label',chat.group?'Información de grupo no disponible':'Ver información de '+chat.name);$('tabs').hidden=false;$('sync').hidden=false;$('message').value='';$('composer').hidden=chat.group;$('group-note').hidden=!chat.group;view('thread');reportFocus();selectTab();$('thread').replaceChildren(node('p','empty','Cargando conversación…'));await messages();const key=state.account.id+':'+chat.peer;if(state.account.connected&&(!syncTimes.has(key)||Date.now()-syncTimes.get(key)>600000)){syncTimes.set(key,Date.now());api('sync',{account:state.account.id,peer:chat.peer}).catch(()=>{});}}
+ async function chooseChat(chat){pauseAutoChats();state.epoch++;state.chat=chat;state.items=[];state.next=null;state.itemSignature=null;state.mode='messages';$('chat-name').textContent=chat.name;$('chat-detail').textContent=chat.phone&&!chat.group?chat.phone:state.account.name+(chat.group?' · Grupo':'');$('chat-avatar').textContent=chat.group?'▧':chat.name.slice(0,1).toUpperCase();avatarPhoto($('chat-avatar'),chat.avatar,chat.name);$('contact-info-trigger').classList.toggle('is-contact',!chat.group);$('contact-info-trigger').setAttribute('aria-label','Ver información de '+chat.name);$('tabs').hidden=false;$('sync').hidden=false;$('message').value='';$('composer').hidden=chat.group;$('group-note').hidden=!chat.group;view('thread');reportFocus();selectTab();$('thread').replaceChildren(node('p','empty','Cargando conversación…'));await messages();const key=state.account.id+':'+chat.peer;if(state.account.connected&&(!syncTimes.has(key)||Date.now()-syncTimes.get(key)>600000)){syncTimes.set(key,Date.now());api('sync',{account:state.account.id,peer:chat.peer}).catch(()=>{});}}
  async function openContactInfo(){
   const chat=state.chat,account=state.account;
   if(!chat||chat.group||!account)return;
@@ -295,11 +359,11 @@
  }
  function openMedia(message){$('media-title').textContent=message.name;$('media-body').replaceChildren(node('p','empty','Abriendo archivo…'));$('download').href=mediaUrl(message.id)+'&download=1';$('download').textContent='↓ Descargar archivo';$('media-dialog').showModal();const src=mediaUrl(message.id);let el;if(message.type==='image'||message.type==='sticker'){el=node('img');el.alt=message.text||message.name;}else if(message.type==='video'){el=node('video');el.controls=true;el.playsInline=true;el.preload='metadata';}else if(message.type==='audio'||message.type==='ptt'){el=node('audio');el.controls=true;el.playsInline=true;el.preload='metadata';}if(el){el.src=src;el.onerror=()=>{$('media-body').replaceChildren(node('p','empty','No se pudo abrir el archivo. La cuenta debe estar conectada y WhatsApp debe tenerlo disponible.'));};$('media-body').replaceChildren(el);}else $('media-body').replaceChildren(node('p','empty','Usa Descargar archivo para abrir este documento.'));}
  $('close-media').onclick=()=>{$('media-dialog').close();$('media-body').replaceChildren();};$('media-dialog').addEventListener('click',e=>{if(e.target===$('media-dialog'))$('close-media').click();});
- $('search').oninput=()=>{pauseAutoChats();clearTimeout(searchTimer);searchTimer=setTimeout(()=>chats().catch(e=>notice(e.message)),250);};$('more-chats').onclick=()=>{pauseAutoChats();chats(true).catch(e=>notice(e.message));};$('older').onclick=()=>messages(true);
+ $('search').oninput=()=>{chatListGeneration++;detailsRefreshAt=0;pauseAutoChats();clearTimeout(searchTimer);searchTimer=setTimeout(()=>chats().catch(e=>notice(e.message)),250);};$('more-chats').onclick=()=>{pauseAutoChats();chats(true).catch(e=>notice(e.message));};$('older').onclick=()=>messages(true);
  for(const mode of ['messages','gallery'])$('tab-'+mode).onclick=()=>{state.mode=mode;state.epoch++;state.items=[];state.next=null;state.itemSignature=null;selectTab();if(mode==='gallery')renderGalleryStats(null);reportFocus();$('thread').replaceChildren(node('p','empty',mode==='gallery'?'Preparando galería…':'Preparando conversación…'));messages();};
  $('sync').onclick=async()=>{if(!state.chat)return;$('sync').disabled=true;try{const data=await api('sync',{account:state.account.id,peer:state.chat.peer});notice(data.message);}catch(e){notice(e.message);}finally{$('sync').disabled=false;}};
  $('composer').onsubmit=async event=>{event.preventDefault();const text=$('message').value.trim();if(!text||!state.chat||state.chat.group)return;if(!confirm('¿Enviar este mensaje a '+state.chat.name+' desde +'+state.account.phone+'?\n\n'+text))return;const request=Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('');const epoch=state.epoch,account=state.account.id,peer=state.chat.peer;$('send').disabled=true;try{await api('send',{account,peer,text,request});if(state.epoch===epoch){if($('message').value.trim()===text)$('message').value='';await messages();}}catch(e){notice(e.message);}finally{$('send').disabled=false;}};
- $('back-accounts').onclick=()=>{pauseAutoChats();view('accounts');reportFocus(true);};$('back-chats').onclick=()=>{view('chats');reportFocus(true);resumeAutoChats(450);};$('logout').onclick=async()=>{try{await api('logout',{});}finally{locked('Sesión cerrada. Abre otro acceso desde Telegram cuando quieras volver.');}};
+ $('back-accounts').onclick=()=>{pauseAutoChats();view('accounts');reportFocus(true);};$('back-chats').onclick=()=>{view('chats');reportFocus(true);detailsRefreshAt=0;resumeAutoChats(450);};$('logout').onclick=async()=>{try{await api('logout',{});}finally{locked('Sesión cerrada. Abre otro acceso desde Telegram cuando quieras volver.');}};
  async function start(){try{const token=location.hash.slice(1);if(token){history.replaceState(null,'',location.pathname);$('login-status').textContent='Comprobando tu acceso…';await api('login',{token});}state.me=await api('me');csrf=state.me.csrf;$('editor-link').hidden=state.me.role!=='admin';$('user-name').textContent=state.me.name+(state.me.role==='admin'?' · Administrador':'');$('login').hidden=true;$('workspace').hidden=false;view('accounts');await accounts().catch(e=>notice(e.message));}catch(e){locked(e.message);}}
  setInterval(async()=>{
   if(!state.me||document.hidden||refreshBusy)return;
@@ -312,6 +376,7 @@
    // Do not collapse pages that the user has already expanded with Cargar más.
    if(state.account&&screen==='chats'&&state.chatsNext==null&&$('chats').querySelectorAll('.chat-item').length<=50&&Date.now()-lastChatsAt>=30000)await chats();
    if(Date.now()-lastAccountsAt>=30000)await accounts();
+   if(state.account&&screen==='chats')await refreshLoadedChatDetails();
   }catch(e){notice(e.message);}finally{refreshBusy=false;}
  },10000);
  window.addEventListener('online',()=>{if(state.me){reportFocus(true);accounts().catch(e=>notice(e.message));resumeAutoChats(450);}});
@@ -319,6 +384,6 @@
   if(!state.me)return;
   reportFocus(true);
   if(document.hidden)pauseAutoChats();
-  else{accounts().catch(e=>notice(e.message));resumeAutoChats(450);}
+  else{detailsRefreshAt=0;accounts().catch(e=>notice(e.message));resumeAutoChats(450);}
  });start();
 })();
