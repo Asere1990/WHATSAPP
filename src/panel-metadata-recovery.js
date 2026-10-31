@@ -1,8 +1,8 @@
 import {BaileysStore} from './baileys-store.js';
+import {receivedContactMetadata,acceptedContactMapping} from './received-contact-metadata.js';
 
-// Recover display names already supplied by WhatsApp, independently of the
-// browser. The existing SQLite database and authorization boundary are reused.
-// No network requests, credential changes, media downloads or message rewrites.
+// Recover display names and explicit contact associations already supplied by
+// WhatsApp, independently of the browser. Never invent missing identity data.
 const privatePeer=/^\d+@(s\.whatsapp\.net|lid)$/;
 const unknownName=/^(nombre no disponible|sin nombre|cuenta(?: de whatsapp)?|whatsapp|contacto(?: sin identificar)?|\+?[0-9\s().-]+)$/i;
 
@@ -19,16 +19,17 @@ export function messageContactName(raw){
 
 export class PanelMetadataRecovery{
  constructor(store,{now=()=>Date.now(),batchSize=120,scanDelay=2500}={}){
-  // The worker is created before WhatsApp sessions initialize; ensure the
-  // existing Baileys tables exist before preparing any SELECT statements.
   new BaileysStore(store,'metadata-schema');
   this.store=store;this.db=store.db;this.now=now;
   this.batchSize=batchSize;this.scanDelay=scanDelay;this.started=false;this.closed=false;
-  this.timer=null;this.timerAt=0;this.working=false;this.rotation=0;
+  this.timer=null;this.timerAt=0;this.working=false;this.rotation=0;this.contactRotation=0;
   this.cursor=this.db.prepare('SELECT value FROM config WHERE key=?');
   this.rows=this.db.prepare("SELECT rowid,value FROM baileys_data WHERE account=? AND kind='message' AND rowid>? ORDER BY rowid ASC LIMIT ?");
-  // A panel-name is only a fallback; original WhatsApp contact and chat
-  // records always retain priority. Newer messages take precedence.
+  this.contactRows=this.db.prepare("SELECT rowid,kind,id,value FROM baileys_data WHERE account=? AND kind IN ('chat','contact','mapping') AND rowid>? ORDER BY rowid ASC LIMIT ?");
+  this.readMapping=this.db.prepare("SELECT value FROM baileys_data WHERE account=? AND kind='mapping' AND id=?");
+  this.writeMapping=this.db.prepare(`INSERT INTO baileys_data(account,kind,id,peer,timestamp,value)
+    VALUES(?,'mapping',?,NULL,0,?) ON CONFLICT(account,kind,id)
+    DO UPDATE SET value=excluded.value WHERE baileys_data.value!=excluded.value`);
   this.upsert=this.db.prepare(`INSERT INTO baileys_data(account,kind,id,peer,timestamp,value)
     VALUES(?,'panel-name',?,?,?,?)
     ON CONFLICT(account,kind,id) DO UPDATE SET
@@ -50,21 +51,46 @@ export class PanelMetadataRecovery{
   this.timerAt=next;
   this.timer=setTimeout(()=>{
    this.timer=null;this.timerAt=0;
-   try{this.step();}catch{
-    // A failed background index must never interrupt WhatsApp sessions.
-    this.wake(30000);
-   }
+   try{this.step();}catch{this.wake(30000);}
   },delay);
   this.timer.unref?.();
+ }
+ recoverContacts(accounts){
+  if(!accounts.length)return false;
+  let selected=null;
+  for(let i=0;i<accounts.length;i++){
+   const index=(this.contactRotation+i)%accounts.length,id=accounts[index];
+   const key='panel:contact-scan:v1:'+id;
+   const prior=Number(this.cursor.get(key)?.value||0),cursor=Number.isSafeInteger(prior)&&prior>=0?prior:0;
+   const rows=this.contactRows.all(id,cursor,this.batchSize);
+   if(rows.length){selected={id,key,rows};this.contactRotation=(index+1)%accounts.length;break;}
+  }
+  if(!selected)return false;
+  const {id,key,rows}=selected,own=new BaileysStore(this.store,id).selfJids();
+  let last=0;
+  for(const row of rows){
+   last=Number(row.rowid);
+   let value;
+   try{value=JSON.parse(row.value);}catch{continue;}
+   const {mapping,name}=receivedContactMetadata(row.kind,row.id,value);
+   if(mapping){
+    let old;
+    try{old=JSON.parse(this.readMapping.get(id,mapping.lid)?.value||'null');}catch{old=null;}
+    if(acceptedContactMapping(mapping,old,own))this.writeMapping.run(id,mapping.lid,JSON.stringify(mapping.pn));
+   }
+   if(name)this.upsert.run(id,name.peer,name.peer,name.timestamp,JSON.stringify({name:name.name}));
+  }
+  // Persist only after a complete batch. A failed batch is safely retried.
+  if(last)this.store.setConfig(key,String(last));
+  return true;
  }
  step(){
   if(!this.started||this.closed||this.working)return;
   this.working=true;let nextDelay=15000;
   try{
    const accounts=this.allowedAccounts();
+   if(this.recoverContacts(accounts))nextDelay=this.scanDelay;
    if(accounts.length){
-    // Skip accounts already caught up, instead of wasting a full cycle on
-    // empty accounts. Round-robin still gives each active account its turn.
     let selected=null;
     for(let i=0;i<accounts.length;i++){
      const index=(this.rotation+i)%accounts.length,id=accounts[index];
@@ -79,11 +105,10 @@ export class PanelMetadataRecovery{
      let last=cursor;
      for(const row of rows){
       last=Number(row.rowid);
-      try{
-       const contact=messageContactName(JSON.parse(row.value));
-       if(!contact)continue;
-       this.upsert.run(id,contact.peer,contact.peer,contact.timestamp,JSON.stringify({name:contact.name}));
-      }catch{ /* Skip a single malformed historical record. */ }
+      let raw;
+      try{raw=JSON.parse(row.value);}catch{continue;}
+      const contact=messageContactName(raw);
+      if(contact)this.upsert.run(id,contact.peer,contact.peer,contact.timestamp,JSON.stringify({name:contact.name}));
      }
      if(last!==cursor)this.store.setConfig(key,String(last));
      nextDelay=this.scanDelay;
