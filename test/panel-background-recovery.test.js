@@ -69,7 +69,8 @@ test('resume markers prevent repeated scans after a process restart, and accept 
  worker=recovery(store);t.after(()=>worker.shutdown());
  worker.step();assert.equal(store.config()['panel:name-scan:v1:'+a.id],first);
  db.message(raw(jid,'new',false,'Nombre actualizado',200));
- worker.step();
+ worker.step(); // The scheduler visits the other account in round-robin order.
+ worker.step(); // This account resumes from its persisted cursor.
  assert.equal(db.get('panel-name',jid)?.name,'Nombre actualizado');
  assert.ok(Number(store.config()['panel:name-scan:v1:'+a.id])>Number(first));
 });
