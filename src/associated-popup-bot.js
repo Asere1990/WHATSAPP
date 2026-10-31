@@ -1,15 +1,11 @@
 import {AssociatedLinks,associatedUrl} from './associated-links.js';
 import {savePageImage} from './page-editor.js';
 import {sendEditorImage} from './editor-image.js';
-import {alertCopy,renderAssociatedAlert,saveAssociatedAlert} from './associated-alert.js';
 
 // Only the admin's private Telegram chat can start this flow.
 export class AssociatedPopupBot {
  constructor(bot){this.bot=bot;this._links=null;}
  get links(){return this._links||(this._links=new AssociatedLinks(this.bot.store));}
- contentKeyboard(phone){
-  return {inline_keyboard:[[{text:'ADD POPUP ALERT',callback_data:'assoc:alert-start:'+phone}]]};
- }
  keyboard(phone){
   const row=this.links.get(phone);
   return {inline_keyboard:[
@@ -32,32 +28,11 @@ export class AssociatedPopupBot {
     [{text:'❌ CANCELAR',callback_data:'assoc:photo-cancel:'+phone}]
    ]});
  }
- async alertPreview(chat,key,draft){
-  let image;
-  try{image=await renderAssociatedAlert(draft.title,draft.message);}
-  catch(error){
-   this.bot.pending.set(key,{kind:'associated',stage:'alert-text',phone:draft.phone,title:draft.title});
-   return this.bot.send(chat,error.message+'\nEnvía el texto de nuevo.');
-  }
-  this.bot.pending.set(key,{kind:'associated',stage:'alert-confirm',phone:draft.phone,title:draft.title,message:draft.message,image});
-  const markup={inline_keyboard:[
-   [{text:'✅ CONFIRMAR Y CREAR ENLACE',callback_data:'assoc:alert-save:'+draft.phone}],
-   [{text:'✏️ EDITAR CABECERA',callback_data:'assoc:alert-edit-title:'+draft.phone},
-    {text:'✏️ EDITAR TEXTO',callback_data:'assoc:alert-edit-text:'+draft.phone}],
-   [{text:'❌ CANCELAR',callback_data:'assoc:alert-cancel:'+draft.phone}]
-  ]};
-  try{return await this.bot.sendFile(chat,{data:image,mime:'image/png',name:'securitywhat-aviso.png',display:true,
-   caption:'VISTA PREVIA · +'+draft.phone+'\nAviso informativo propio de SecurityWhat. No se guardará ni se enviará el enlace hasta que confirmes.'},markup);}
-  catch{
-   this.bot.pending.set(key,{kind:'associated',stage:'alert-text',phone:draft.phone,title:draft.title});
-   return this.bot.send(chat,'No se pudo enviar la vista previa. No se ha creado el enlace. Reenvía el texto para intentarlo de nuevo.');
-  }
- }
  async start(chat,key,phone=''){
   this.bot.pending.set(key,{kind:'associated',stage:phone?'content':'phone',...(phone?{phone}:{})});
   const message=phone?'Número: +'+phone+'\n\nEnvía un TEXTO (máximo 1000 caracteres) o una FOTO para su popup. El nuevo contenido reemplazará al anterior sin cambiar el enlace activo.\n\n/cancelar para salir.':
    '𝐂𝐑𝐄𝐀𝐑 𝐄𝐍𝐋𝐀𝐂𝐄 𝐀𝐒𝐎𝐂𝐈𝐀𝐃𝐎\n\nEnvía el número completo con código de país.\nEjemplo: +12025550123\n\nEl enlace será permanente hasta que lo revoques.\n/cancelar para salir.';
-  return this.bot.send(chat,message,phone?this.contentKeyboard(phone):undefined);
+  return this.bot.send(chat,message);
  }
  async genericMenu(chat,key){
   this.bot.pending.delete(key);
@@ -68,17 +43,6 @@ export class AssociatedPopupBot {
   });
  }
  async input(chat,key,pending,m){
-  if(pending.stage==='alert-title'){
-   let title;try{title=alertCopy(m.text,72,'Cabecera');}catch(e){return this.bot.send(chat,e.message);}
-   if(pending.message)return this.alertPreview(chat,key,{...pending,title});
-   this.bot.pending.set(key,{kind:'associated',stage:'alert-text',phone:pending.phone,title});
-   return this.bot.send(chat,'ADD POPUP ALERT · PASO 2/2\nEnvía el texto informativo que acompañará la cabecera (máximo 500 caracteres).\n\n/cancelar para salir.');
-  }
-  if(pending.stage==='alert-text'){
-   let message;try{message=alertCopy(m.text,500,'Texto');}catch(e){return this.bot.send(chat,e.message);}
-   return this.alertPreview(chat,key,{...pending,message});
-  }
-  if(pending.stage==='alert-confirm')return this.bot.send(chat,'Utiliza los botones de la vista previa: CONFIRMAR Y CREAR ENLACE, EDITAR o CANCELAR.');
   if(pending.stage==='photo-upload'){
    if(!m.photo?.length&&!m.document)return this.bot.send(chat,'Envía la foto que quieres ver antes de guardarla. /cancelar para salir.');
    let photo;
@@ -107,7 +71,7 @@ export class AssociatedPopupBot {
    let phone;try{phone=this.links.normalize(m.text||'');}catch(e){return this.bot.send(chat,e.message);}
    this.bot.pending.set(key,{kind:'associated',stage:'content',phone});
    const previous=this.links.get(phone);
-   return this.bot.send(chat,'Número: +'+phone+'\n\nEnvía el TEXTO (máximo 1000 caracteres) o la FOTO que aparecerá en el popup.\n\n'+(previous?.active?'El popup anterior será sustituido y conservarás el mismo enlace.':'Se activará el enlace para este número.')+'\n\n/cancelar para salir.',this.contentKeyboard(phone));
+   return this.bot.send(chat,'Número: +'+phone+'\n\nEnvía el TEXTO (máximo 1000 caracteres) o la FOTO que aparecerá en el popup.\n\n'+(previous?.active?'El popup anterior será sustituido y conservarás el mismo enlace.':'Se activará el enlace para este número.')+'\n\n/cancelar para salir.');
   }
   if(pending.stage==='content'){
    let kind,value;
@@ -154,36 +118,6 @@ export class AssociatedPopupBot {
   }
   if(action==='cancel'){this.bot.pending.delete(key);return this.bot.send(chat,'Cancelado.');}
   if(action==='list'){this.bot.pending.delete(key);return this.list(chat,Math.min(100000,Math.max(0,Number(value)||0)));}
-  if(action==='alert-start'){
-   let phone;try{phone=this.links.normalize(value);}catch{return this.bot.send(chat,'Número inválido.');}
-   this.bot.pending.set(key,{kind:'associated',stage:'alert-title',phone});
-   return this.bot.send(chat,'ADD POPUP ALERT · PASO 1/2\nEnvía la CABECERA del aviso informativo de SecurityWhat (máximo 72 caracteres).\n\nNo se alterarán las opciones de IP, ubicación ni otros popups.\n/cancelar para salir.');
-  }
-  if(['alert-save','alert-edit-title','alert-edit-text','alert-cancel'].includes(action)){
-   let phone;try{phone=this.links.normalize(value);}catch{return this.bot.send(chat,'Número inválido.');}
-   const pending=this.bot.pending.get(key);
-   if(pending?.kind!=='associated'||pending.phone!==phone)return this.bot.send(chat,'Esta vista previa ya no está disponible. Inicia el proceso de nuevo.');
-   if(action==='alert-cancel'){
-    this.bot.pending.set(key,{kind:'associated',stage:'content',phone});
-    return this.bot.send(chat,'Se canceló el aviso. Puedes enviar el texto o la foto normal, o usar ADD POPUP ALERT de nuevo.',this.contentKeyboard(phone));
-   }
-   if(pending.stage!=='alert-confirm')return this.bot.send(chat,'La vista previa ya no está disponible. Comienza de nuevo.');
-   if(action==='alert-edit-title'){
-    this.bot.pending.set(key,{...pending,stage:'alert-title'});
-    return this.bot.send(chat,'EDITAR CABECERA\nCabecera anterior: '+pending.title+'\nEnvía el nuevo texto (máximo 72 caracteres).');
-   }
-   if(action==='alert-edit-text'){
-    this.bot.pending.set(key,{...pending,stage:'alert-text'});
-    return this.bot.send(chat,'EDITAR TEXTO\nEnvía el nuevo mensaje informativo (máximo 500 caracteres).');
-   }
-   let row;
-   try{
-    const asset=saveAssociatedAlert(this.bot.accounts.dir,pending.image);
-    row=this.links.save(phone,'photo',asset);
-   }catch(e){return this.bot.send(chat,'No se pudo guardar el aviso: '+e.message);}
-   this.bot.pending.delete(key);
-   return this.bot.send(chat,'✅ ENLACE ASOCIADO\nNúmero: +'+row.phone+'\nPopup inicial: aviso informativo de SecurityWhat\n\n'+associatedUrl(row.phone)+'\n\nLa vista previa quedó confirmada. Los demás enlaces mantienen sus propios popups.',this.keyboard(phone));
-  }
   let phone;try{phone=this.links.normalize(value);}catch{return this.bot.send(chat,'Número inválido.');}
   const row=this.links.get(phone);
   if(!row)return this.bot.send(chat,'Ese número no tiene un enlace asociado.');
