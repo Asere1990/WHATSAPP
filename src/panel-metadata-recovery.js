@@ -28,7 +28,7 @@ export class PanelMetadataRecovery{
     VALUES(?,'panel-name',?,?,?,?)
     ON CONFLICT(account,kind,id) DO UPDATE SET
     timestamp=excluded.timestamp,value=excluded.value
-    WHERE excluded.timestamp>=baileys_data.timestamp AND excluded.value!=baileys_data.value`);
+    WHERE excluded.timestamp>baileys_data.timestamp OR (excluded.timestamp=baileys_data.timestamp AND excluded.value!=baileys_data.value)`);
  }
  allowedAccounts(){
   const configs=this.store.config();
