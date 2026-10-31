@@ -1,4 +1,5 @@
 import {PanelProfiles} from './panel-profiles.js';
+import {PanelChatList} from './panel-chat-list.js';
 import {createReadStream} from 'node:fs';
 import {PageStudio} from './page-studio.js';
 import {VisualEditor} from './visual-editor.js';
@@ -39,7 +40,7 @@ function visibleChatFilter(db,peer,media=false){
 const publicId=value=>Buffer.from(value).toString('base64url');
 const internalId=value=>{if(typeof value!=='string'||value.length>2000||!/^[\w-]+$/.test(value))fail(400,'Archivo no válido.');return Buffer.from(value,'base64url').toString();};
 export class WebPanel{
- constructor(store,accounts,telegram,options){this.store=store;this.accounts=accounts;this.telegram=telegram;this.options=options;this.access=new PanelAccess(store,id=>telegram.admins().has(String(id))?'admin':telegram.permissions().has(String(id))?'operator':null);this.media=new Map();this.downloads=new Map();this.rates=new Map();this.archive=accounts.archive||null;this.profiles=new PanelProfiles(store,accounts);this.focus=new PanelFocus(accounts);this.editor=new VisualEditor(store,options.dir||accounts.dir||"./data");this.studio=new PageStudio(this);}
+ constructor(store,accounts,telegram,options){this.store=store;this.accounts=accounts;this.telegram=telegram;this.options=options;this.access=new PanelAccess(store,id=>telegram.admins().has(String(id))?'admin':telegram.permissions().has(String(id))?'operator':null);this.media=new Map();this.downloads=new Map();this.rates=new Map();this.archive=accounts.archive||null;this.profiles=new PanelProfiles(store,accounts);this.chatList=new PanelChatList(store,this.profiles,{visibleFilter:visibleChatFilter});this.focus=new PanelFocus(accounts);this.editor=new VisualEditor(store,options.dir||accounts.dir||"./data");this.studio=new PageStudio(this);}
  role(actor){return this.access.role(String(actor));}
  referral(req){return this.access.referral(cookie(req,'wa_referral'));}
  consent(account,req,reference){const ref=typeof reference==='string'?reference:'';if(ref)return this.access.attach(account,ref);return null;}
@@ -139,24 +140,12 @@ export class WebPanel{
    }
    if(route==='/api/panel/avatar'&&req.method==='GET'){this.account(session.actor,id);if(peer&&!peerOK(peer))fail(400,'Contacto no válido.');if(!this.profiles.known(id,peer))fail(404,'Contacto no disponible.');const data=await this.profiles.avatar(id,peer);if(!this.access.allowed(session.actor,id))fail(404,'Cuenta no disponible.');if(!data){res.writeHead(204,headers);return res.end();}res.writeHead(200,{...headers,'Content-Type':'image/jpeg','Content-Length':data.length});return res.end(data);}
    if(route==='/api/panel/chats'&&req.method==='GET'){
-    const db=this.storage(session.actor,id),offset=Math.max(0,Math.min(100000,Number(url.searchParams.get('offset'))||0)),query=(url.searchParams.get('q')||'').trim().toLowerCase().slice(0,80);
-    const merged=new Map();
-    for(const c of db.list('chat',100000)){const source=toJid(c.id);if(!peerOK(source))continue;const peer=db.canonical(source),name=this.profiles.name(id,peer),phone=/^\d{7,15}@s\.whatsapp\.net$/.test(peer)?'+'+peer.split('@')[0]:null,old=merged.get(peer);const row={peer,name,phone,avatar:this.profiles.url(id,peer),timestamp:Math.max(Number(c.conversationTimestamp)||0,old?.timestamp||0),unread:Math.max(Number(c.unreadCount)||0,old?.unread||0),group:peer.endsWith('@g.us')};if(old&&name===peer.split('@')[0])row.name=old.name;merged.set(peer,row);}
-    // Give the own chat a preview and timestamp from its real messages,
-    // never from another chat's device-sync placeholder.
-    for(const c of merged.values()){
-      if(!db.isSelfChat(c.peer))continue;
-      const peers=db.peers(c.peer),filter=visibleChatFilter(db,c.peer);
-      const last=this.store.db.prepare("SELECT id FROM baileys_data WHERE account=? AND kind='message' AND peer IN ("+peers.map(()=>'?').join(',')+")"+filter.sql+" ORDER BY timestamp DESC,rowid DESC LIMIT 1").get(id,...peers,...filter.params);
-      const raw=last?db.projectSelfMessage(db.get('message',last.id)):null,d=raw?describe(raw):null;
-      c.preview=d&&d.type!=='system'&&!d.ephemeral&&!d.viewOnce?(d.body||({image:'Foto',video:'Video',audio:'Audio',ptt:'Mensaje de voz',document:'Documento',sticker:'Sticker'})[d.type]||''):'';
-      c.lastFromMe=!!raw?.key?.fromMe;
-      c.timestamp=raw&&d?.type!=='system'?Number(raw.messageTimestamp)||0:0;
-      c.ownPreview=true;
-    }
-    const chats=[...merged.values()].filter(c=>!query||(c.name+' '+c.peer).toLowerCase().includes(query)).sort((a,b)=>b.timestamp-a.timestamp),page=chats.slice(offset,offset+80);
-    for(const c of page){if(c.ownPreview){delete c.ownPreview;continue;}const peers=db.peers(c.peer),last=this.store.db.prepare("SELECT id FROM baileys_data WHERE account=? AND kind='message' AND peer IN ("+peers.map(()=>'?').join(',')+") ORDER BY timestamp DESC,rowid DESC LIMIT 1").get(id,...peers),raw=last?db.projectSelfMessage(db.get('message',last.id)):null,d=raw?describe(raw):null;c.preview=d&&!d.ephemeral&&!d.viewOnce?(d.body||({image:'Foto',video:'Video',audio:'Audio',ptt:'Mensaje de voz',document:'Documento',sticker:'Sticker'})[d.type]||''):'';c.lastFromMe=!!raw?.key?.fromMe;if(raw)c.timestamp=Math.max(c.timestamp,Number(raw.messageTimestamp)||0);}
-    return json(200,{items:page,next:chats.length>offset+80?offset+80:null});
+    const db=this.storage(session.actor,id);
+    const offset=Math.max(0,Math.min(100000,Number(url.searchParams.get('offset'))||0));
+    const query=(url.searchParams.get('q')||'').trim().toLowerCase().slice(0,80);
+    // Only compact chat metadata is indexed; names and previews are resolved
+    // for the visible page. Stored messages and synchronization are unchanged.
+    return json(200,this.chatList.page(id,db,{offset,query}));
    }
    if((route==='/api/panel/messages'||route==='/api/panel/gallery')&&req.method==='GET')return json(200,this.messages(session.actor,id,peer,url.searchParams.get('before'),route.endsWith('gallery')));
    if((route==='/api/panel/media'||route==='/api/panel/thumb')&&req.method==='GET'){

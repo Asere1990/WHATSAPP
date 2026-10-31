@@ -5,9 +5,13 @@ const safeUrl=value=>{const url=new URL(value);if(url.protocol!=='https:'||url.u
 export class PanelProfiles{
  constructor(store,accounts,{fetchImage=fetch}={}){this.store=store;this.accounts=accounts;this.fetchImage=fetchImage;this.pending=new Map();this.stores=new Map();this.active=0;this.waiting=[];this.businessCache=new Map();this.businessPending=new Map();}
  database(id){if(!this.stores.has(id)){if(this.stores.size>=100)this.stores.delete(this.stores.keys().next().value);this.stores.set(id,new BaileysStore(this.store,id));}return this.stores.get(id);}
- name(id,peer){
-  const a=this.store.account(id),db=this.database(id),jid=toJid(peer||a.phone+'@c.us'),self=db.peers(jid).includes(toJid(a.phone+'@c.us')),client=this.accounts.live.get(id)?.client,creds=self?db.authValue('creds','self'):null;
-  const peers=new Set([...db.peers(jid),...(self?[toJid(creds?.me?.id||''),toJid(creds?.me?.lid||'')]:[])]),contacts=[...peers].map(p=>db.get('contact',p)).filter(Boolean),chats=[...peers].map(p=>db.get('chat',p)).filter(Boolean),profiles=[...peers].map(p=>this.store.profile(id,toPeer(p))).filter(Boolean);
+ name(id,peer,knownAliases=null){
+  const a=this.store.account(id),db=this.database(id),jid=toJid(peer||a.phone+'@c.us');
+  // The chat-list-only fast path passes aliases from a single account-scoped
+  // mapping snapshot. Other callers keep the exact existing lookup behavior.
+  const aliases=Array.isArray(knownAliases)?knownAliases:db.peers(jid);
+  const self=aliases.includes(toJid(a.phone+'@c.us')),client=this.accounts.live.get(id)?.client,creds=self?db.authValue('creds','self'):null;
+  const peers=new Set([...aliases,...(self?[toJid(creds?.me?.id||''),toJid(creds?.me?.lid||'')]:[])]),contacts=[...peers].map(p=>db.get('contact',p)).filter(Boolean),chats=[...peers].map(p=>db.get('chat',p)).filter(Boolean),profiles=[...peers].map(p=>this.store.profile(id,toPeer(p))).filter(Boolean);
   const names=self?[client?.info?.pushname,client?.socket?.user?.name,client?.socket?.user?.notify,client?.socket?.user?.verifiedName,creds?.me?.name,creds?.me?.notify,creds?.me?.verifiedName,...contacts.flatMap(c=>[c.notify,c.name,c.verifiedName])]:[...chats.map(c=>c.subject||c.name),...contacts.flatMap(c=>[c.name,c.notify,c.verifiedName])];
   let found=names.find(usable);
   if(!found&&self){const row=this.store.db.prepare("SELECT json_extract(value,'$.pushName') AS name FROM baileys_data WHERE account=? AND kind='message' AND json_extract(value,'$.key.fromMe')=1 AND length(json_extract(value,'$.pushName'))>0 ORDER BY timestamp DESC LIMIT 1").get(id);if(usable(row?.name))found=row.name;}
