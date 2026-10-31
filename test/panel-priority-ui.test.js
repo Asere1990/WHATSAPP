@@ -16,11 +16,15 @@ test('only a visible selected account/chat sends a temporary priority hint',()=>
  assert.match(controller,/this\.focus\.update\(value,session\.actor,account,selected\)/);
 });
 
-test('the displayed chat/gallery refresh happens before expensive account and chat lists',()=>{
- const selected=panel.indexOf("if(state.chat&&document.body.dataset.view==='thread')await messages()");
- const chats=panel.indexOf("if(state.account&&document.body.dataset.view!=='accounts')await chats()");
- const accounts=panel.indexOf("await accounts();",selected);
+test('the active chat/gallery refresh precedes throttled directory and account updates',()=>{
+ const selected=panel.indexOf("if(state.chat&&screen==='thread')await messages()");
+ const chats=panel.indexOf("if(state.account&&screen==='chats'&&");
+ const accounts=panel.indexOf("if(Date.now()-lastAccountsAt>=30000)await accounts()",selected);
  assert.ok(selected>0&&chats>selected&&accounts>chats);
+ // Old 10-second directory scans were removed; messages retain that cadence.
+ assert.doesNotMatch(panel,/if\(state\.account&&document\.body\.dataset\.view!=='accounts'\)await chats\(\)/);
+ assert.match(panel,/\},10000\)/);
+ assert.match(panel,/Date\.now\(\)-lastChatsAt>=30000/);
  assert.match(panel,/if\(!state\.me\|\|document\.hidden\|\|refreshBusy\)return/);
  assert.match(panel,/refreshBusy=false/);
 });
