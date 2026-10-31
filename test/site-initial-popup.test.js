@@ -116,7 +116,7 @@ test('Cubamax initial notice never overlaps the operator/referral popup',()=>{
  assert.equal(render(true).length,0);
  assert.equal(render(false).length,1);
 });
-test('both editors expose the popup controls, without changing the WhatsApp template',()=>{
+test('both editors expose popup controls without replacing the original WhatsApp dialog',()=>{
  const studio=readFileSync(new URL('../public/studio.html',import.meta.url),'utf8');
  const studioPage=readFileSync(new URL('../public/studio-page.html',import.meta.url),'utf8');
  const cm=readFileSync(new URL('../public/cubamax.html',import.meta.url),'utf8');
@@ -126,5 +126,7 @@ test('both editors expose the popup controls, without changing the WhatsApp temp
  assert.ok(studioPage.includes('/site-initial-popup.js'));
  assert.ok(cm.includes('/cubamax-initial-popup.js'));
  assert.ok(editor.includes("['initial','Popup inicial']"));
- assert.ok(!wa.includes('/site-initial-popup.js'),'the original WhatsApp frontend uses its original renderer');
+ assert.ok(wa.includes('src="/welcome-popup.js"'),'the original WhatsApp popup renderer must remain installed');
+ assert.ok(wa.includes('id="wa-welcome"'),'the existing welcome dialog is still used');
+ assert.ok(!wa.includes('src="/cubamax-initial-popup.js"'),'the Cubamax popup must not be installed on WhatsApp');
 });
