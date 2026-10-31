@@ -127,8 +127,9 @@
   // Larger touch targets than the original text height; useful on iPhone.
   const padX=Math.min(.05,18/Math.max(1,rect.width)),padY=Math.min(.04,18/Math.max(1,rect.height));
   const candidates=recognized.map((line,index)=>{
-   const dx=Math.max(line.x-point.x,0,point.x-(line.x+line.w));
-   const dy=Math.max(line.y-point.y,0,point.y-(line.y+line.h));
+   const left=line.drawX??line.x,top=line.drawY??line.y;
+   const dx=Math.max(left-point.x,0,point.x-(left+line.w));
+   const dy=Math.max(top-point.y,0,point.y-(top+line.h));
    return {index,dx,dy,distance:Math.hypot(dx,dy)};
   }).filter(p=>p.dx<=padX&&p.dy<=padY).sort((a,b)=>a.distance-b.distance);
   return candidates[0]?.index??-1;
