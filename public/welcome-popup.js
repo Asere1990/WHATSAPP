@@ -10,7 +10,7 @@
   const computed=getComputedStyle(button);
   const width=button.clientWidth-parseFloat(computed.paddingLeft||0)-parseFloat(computed.paddingRight||0)-6;
   if(width<=0)return;
-  const label=(button.textContent||'').replace(/\\s+/g,' ').trim();
+  const label=(button.textContent||'').replace(/\s+/g,' ').trim();
   const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
   if(!ctx||!label)return;
   let size=Math.min(24,parseFloat(computed.fontSize)||16);
