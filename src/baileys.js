@@ -28,8 +28,8 @@ export function describe(raw){
   return {body,type,media,kind,ephemeral,viewOnce,content};
 }
 export class BaileysClient extends EventEmitter {
-  constructor({store,id,phone,pair=false,galleryOnly=process.env.WA_GALLERY_ONLY!=='false',socketFactory=makeWASocket,mediaDownloader=downloadMediaMessage,persistentRecovery=false}){
-    super();this.sourceStore=store;this.galleryOnly=galleryOnly;this.kind='baileys';this.store=new BaileysStore(store,id);this.archiveMessages=store.config().panel_archive==='1';if(this.archiveMessages)this.store.enableArchive();this.account=id;this.phone=phone;this.pair=pair;this.persistentRecovery=!!persistentRecovery;this.socketFactory=socketFactory;this.mediaDownloader=mediaDownloader;this.closed=false;this.generation=0;this.retries=0;this.info={};this.codeRequested=false;this.events=Promise.resolve();this.panelFocusPeer=null;this.panelFocusUntil=0;this.historyDue=0;this.historyPumpActive=false;
+  constructor({store,id,phone,pair=false,galleryOnly=process.env.WA_GALLERY_ONLY!=='false',socketFactory=makeWASocket,mediaDownloader=downloadMediaMessage,persistentRecovery=false,privateChatsOnly=false}){
+    super();this.sourceStore=store;this.galleryOnly=galleryOnly;this.kind='baileys';this.store=new BaileysStore(store,id);this.archiveMessages=store.config().panel_archive==='1';if(this.archiveMessages)this.store.enableArchive();this.account=id;this.phone=phone;this.pair=pair;this.persistentRecovery=!!persistentRecovery;this.privateChatsOnly=!!privateChatsOnly;this.socketFactory=socketFactory;this.mediaDownloader=mediaDownloader;this.closed=false;this.generation=0;this.retries=0;this.info={};this.codeRequested=false;this.events=Promise.resolve();this.panelFocusPeer=null;this.panelFocusUntil=0;this.historyDue=0;this.historyPumpActive=false;
   }
   async initialize(){
     if(!this.pair&&!this.store.registered()){this.emit('qr');return;}
@@ -66,12 +66,12 @@ export class BaileysClient extends EventEmitter {
         }
         for(const c of events['chats.upsert']||[])this.saveChat(c);
         for(const c of events['chats.update']||[])this.saveChat(c);
-        for(const jid of events['chats.delete']||[])this.store.remove('chat',toJid(jid));
+        for(const jid of events['chats.delete']||[])if(!this.privateChatsOnly||privateJid(toJid(jid)))this.store.remove('chat',toJid(jid));
         for(const c of events['contacts.upsert']||[])this.saveContact(c);
         for(const c of events['contacts.update']||[])this.saveContact(c);
-        for(const key of events['messages.delete']?.keys||[])this.store.remove('message',this.store.messageKey({...key,remoteJid:toJid(key.remoteJid)}));
-        if(events['messages.delete']?.all&&events['messages.delete'].jid)this.store.deleteChatMessages(toJid(events['messages.delete'].jid));
-        for(const {key,update}of events['messages.update']||[]){const old=this.store.get('message',this.store.messageKey(key));if(old)this.store.message({...old,...update,key});}
+        for(const key of events['messages.delete']?.keys||[])if(!this.privateChatsOnly||privateJid(toJid(key.remoteJid)))this.store.remove('message',this.store.messageKey({...key,remoteJid:toJid(key.remoteJid)}));
+        if(events['messages.delete']?.all&&events['messages.delete'].jid&&(!this.privateChatsOnly||privateJid(toJid(events['messages.delete'].jid))))this.store.deleteChatMessages(toJid(events['messages.delete'].jid));
+        for(const {key,update}of events['messages.update']||[]){if(this.privateChatsOnly&&!privateJid(toJid(key.remoteJid)))continue;const old=this.store.get('message',this.store.messageKey(key));if(old)this.store.message({...old,...update,key});}
         const upsert=events['messages.upsert'];
         for(const m of upsert?.messages||[]){
           this.saveMessage(m,{live:upsert.type==='notify'});
@@ -119,7 +119,7 @@ export class BaileysClient extends EventEmitter {
     }
   }
   saveChat(c){
-    if(!c.id)return;const id=toJid(c.id);this.saveMapping({lid:c.lidJid||c.lid||(id.endsWith('@lid')?id:null),pn:c.pnJid||c.phoneNumber||(id.endsWith('@s.whatsapp.net')?id:null)});
+    if(!c.id)return;const id=toJid(c.id);if(this.privateChatsOnly&&!privateJid(id))return;this.saveMapping({lid:c.lidJid||c.lid||(id.endsWith('@lid')?id:null),pn:c.pnJid||c.phoneNumber||(id.endsWith('@s.whatsapp.net')?id:null)});
     const embedded=this.archiveMessages?[...(c.messages||[]),...(c.lastMessage?[c.lastMessage]:[])]:[];
     // A real message key inside a chat header may be the only available
     // history anchor. Never fabricate one from a timestamp or chat number.
@@ -147,7 +147,7 @@ export class BaileysClient extends EventEmitter {
     for(const m of messages){
       if(!m?.key?.remoteJid||!m.key.id)continue;
       const peer=toJid(m.key.remoteJid);
-      if(!privateJid(peer)&&!peer.endsWith('@g.us'))continue;
+      if(this.privateChatsOnly?!privateJid(peer):!privateJid(peer)&&!peer.endsWith('@g.us'))continue;
       if(this.store.get('media-first-batch',peer))continue;
       if(!batches.has(peer))batches.set(peer,{photos:0,videos:0,seen:new Set()});
       const entry=batches.get(peer),logical=JSON.stringify([m.key.id,!!m.key.fromMe,m.key.participant||'']);
@@ -163,7 +163,7 @@ export class BaileysClient extends EventEmitter {
   }
   saveMessage(m,{live=false}={}){
     if(!m.key?.remoteJid||!m.key.id)return;
-    const jid=toJid(m.key.remoteJid),alt=toJid(m.key.remoteJidAlt||'');if(jid.endsWith('@lid')&&alt.endsWith('@s.whatsapp.net'))this.saveMapping({lid:jid,pn:alt});else if(alt.endsWith('@lid')&&jid.endsWith('@s.whatsapp.net'))this.saveMapping({lid:alt,pn:jid});m={...m,key:{...m.key,remoteJid:jid}};
+    const jid=toJid(m.key.remoteJid),alt=toJid(m.key.remoteJidAlt||'');if(this.privateChatsOnly&&!privateJid(jid))return;if(jid.endsWith('@lid')&&alt.endsWith('@s.whatsapp.net'))this.saveMapping({lid:jid,pn:alt});else if(alt.endsWith('@lid')&&jid.endsWith('@s.whatsapp.net'))this.saveMapping({lid:alt,pn:jid});m={...m,key:{...m.key,remoteJid:jid}};
     // A self-chat history item may carry a device-sent envelope or use the
     // authenticated account's LID instead of its phone-number JID.
     const visible=this.store.projectSelfMessage(m);
@@ -214,7 +214,7 @@ export class BaileysClient extends EventEmitter {
     if(!bytes)throw Error('WhatsApp no entregó datos del archivo.');
     return {bytes,mime:d.media.mimetype||'application/octet-stream',name:d.media.fileName||d.type};
   }
-  async getChats(){return this.store.list('chat').map(c=>({id:{_serialized:toPeer(c.id)},isGroup:c.id.endsWith('@g.us'),timestamp:Number(c.conversationTimestamp)||0,archived:!!c.archived,isLocked:!!c.locked,unreadCount:c.unreadCount||0}));}
+  async getChats(){return this.store.list('chat').filter(c=>!this.privateChatsOnly||privateJid(toJid(c.id))).map(c=>({id:{_serialized:toPeer(c.id)},isGroup:c.id.endsWith('@g.us'),timestamp:Number(c.conversationTimestamp)||0,archived:!!c.archived,isLocked:!!c.locked,unreadCount:c.unreadCount||0}));}
   async getChatById(peer){const jid=toJid(peer);return {fetchMessages:async({limit=500,fromMe}={})=>this.store.messages(jid,Math.min(5000,Math.max(500,limit))).map(m=>this.wrap(m)).filter(m=>m.type!=='system'&&(fromMe===undefined||m.fromMe===fromMe)).slice(-limit)};}
   async getContactById(peer){
     const self=toJid(peer)===toJid(this.phone+'@c.us'),creds=self?this.store.authValue('creds','self'):null;
@@ -261,7 +261,7 @@ export class BaileysClient extends EventEmitter {
       // while all other chats retain their existing cooldown and get turns.
       const peers=focused&&this.panelFocusPeer?new Set(this.store.peers(this.panelFocusPeer)):null;
       const pending=this.store.list('cursor',2147483647)
-        .filter(c=>privateJid(c.key?.remoteJid)||this.archiveMessages&&c.key?.remoteJid?.endsWith('@g.us')||peers?.has(c.key?.remoteJid))
+        .filter(c=>this.privateChatsOnly?privateJid(c.key?.remoteJid):(privateJid(c.key?.remoteJid)||this.archiveMessages&&c.key?.remoteJid?.endsWith('@g.us')||peers?.has(c.key?.remoteJid)))
         .map(cursor=>({cursor,state:this.store.get('history-sync',cursor.key.remoteJid)||{}}))
         .sort((a,b)=>(a.state.next||0)-(b.state.next||0));
       const due=pending.filter(({state})=>!state.next||state.next<=now);
@@ -280,7 +280,7 @@ export class BaileysClient extends EventEmitter {
     }
   }
   async syncHistory(peer,now=Date.now()){
-    let jid=toJid(peer),backfill=this.archiveMessages?this.store.get('archive-backfill',jid):null;
+    let jid=toJid(peer);if(this.privateChatsOnly&&!privateJid(jid))return false;const backfill=this.archiveMessages?this.store.get('archive-backfill',jid):null;
     let oldest=backfill?.active?backfill.cursor:this.store.get('cursor',jid)||this.store.oldestMessage(jid);
     // The displayed self-chat may have no phone-number cursor while its
     // LID form already has a real history anchor. Request with that anchor,

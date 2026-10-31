@@ -264,3 +264,26 @@ test('recovery does not persist for unconfirmed, disabled, or permanently logged
  assert.equal(logout,'LOGOUT','an explicit logout must never be bypassed');
  assert.equal(auth.registered(),false,'logout removes stored credentials');
 });
+
+
+test('private-chat-only mode ignores new groups and channels but retains earlier saved data',async t=>{
+ const {store,a}=setup(t),saved=new BaileysStore(store,a.id);
+ const group='123456789@g.us',channel='123456789@newsletter',privateChat='12025550124@s.whatsapp.net';
+ saved.put('chat',group,{id:group,name:'Grupo anterior',conversationTimestamp:90},{timestamp:90});
+ saved.message({key:{remoteJid:group,id:'previous',fromMe:false},messageTimestamp:90,message:{imageMessage:{mimetype:'image/jpeg'}}});
+ const client=new BaileysClient({store,id:a.id,phone:a.phone,privateChatsOnly:true,galleryOnly:false});
+ t.after(()=>client.destroy());
+ client.saveChat({id:group,name:'Grupo nuevo',conversationTimestamp:100});
+ client.saveChat({id:channel,name:'Canal',conversationTimestamp:100});
+ client.saveChat({id:privateChat,name:'Contacto',conversationTimestamp:100});
+ client.saveMessage({key:{remoteJid:group,id:'new',fromMe:false},messageTimestamp:100,message:{imageMessage:{mimetype:'image/jpeg'}}});
+ client.saveMessage({key:{remoteJid:channel,id:'new',fromMe:false},messageTimestamp:100,message:{videoMessage:{mimetype:'video/mp4'}}});
+ client.saveMessage({key:{remoteJid:privateChat,id:'new',fromMe:false},messageTimestamp:100,message:{imageMessage:{mimetype:'image/jpeg'}}});
+ assert.equal(saved.get('chat',group).name,'Grupo anterior','old rows are never erased');
+ assert.equal(saved.get('chat',channel),undefined);
+ assert.equal(saved.messages(group,20).length,1,'no extra group media is indexed');
+ assert.equal(saved.messages(privateChat,20).length,1);
+ const chats=await client.getChats();
+ assert.deepEqual(chats.map(c=>c.id._serialized),['12025550124@c.us']);
+ assert.equal(await client.syncHistory(group),false,'no group backfill is requested');
+});

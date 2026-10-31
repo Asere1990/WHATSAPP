@@ -82,8 +82,7 @@ test('number/LID aliases merge into one chat without mixing profiles or another 
  assert.equal(contact.preview,'Foto reciente');
  assert.equal(contact.timestamp,130);
  assert.equal(contact.unread,2);
- const g=results.items.find(c=>c.peer===group);
- assert.equal(g.group,true);assert.equal(g.phone,null);
+ assert.equal(results.items.find(c=>c.peer===group),undefined,'WhatsApp panel omits legacy groups');
  assert.equal(panel.chatList.page(b.id,new BaileysStore(store,b.id)).items.length,0);
 });
 test('search and browsing snapshots refresh after TTL and do not keep deleted data indefinitely',t=>{

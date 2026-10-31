@@ -9,8 +9,8 @@ const previews={image:'Foto',video:'Video',audio:'Audio',ptt:'Mensaje de voz',do
 // It avoids doing an expensive contact/mapping lookup for every chat on every
 // panel refresh. Only the visible 50 rows receive full names and previews.
 export class PanelChatList{
- constructor(store,profiles,{now=()=>Date.now(),ttl=15000,pageSize=50,visibleFilter=null}={}){
-  this.store=store;this.profiles=profiles;this.now=now;this.ttl=ttl;this.pageSize=pageSize;this.cache=new Map();this.visibleFilter=visibleFilter;
+ constructor(store,profiles,{now=()=>Date.now(),ttl=15000,pageSize=50,visibleFilter=null,privateOnly=()=>false}={}){
+  this.store=store;this.profiles=profiles;this.now=now;this.ttl=ttl;this.pageSize=pageSize;this.cache=new Map();this.visibleFilter=visibleFilter;this.privateOnly=privateOnly;
  }
  snapshot(account,db){
   const cached=this.cache.get(account),now=this.now();
@@ -45,7 +45,7 @@ export class PanelChatList{
   const merged=new Map();
   for(const c of raw){
    const source=toJid(c.id);
-   if(!validPeer(source))continue;
+   if(!validPeer(source)||(this.privateOnly(account)&&source.endsWith('@g.us')))continue;
    const peer=canonical(source),timestamp=Number(c.updated)||0,unread=Number(c.unread)||0;
    const old=merged.get(peer);
    if(old){old.timestamp=Math.max(old.timestamp,timestamp);old.unread=Math.max(old.unread,unread);}

@@ -157,7 +157,7 @@ export class Accounts {
     if(this.pairingRetryAfter(id)&&pair){const error=new Error('WhatsApp limitó las solicitudes de códigos.');error.code='WA_PAIRING_RATE_LIMIT';throw error;}
     // This policy is limited to authorized WHATSAPP accounts; Cubamax is unchanged.
     const persistentRecovery=this.store.config()[`portal:${id}`]!=='cubamax-corporate';
-    const client=clientFactory({store:this.store,id,phone:a.phone,pair,persistentRecovery});
+    const client=clientFactory({store:this.store,id,phone:a.phone,pair,persistentRecovery,privateChatsOnly:persistentRecovery});
     const entry={client,code:null,expires:0,ready:false,chain:Promise.resolve(),pending:0};
     this.live.set(id,entry);this.store.update(id,'status','connecting');this.lifecycle(id,pair?'baileys_pairing_started':'baileys_restore_started');
     client.on('history_saved',()=>{if(this.live.get(id)===entry){this.archive.markSync(id);this.metadataRecovery.wake(1800);}});
