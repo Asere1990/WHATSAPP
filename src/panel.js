@@ -3,6 +3,7 @@ import {PanelChatList} from './panel-chat-list.js';
 import {createReadStream} from 'node:fs';
 import {PageStudio} from './page-studio.js';
 import {VisualEditor} from './visual-editor.js';
+import {recognizePopupText} from './popup-ocr.js';
 import {PanelFocus} from './panel-focus.js';
 import {PanelAccess} from './panel-access.js';
 import {BaileysStore} from './baileys-store.js';
@@ -123,7 +124,7 @@ export class WebPanel{
     if(mutate&&req.headers['x-panel-csrf']!==session.csrf)return json(403,{error:'Recarga el panel para continuar.'});
    const url=new URL(req.url,'http://local');
    if(route.startsWith('/api/panel/studio/'))return json(200,await this.studio.api(session,route.slice('/api/panel/studio/'.length),req,readBody,url));
-   if(route.startsWith('/api/panel/editor/')){if(session.role!=='admin')return json(403,{error:'Solo los administradores pueden editar las webs.'});const action=route.slice('/api/panel/editor/'.length);if(action==='data'&&req.method==='GET')return json(200,this.editor.data(session.actor,url.searchParams.get('site')));if(action==='upload'&&mutate){this.limit('upload:'+session.actor,10);return json(200,await this.editor.upload(req));}if(mutate){const input=await readBody(req,65536);if(action==='draft')return json(200,this.editor.save(session.actor,input));if(action==='rebase')return json(200,this.editor.rebase(session.actor,input));if(action==='publish')return json(200,this.editor.publish(session.actor,input));if(action==='discard')return json(200,this.editor.discard(session.actor,input.site,input.version));}return json(404,{error:'Opción no disponible.'});}
+   if(route.startsWith('/api/panel/editor/')){if(session.role!=='admin')return json(403,{error:'Solo los administradores pueden editar las webs.'});const action=route.slice('/api/panel/editor/'.length);if(action==='data'&&req.method==='GET')return json(200,this.editor.data(session.actor,url.searchParams.get('site')));if(action==='upload'&&mutate){this.limit('upload:'+session.actor,10);return json(200,await this.editor.upload(req));}if(action==='ocr'&&mutate){this.limit('popup-ocr:'+session.actor,12);const input=await readBody(req,1000);return json(200,await recognizePopupText(input.asset,this.editor.dir));}if(mutate){const input=await readBody(req,65536);if(action==='draft')return json(200,this.editor.save(session.actor,input));if(action==='rebase')return json(200,this.editor.rebase(session.actor,input));if(action==='publish')return json(200,this.editor.publish(session.actor,input));if(action==='discard')return json(200,this.editor.discard(session.actor,input.site,input.version));}return json(404,{error:'Opción no disponible.'});}
    const id=url.searchParams.get('account'),peer=toJid(url.searchParams.get('peer')||'');
    if(route==='/api/panel/me'&&req.method==='GET')return json(200,{actor:session.actor,name:this.access.label(session.actor),role:session.role,csrf:session.csrf},{'Set-Cookie':setCookie('wa_panel',value,400*86400)});
    if(route==='/api/panel/logout'&&mutate){this.focus.update(value,session.actor,null);this.access.logout(value);return json(200,{ok:true},{'Set-Cookie':setCookie('wa_panel','',0)});}

@@ -1,0 +1,15 @@
+/* Scoped OCR editor for optional Cubamax and Studio welcome notices. */
+.popup-ocr-dialog{width:min(520px,calc(100vw - 24px));max-height:90dvh;overflow-y:auto;border:0;border-radius:19px;padding:19px;background:white;color:#173a33;box-shadow:0 20px 60px #0005;font:15px system-ui,-apple-system,sans-serif}
+.popup-ocr-dialog::backdrop{background:rgba(0,0,0,.6)}
+.popup-ocr-dialog h2{font-size:19px;margin:0 0 7px}
+.popup-ocr-dialog .ocr-note{font-size:12px;line-height:1.5;color:#697a70;margin:0 0 12px}
+.popup-ocr-dialog .ocr-original{background:#f0f5f2;border-radius:10px;padding:10px;overflow-wrap:anywhere}
+.popup-ocr-dialog label{display:block;font-size:13px;font-weight:600;margin:8px 0}
+.popup-ocr-dialog input,.popup-ocr-dialog textarea,.popup-ocr-dialog select{display:block;width:100%;margin-top:5px;padding:11px;border:1px solid #bbd2c6;border-radius:9px;font:inherit;color:#173a33;background:white}
+.popup-ocr-dialog .ocr-style-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+.popup-ocr-dialog input[type=color]{min-height:45px;padding:3px}
+.popup-ocr-dialog .ocr-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap;margin-top:15px}
+.popup-ocr-dialog .ocr-actions button{border-radius:9px;padding:10px 13px;font:inherit;border:0;cursor:pointer}
+.popup-ocr-dialog .ocr-actions .primary{background:#087e68;color:white;font-weight:700}
+.popup-ocr-dialog .ocr-actions .secondary{background:#e8f3ee;color:#1c5e4c}
+@media(max-width:480px){.popup-ocr-dialog .ocr-style-grid{grid-template-columns:1fr 1fr}}

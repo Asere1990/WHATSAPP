@@ -2,6 +2,7 @@ import {randomBytes,createHash,scrypt as derive,timingSafeEqual} from 'node:cryp
 import {promisify} from 'node:util';
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
+import {validatePopupLayers} from './popup-ocr.js';
 const scrypt=promisify(derive),secret=()=>randomBytes(32).toString('base64url'),hash=v=>createHash('sha256').update(v).digest('hex');
 const fail=(status,message)=>{throw Object.assign(Error(message),{status});};
 const text=(v,max=100)=>typeof v==='string'&&v.trim()&&v.length<=max?v.trim():fail(400,'Completa los textos y respeta su longitud.');
@@ -31,7 +32,8 @@ export class PageStudio{
   if(!/^#[0-9a-f]{6}$/i.test(color)||!/^#[0-9a-f]{6}$/i.test(textColor))fail(400,'Usa colores hexadecimales para el popup.');
   if(typeof photo!=='string'||(photo&&!/^\/portal-media\/[a-f0-9]{64}\.(png|jpg|webp|gif)$/.test(photo)))fail(400,'La foto del popup debe ser una imagen subida desde el editor.');
   if(photo)this.asset(photo,false);
-  return {enabled,title,text:description,button,color,textColor,photo};
+  const layers=validatePopupLayers(raw.layers);
+  return {enabled,title,text:description,button,color,textColor,photo,...(layers.length?{layers}:{})};
  }
  validate(input){const d={title:text(input.title,80),width:Number(input.width),height:Number(input.height),background:input.background||'',mode:input.mode,redirect:destination(input.redirect||''),initialPopup:this.popup(input.initialPopup),elements:[]};if(!Number.isInteger(d.width)||d.width<280||d.width>2400||!Number.isInteger(d.height)||d.height<180||d.height>4000||!['signup','signin'].includes(d.mode))fail(400,'Dimensiones o modo no válidos.');this.asset(d.background,false);if(!Array.isArray(input.elements)||input.elements.length>40)fail(400,'Máximo 40 elementos.');const ids=new Set();for(const e of input.elements){if(!/^[a-z][\w-]{0,40}$/.test(e.id||'')||ids.has(e.id)||!['text','image','video','username','password','field','submit','link'].includes(e.kind))fail(400,'Elemento no válido.');ids.add(e.id);const n={id:e.id,kind:e.kind,label:text(e.label,200),masked:!!e.masked,color:e.color,background:e.background,size:Number(e.size),radius:Number(e.radius),border:Number(e.border)};for(const k of ['x','y','w','h']){n[k]=Number(e[k]);if(!Number.isFinite(n[k])||n[k]<0||n[k]>100)fail(400,'La posición debe estar entre 0 y 100 %.');}if(n.w<2||n.h<2||n.x+n.w>100.01||n.y+n.h>100.01)fail(400,'El elemento debe quedar dentro de la imagen.');if(!/^#[0-9a-f]{6}$/i.test(n.color)||!/^#[0-9a-f]{6}$/i.test(n.background)||!Number.isFinite(n.size)||n.size<10||n.size>72||!Number.isFinite(n.radius)||n.radius<0||n.radius>100||![0,1,2,3,4].includes(n.border))fail(400,'Estilo no válido.');if(['image','video'].includes(e.kind)){n.asset=e.asset||'';this.asset(n.asset,e.kind==='video');if(!n.asset)fail(400,'Sube el archivo del elemento.');}if(e.kind==='link')n.href=destination(e.href||'');d.elements.push(n);}for(const kind of ['username','password','submit'])if(d.elements.filter(e=>e.kind===kind).length!==1)fail(400,'Debe haber un usuario, una contraseña y un botón Continuar.');return d;}
  asset(value,video){if(!value)return;if(!media.test(value)||(!video&&value.endsWith('.mp4'))||(video&&!value.endsWith('.mp4')))fail(400,'Sube un archivo válido desde el editor.');try{readFileSync(path.join(this.panel.editor.dir,value.slice(1)));}catch{fail(400,'Archivo no disponible.');}}

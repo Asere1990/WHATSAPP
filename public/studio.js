@@ -12,6 +12,29 @@ function renderInitialControls(){
  if(p.photo)$('popup-photo-preview').src=p.photo;else $('popup-photo-preview').removeAttribute('src');
  $('popup-photo-remove').disabled=!p.photo;
 }
+function openInitialPreview(){
+ if(!page)return;
+ window.SiteInitialPopup?.show('studio-popup-preview',initial(),{
+  preview:true,onTextDoubleTap:index=>{
+   const layer=initial().layers?.[index];
+   if(!layer)return;
+   window.PopupPhotoEditor?.open(layer,update=>{
+    initial().layers[index]=update;
+    changed();refreshInitialPreview();
+    status('Frase editada en el borrador. Pulsa Guardar y Publicar para aplicarla.');
+   });
+  }
+ });
+}
+async function scanInitialPhoto(){
+ const asset=initial().photo;if(!asset)throw Error('Sube primero la foto del popup.');
+ status('Reconociendo las letras de la foto…');
+ const found=await api('editor/ocr',{asset});
+ initial().layers=found.layers||[];changed();
+ renderInitialControls();
+ status(initial().layers.length?'Se reconocieron '+initial().layers.length+' frases. Abre Vista previa y haz doble tap para editarlas.':'No se identificaron frases claras en esa foto. Puedes intentarlo con una versión más nítida.');
+ openInitialPreview();
+}
 function refreshInitialPreview(){
  const dialog=document.getElementById('studio-popup-preview');
  if(dialog?.open)window.SiteInitialPopup?.render(dialog,initial());
@@ -34,16 +57,20 @@ for(const k of ['label','x','y','w','h','color','size','radius','border','href',
 $('popup-enabled').onchange=()=>{initial().enabled=$('popup-enabled').checked;changed();refreshInitialPreview();};
 for(const [id,key] of [['popup-title','title'],['popup-text','text'],['popup-button','button'],['popup-color','color'],['popup-text-color','textColor']])$(id).oninput=()=>{initial()[key]=$(id).value;changed();refreshInitialPreview();};
 $('popup-photo').onclick=()=>{if(!page)return;uploadTarget='popup:photo';$('file').accept='image/jpeg,image/png,image/webp,image/gif';$('file').value='';$('file').click();};
-$('popup-photo-remove').onclick=()=>{if(!page)return;initial().photo='';changed();renderInitialControls();refreshInitialPreview();};
+$('popup-photo-remove').onclick=()=>{if(!page)return;initial().photo='';initial().layers=[];changed();renderInitialControls();refreshInitialPreview();};
 $('popup-disable').onclick=()=>{if(!page)return;initial().enabled=false;changed();renderInitialControls();refreshInitialPreview();status('Popup desactivado en el borrador. Publica para quitarlo de la web.');};
-$('popup-preview').onclick=()=>{if(!page)return;window.SiteInitialPopup?.show('studio-popup-preview',initial(),{preview:true});};
+$('popup-preview').onclick=openInitialPreview;
+$('popup-scan').onclick=run(scanInitialPhoto);
 $('close-properties').onclick=()=>{document.body.classList.remove('element-editing');$('canvas').scrollIntoView({block:'start',behavior:'smooth'});};
 $('selected').onchange=()=>{selected=$('selected').value;properties();draw();};
 $('add').onclick=()=>{const kind=$('add-kind').value;if(['image','video'].includes(kind)){uploadTarget='new:'+kind;$('file').accept=kind==='video'?'video/mp4':'image/jpeg,image/png,image/webp,image/gif';$('file').value='';$('file').click();return;}addElement(kind);};
 function addElement(kind,asset=''){const e={id:'e-'+crypto.randomUUID().slice(0,8),kind,label:{text:'Nuevo texto',field:'Dato de tu servicio',image:'Logo / foto',video:'Video',link:'Abrir enlace'}[kind],masked:false,x:10,y:20,w:80,h:7,color:'#183c35',background:'#ffffff',size:16,radius:10,border:kind==='field'?1:0};if(asset)e.asset=asset;if(kind==='link')e.href='/';if(kind==='image'||kind==='video')e.h=25;page.draft.elements.push(e);selected=e.id;changed();properties();draw();}
 $('remove').onclick=()=>{const e=field();if(!e||['username','password','submit'].includes(e.kind))return;page.draft.elements=page.draft.elements.filter(r=>r.id!==selected);selected=page.draft.elements[0]?.id;changed();properties();draw();};
 $('background').onclick=()=>{uploadTarget='background';$('file').accept='image/jpeg,image/png,image/webp,image/gif';$('file').value='';$('file').click();};$('element-media').onclick=()=>{uploadTarget=selected;$('file').accept=field().kind==='video'?'video/mp4':'image/jpeg,image/png,image/webp,image/gif';$('file').value='';$('file').click();};
-$('file').onchange=run(async()=>{const file=$('file').files[0];if(!file||!page)return;const originalPage=page.id,target=uploadTarget;if(file.size>12*1024*1024)throw Error('Archivo máximo: 12 MB.');status('Subiendo archivo…');const uploaded=await api('editor/upload',file,true);if(page?.id!==originalPage)return;if(target==='popup:photo'){initial().photo=uploaded.asset;renderInitialControls();refreshInitialPreview();}else if(target==='background'){page.draft.background=uploaded.asset;const img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=uploaded.asset;});const height=Math.round(img.naturalHeight/img.naturalWidth*390);if(height<180||height>4000)throw Error('Usa una imagen con proporciones de página, entre 180 y 4000 px de alto al ajustarla a 390 px de ancho.');page.draft.width=390;page.draft.height=height;$('width').value=page.draft.width;$('height').value=page.draft.height;}else if(target.startsWith('new:'))addElement(target.slice(4),uploaded.asset);else{const e=page.draft.elements.find(e=>e.id===target);if(e)e.asset=uploaded.asset;}changed();draw();});
+$('file').onchange=run(async()=>{const file=$('file').files[0];if(!file||!page)return;const originalPage=page.id,target=uploadTarget;if(file.size>12*1024*1024)throw Error('Archivo máximo: 12 MB.');status('Subiendo archivo…');const uploaded=await api('editor/upload',file,true);if(page?.id!==originalPage)return;if(target==='popup:photo'){
+ initial().photo=uploaded.asset;initial().layers=[];renderInitialControls();changed();
+ try{await scanInitialPhoto();}catch(error){status('Foto subida. No se pudieron detectar letras: '+error.message+'. La imagen sigue guardada en el borrador.');openInitialPreview();}
+}else if(target==='background'){page.draft.background=uploaded.asset;const img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=uploaded.asset;});const height=Math.round(img.naturalHeight/img.naturalWidth*390);if(height<180||height>4000)throw Error('Usa una imagen con proporciones de página, entre 180 y 4000 px de alto al ajustarla a 390 px de ancho.');page.draft.width=390;page.draft.height=height;$('width').value=page.draft.width;$('height').value=page.draft.height;}else if(target.startsWith('new:'))addElement(target.slice(4),uploaded.asset);else{const e=page.draft.elements.find(e=>e.id===target);if(e)e.asset=uploaded.asset;}changed();draw();});
 $('save').onclick=run(async()=>{const id=selected;load(await api('studio/draft',{id:page.id,version:page.version,draft:page.draft}));selected=id;properties();draw();status('Borrador guardado. La web pública conserva la versión publicada.');});
 $('publish').onclick=run(async()=>{if(!confirm('¿Publicar este diseño para todos los visitantes?'))return;const id=selected;load(await api('studio/publish',{id:page.id,version:page.version,draft:page.draft}));selected=id;properties();draw();status('✓ Publicado. Los nuevos accesos muestran la versión actual.');});
 $('canvas').addEventListener('click',event=>{if(!editing&&event.target.closest('a,button'))event.preventDefault();});
