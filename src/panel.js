@@ -146,9 +146,12 @@ export class WebPanel{
     const db=this.storage(session.actor,id);
     const offset=Math.max(0,Math.min(100000,Number(url.searchParams.get('offset'))||0));
     const query=(url.searchParams.get('q')||'').trim().toLowerCase().slice(0,80);
+    const country=(url.searchParams.get('country')||'').trim().slice(0,80);
+    const sort=url.searchParams.get('sort')||'recent';
+    const folder=url.searchParams.get('folder')||'all';
     // Only compact chat metadata is indexed; names and previews are resolved
     // for the visible page. Stored messages and synchronization are unchanged.
-    return json(200,this.chatList.page(id,db,{offset,query}));
+    return json(200,this.chatList.page(id,db,{offset,query,country,sort,folder}));
    }
    if((route==='/api/panel/messages'||route==='/api/panel/gallery')&&req.method==='GET')return json(200,this.messages(session.actor,id,peer,url.searchParams.get('before'),route.endsWith('gallery')));
    if((route==='/api/panel/media'||route==='/api/panel/thumb')&&req.method==='GET'){
