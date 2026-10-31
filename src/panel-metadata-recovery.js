@@ -116,6 +116,7 @@ export class PanelMetadataRecovery{
    const anchor=row.kind==='chat'?oldestChatHistoryAnchor(raw):receivedHistoryAnchor(raw);
    if(!anchor)continue;
    const jid=anchor.key.remoteJid;
+   if(!privatePeer.test(jid))continue; // Ignore legacy group/channel anchors without deleting saved history.
    let current;
    try{current=JSON.parse(this.readAnchor.get(id,jid)?.value||'null');}catch{current=null;}
    const previous=Number(current?.messageTimestamp)||0;

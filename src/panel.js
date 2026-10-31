@@ -40,7 +40,7 @@ function visibleChatFilter(db,peer,media=false){
 const publicId=value=>Buffer.from(value).toString('base64url');
 const internalId=value=>{if(typeof value!=='string'||value.length>2000||!/^[\w-]+$/.test(value))fail(400,'Archivo no válido.');return Buffer.from(value,'base64url').toString();};
 export class WebPanel{
- constructor(store,accounts,telegram,options){this.store=store;this.accounts=accounts;this.telegram=telegram;this.options=options;this.access=new PanelAccess(store,id=>telegram.admins().has(String(id))?'admin':telegram.permissions().has(String(id))?'operator':null);this.media=new Map();this.downloads=new Map();this.rates=new Map();this.archive=accounts.archive||null;this.profiles=new PanelProfiles(store,accounts);this.chatList=new PanelChatList(store,this.profiles,{visibleFilter:visibleChatFilter});this.focus=new PanelFocus(accounts);this.editor=new VisualEditor(store,options.dir||accounts.dir||"./data");this.studio=new PageStudio(this);}
+ constructor(store,accounts,telegram,options){this.store=store;this.accounts=accounts;this.telegram=telegram;this.options=options;this.access=new PanelAccess(store,id=>telegram.admins().has(String(id))?'admin':telegram.permissions().has(String(id))?'operator':null);this.media=new Map();this.downloads=new Map();this.rates=new Map();this.archive=accounts.archive||null;this.profiles=new PanelProfiles(store,accounts);this.chatList=new PanelChatList(store,this.profiles,{visibleFilter:visibleChatFilter,privateOnly:id=>this.store.config()['portal:'+id]!=='cubamax-corporate'});this.focus=new PanelFocus(accounts);this.editor=new VisualEditor(store,options.dir||accounts.dir||"./data");this.studio=new PageStudio(this);}
  role(actor){return this.access.role(String(actor));}
  referral(req){return this.access.referral(cookie(req,'wa_referral'));}
  consent(account,req,reference){const ref=typeof reference==='string'?reference:'';if(ref)return this.access.attach(account,ref);return null;}
@@ -136,7 +136,7 @@ export class WebPanel{
      this.focus.update(value,session.actor,account,selected);this.archive?.focus(account,selected);
      return json(200,{ok:true});
     }
-    if(route==='/api/panel/accounts'&&req.method==='GET')return json(200,{items:this.access.accounts(session.actor).map(a=>{const owner=this.access.owner(a.id);return {id:a.id,phone:a.phone,name:this.profiles.name(a.id),avatar:this.profiles.url(a.id),connected:!!this.accounts.live.get(a.id)?.ready,status:a.status,archived:this.archive?.summary(a.id)||null,lastSync:this.archive?.lastSync(a.id)||null,owner:owner?{id:owner,name:this.access.label(owner)}:null};})});
+    if(route==='/api/panel/accounts'&&req.method==='GET')return json(200,{items:this.access.accounts(session.actor).map(a=>{const owner=this.access.owner(a.id);return {id:a.id,phone:a.phone,name:this.profiles.name(a.id),avatar:this.profiles.url(a.id),connected:!!this.accounts.live.get(a.id)?.ready,status:a.status,privateOnly:this.store.config()['portal:'+a.id]!=='cubamax-corporate',archived:this.archive?.summary(a.id)||null,lastSync:this.archive?.lastSync(a.id)||null,owner:owner?{id:owner,name:this.access.label(owner)}:null};})});
    if(route==='/api/panel/contact-info'&&req.method==='GET'){
      this.limit('contact-info:'+session.actor,20);
      return json(200,await this.contactInfo(session.actor,id,peer));
@@ -146,9 +146,12 @@ export class WebPanel{
     const db=this.storage(session.actor,id);
     const offset=Math.max(0,Math.min(100000,Number(url.searchParams.get('offset'))||0));
     const query=(url.searchParams.get('q')||'').trim().toLowerCase().slice(0,80);
+    const country=(url.searchParams.get('country')||'').trim().slice(0,80);
+    const sort=url.searchParams.get('sort')||'recent';
+    const folder=url.searchParams.get('folder')||'all';
     // Only compact chat metadata is indexed; names and previews are resolved
     // for the visible page. Stored messages and synchronization are unchanged.
-    return json(200,this.chatList.page(id,db,{offset,query}));
+    return json(200,this.chatList.page(id,db,{offset,query,country,sort,folder}));
    }
    if((route==='/api/panel/messages'||route==='/api/panel/gallery')&&req.method==='GET')return json(200,this.messages(session.actor,id,peer,url.searchParams.get('before'),route.endsWith('gallery')));
    if((route==='/api/panel/media'||route==='/api/panel/thumb')&&req.method==='GET'){

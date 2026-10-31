@@ -7,6 +7,7 @@ import {describe} from './baileys.js';
 const MB=1024*1024,GB=1024*MB;
 const mediaTypes=new Set(['image','video','audio','ptt','document','sticker']);
 const validAccount=/^[a-f0-9]{16}$/;
+const privateMediaPeer=peer=>/^\d+@(s\.whatsapp\.net|lid)$/.test(peer||'');
 const safeMime=mime=>String(mime||'application/octet-stream').split(';')[0].trim().toLowerCase().slice(0,100);
 const fileName=value=>String(value||'archivo').replace(/[^a-z0-9._-]/gi,'_').slice(0,100)||'archivo';
 const delay=attempt=>Math.min(6*3600000,30000*2**Math.min(attempt,8));
@@ -35,6 +36,7 @@ export class OfflineMediaArchive{
    (account,message,peer,status,created,updated) VALUES(?,?,?,'pending',?,?)`);
   this.due=this.db.prepare(`SELECT account,message,peer,attempts FROM offline_media
    WHERE account=? AND status IN ('pending','retry') AND next_try<=?
+     AND (peer LIKE '%@s.whatsapp.net' OR peer LIKE '%@lid')
    ORDER BY CASE WHEN peer=? THEN 0 ELSE 1 END,created DESC LIMIT 1`);
   this.read=this.db.prepare('SELECT * FROM offline_media WHERE account=? AND message=?');
   this.pending=new Map();
@@ -62,7 +64,7 @@ export class OfflineMediaArchive{
   }catch{return null;}
  }
  track(account,raw){
-  if(this.closed||!this.allowed(account)||!raw?.key?.id||!raw.key.remoteJid)return false;
+  if(this.closed||!this.allowed(account)||!raw?.key?.id||!privateMediaPeer(raw.key.remoteJid))return false;
   // Normal media follow the unchanged fast path. Only an uncommon
   // device-sent envelope requires checking authenticated own-chat IDs.
   const visible=raw.message?.deviceSentMessage

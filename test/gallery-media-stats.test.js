@@ -95,8 +95,7 @@ test('only known E.164 numbers appear beneath private names; groups and unknown 
  const rows=JSON.parse(body).items;
  assert.equal(rows.find(c=>c.peer===pn)?.phone,'+12025550129');
  assert.equal(rows.find(c=>c.peer==='246801357@lid')?.phone,null);
- assert.equal(rows.find(c=>c.peer===group)?.phone,null);
- assert.equal(rows.find(c=>c.peer===group)?.group,true);
+ assert.equal(rows.find(c=>c.peer===group),undefined,'groups remain stored but are excluded from the WhatsApp panel');
 });
 
 test('first-batch counts across PN and LID of one private chat are combined only for the same event',t=>{
