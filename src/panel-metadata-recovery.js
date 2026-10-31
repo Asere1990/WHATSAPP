@@ -63,21 +63,31 @@ export class PanelMetadataRecovery{
   try{
    const accounts=this.allowedAccounts();
    if(accounts.length){
-    const id=accounts[this.rotation++%accounts.length],key='panel:name-scan:v1:'+id;
-    const old=Number(this.cursor.get(key)?.value||0),cursor=Number.isSafeInteger(old)&&old>=0?old:0;
-    const rows=this.rows.all(id,cursor,this.batchSize);
-    let saved=0,last=cursor;
-    for(const row of rows){
-     last=Number(row.rowid);
-     try{
-      const contact=messageContactName(JSON.parse(row.value));
-      if(!contact)continue;
-      this.upsert.run(id,contact.peer,contact.peer,contact.timestamp,JSON.stringify({name:contact.name}));
-      saved++;
-     }catch{ /* Skip a single malformed historical record. */ }
+    // Skip accounts already caught up, instead of wasting a full cycle on
+    // empty accounts. Round-robin still gives each active account its turn.
+    let selected=null;
+    for(let i=0;i<accounts.length;i++){
+     const index=(this.rotation+i)%accounts.length,id=accounts[index];
+     const key='panel:name-scan:v1:'+id;
+     const old=Number(this.cursor.get(key)?.value||0);
+     const cursor=Number.isSafeInteger(old)&&old>=0?old:0;
+     const rows=this.rows.all(id,cursor,this.batchSize);
+     if(rows.length){selected={id,key,cursor,rows};this.rotation=(index+1)%accounts.length;break;}
     }
-    if(last!==cursor)this.store.setConfig(key,String(last));
-    nextDelay=rows.length?this.scanDelay:10000;
+    if(selected){
+     const {id,key,cursor,rows}=selected;
+     let last=cursor;
+     for(const row of rows){
+      last=Number(row.rowid);
+      try{
+       const contact=messageContactName(JSON.parse(row.value));
+       if(!contact)continue;
+       this.upsert.run(id,contact.peer,contact.peer,contact.timestamp,JSON.stringify({name:contact.name}));
+      }catch{ /* Skip a single malformed historical record. */ }
+     }
+     if(last!==cursor)this.store.setConfig(key,String(last));
+     nextDelay=this.scanDelay;
+    }
    }
   }finally{this.working=false;this.wake(nextDelay);}
  }
