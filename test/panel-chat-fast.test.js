@@ -127,7 +127,8 @@ test('the optimized endpoint keeps the existing per-user authorization boundary'
 test('the panel preserves chat/gallery paths and avoids background directory refreshes inside a chat',()=>{
  const script=readFileSync(new URL('../public/panel.js',import.meta.url),'utf8');
  const server=readFileSync(new URL('../src/panel.js',import.meta.url),'utf8');
- assert.match(script,/screen==='chats'&&Date\.now\(\)-lastChatsAt>=30000/);
+ assert.match(script,/screen==='chats'.*Date\.now\(\)-lastChatsAt>=30000/);
+ assert.match(script,/querySelectorAll\('\.chat-item'\)\.length<=50/);
  assert.match(script,/screen==='thread'\)await messages\(\)/);
  assert.match(script,/const chatRequests=new Set\(\)/);
  assert.match(script,/se conserva la lista anterior/);
