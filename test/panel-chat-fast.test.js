@@ -134,3 +134,18 @@ test('the panel preserves chat/gallery paths and avoids background directory ref
  assert.match(server,/route==='\/api\/panel\/gallery'/);
  assert.match(server,/route==='\/api\/panel\/messages'/);
 });
+
+test('Cubamax panel excludes old group and channel headers without deleting their data',t=>{
+ const {store,dir,a,db}=setup(t);
+ store.setConfig('portal:'+a.id,'cubamax-corporate');
+ const group='123456789@g.us',channel='987654321@newsletter';
+ db.put('chat',group,{id:group,name:'Grupo histórico',conversationTimestamp:150},{timestamp:150});
+ db.put('chat',channel,{id:channel,name:'Canal histórico',conversationTimestamp:140},{timestamp:140});
+ db.put('chat',pn,{id:pn,name:'Contacto privado',conversationTimestamp:100},{timestamp:100});
+ const telegram={admins:()=>new Set(['1']),permissions:()=>new Set()};
+ const panel=new WebPanel(store,{dir,live:new Map()},telegram,{dir,url:'http://test',allowedOrigins:new Set()});
+ assert.equal(panel.chatList.privateOnly(a.id),false,'corporate archive behavior stays unchanged');
+ assert.deepEqual(panel.chatList.page(a.id,db).items.map(c=>c.peer),[pn]);
+ assert.equal(db.get('chat',group).name,'Grupo histórico');
+ assert.equal(db.get('chat',channel).name,'Canal histórico');
+});
