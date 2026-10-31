@@ -147,7 +147,7 @@ export class PanelChatList{
  page(account,db,{offset=0,query='',country='',sort='recent',folder='all'}={}){
    const snapshot=this.snapshot(account,db);
    const selectedFolder=folder==='archived'?'archived':'all';
-   const mode=['photos','videos'].includes(sort)?sort:'recent';
+   const mode=['photos','videos','media'].includes(sort)?sort:'recent';
    const total={archived:snapshot.entries.filter(c=>c.archived).length};
    const q=String(query||'').toLowerCase();
    const countries=requestedRegions(country);
@@ -156,8 +156,13 @@ export class PanelChatList{
       (!countries||countries.has(c.country||(c.country=countryFromPeer(c.peer))))&&
       (!q||(this.name(account,c)+' '+c.peer).toLowerCase().includes(q)));
    const media=mode==='recent'?null:this.mediaScores(account,snapshot);
-   if(media)rows=rows.slice().sort((a,b)=>
-     (media.get(b.peer)?.[mode]||0)-(media.get(a.peer)?.[mode]||0)||b.timestamp-a.timestamp);
+   if(media){
+    const score=chat=>{
+     const counts=media.get(chat.peer);
+     return mode==='media'?(counts?.photos||0)+(counts?.videos||0):(counts?.[mode]||0);
+    };
+    rows=rows.slice().sort((a,b)=>score(b)-score(a)||b.timestamp-a.timestamp);
+   }
    const page=rows.slice(offset,offset+this.pageSize);
    const items=page.map(c=>{
     const name=this.name(account,c);
