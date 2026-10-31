@@ -33,6 +33,10 @@
   // Match the editor selection outline to the button background, never a fixed green.
   if(document.body.dataset.operatorPopupSite!=='cm'&&button.style?.setProperty)button.style.setProperty('outline-color',/^#[0-9a-f]{6}$/i.test(content.color)?content.color:'#128c7e','important');
   fitAfterLayout();
+  // Optional photo text layers are painted over the existing image only
+  // when the default welcome photo is shown. Associated link popups keep their
+  // own content and are never overwritten by OCR layers.
+  globalThis.WelcomePhotoOCR?.render(content,!associated);
  }
  button.addEventListener('click',()=>{dismissed=true;dialog.close();});
  dialog.addEventListener('cancel',()=>{dismissed=true;});
