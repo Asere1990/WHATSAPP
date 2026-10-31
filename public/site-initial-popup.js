@@ -125,5 +125,12 @@
   else if(dialog.open)dialog.close();
   return dialog;
  }
- window.SiteInitialPopup={defaults,ensure,render,show};
+ // Reuse the same non-destructive image painting logic in WhatsApp's
+ // existing welcome dialog. No replacement of its popup or button is needed.
+ function paintInto(parts,layers,options={}){
+  const dialog={initialParts:parts},valid=validLayers(layers);
+  redraw(dialog,valid);
+  setTargets(dialog,valid,options);
+ }
+ window.SiteInitialPopup={defaults,ensure,render,show,paintInto};
 })();
