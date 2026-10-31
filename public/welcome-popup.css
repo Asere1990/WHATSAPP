@@ -11,4 +11,4 @@
 /* WhatsApp: keep the portrait photo entire, with a truly centered CTA. */
 body:not([data-operator-popup-site="cm"]) #wa-welcome.has-photo{width:min(440px,calc(100vw - 32px),55dvh)}
 body:not([data-operator-popup-site="cm"]) #wa-welcome.has-photo .wa-welcome-content{aspect-ratio:1370 / 2048;height:auto;min-height:0}
-body:not([data-operator-popup-site="cm"]) #wa-welcome #wa-welcome-button{display:flex;align-items:center;justify-content:center;text-align:center;align-self:center;min-height:52px;margin:20px auto 22px}
+body:not([data-operator-popup-site="cm"]) #wa-welcome #wa-welcome-button{display:block;align-self:center;text-align:center;width:calc(100% - 40px);height:52px;min-height:52px;max-height:52px;padding:0 12px;line-height:52px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal;margin:20px auto 22px}
