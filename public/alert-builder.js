@@ -37,39 +37,71 @@
  // of the preview to approximate the background, without mutating the source.
  function paintEditedLines(){
   const limit=(v,a,b)=>Math.max(a,Math.min(b,v));
-  for(const line of getLayers()){
-   if(line.text===line.original&&!line.styled&&
-     (line.drawX??line.x)===line.x&&(line.drawY??line.y)===line.y)continue;
-   const x=limit(Math.round(line.x*W),0,W-1),y=limit(Math.round(line.y*H),0,H-1),
-    right=limit(Math.ceil((line.x+line.w)*W),x+1,W),
-    bottom=limit(Math.ceil((line.y+line.h)*H),y+1,H);
-   const w=right-x,h=bottom-y;
-   try{
-    for(let py=y;py<bottom;py++){
-     const left=ctx.getImageData(limit(x-3,0,W-1),py,1,1).data,
-      rightSide=ctx.getImageData(limit(right+2,0,W-1),py,1,1).data;
-     const gradient=ctx.createLinearGradient(x,py,right,py);
-     gradient.addColorStop(0,'rgb('+left[0]+','+left[1]+','+left[2]+')');
-     gradient.addColorStop(1,'rgb('+rightSide[0]+','+rightSide[1]+','+rightSide[2]+')');
-     ctx.fillStyle=gradient;ctx.fillRect(x,py,w,1);
-    }
-   }catch{continue;}
+  const edits=getLayers().filter(line=>line.text!==line.original||line.styled||
+    (line.drawX??line.x)!==line.x||(line.drawY??line.y)!==line.y);
+  if(!edits.length)return;
+
+  // Sample the UNALTERED image first. The old per-row samples occasionally
+  // picked white glyph pixels or pixels from a previous OCR line, producing
+  // horizontal white bars when the new text was dragged over another line.
+  const sampleEdge=(x,y,side)=>{
+   const candidates=[];
+   for(const gap of [9,19,31])for(const dy of [-5,0,5]){
+    const px=limit(x+side*gap,0,W-1),py=limit(y+dy,0,H-1);
+    try{
+     const c=ctx.getImageData(px,py,1,1).data;
+     candidates.push({rgb:[c[0],c[1],c[2]],
+      light:c[0]*.2126+c[1]*.7152+c[2]*.0722});
+    }catch{}
+   }
+   if(!candidates.length)return [225,10,8];
+   // Discard bright outliers (white letters/antialiasing). In a plain
+   // photographic background the remaining samples retain local colors.
+   candidates.sort((a,b)=>a.light-b.light);
+   const chosen=candidates.slice(0,Math.max(1,Math.ceil(candidates.length*.65)));
+   return [0,1,2].map(k=>Math.round(chosen.reduce((sum,c)=>sum+c.rgb[k],0)/chosen.length));
+  };
+  const rectangles=edits.map(line=>{
+   const size=Math.max(1,Math.round(line.h*H));
+   const padX=Math.min(14,Math.max(2,Math.round(size*.10)));
+   const padY=Math.min(10,Math.max(2,Math.round(size*.10)));
+   const x=limit(Math.floor(line.x*W)-padX,0,W-1);
+   const y=limit(Math.floor(line.y*H)-padY,0,H-1);
+   const right=limit(Math.ceil((line.x+line.w)*W)+padX,x+1,W);
+   const bottom=limit(Math.ceil((line.y+line.h)*H)+padY,y+1,H);
+   const bands=[];
+   for(let row=y;row<bottom;row+=6){
+    const h=Math.min(6,bottom-row),middle=row+Math.floor(h/2);
+    bands.push({row,h,left:sampleEdge(x,middle,-1),right:sampleEdge(right-1,middle,1)});
+   }
+   return {line,x,y,right,bottom,bands};
+  });
+
+  // PASS 1: erase ALL original OCR rectangles. Overlapping OCR lines are
+  // common in large headings. Never erase after drawing a replacement.
+  for(const {x,right,bands} of rectangles){
+   for(const band of bands){
+    const gradient=ctx.createLinearGradient(x,band.row,right,band.row);
+    gradient.addColorStop(0,'rgb('+band.left.join(',')+')');
+    gradient.addColorStop(1,'rgb('+band.right.join(',')+')');
+    ctx.fillStyle=gradient;
+    ctx.fillRect(x,band.row,right-x,band.h);
+   }
+  }
+
+  // PASS 2: draw ALL replacements above the restored background. Explicit
+  // font size and moved position stay in ORIGINAL photo pixels.
+  for(const {line} of rectangles){
    const phrase=String(line.text||'').trim();if(!phrase)continue;
    const family=['Arial','Helvetica','Verdana','Georgia','Times New Roman','system-ui'].includes(line.family)?line.family:'Arial';
    const weight=['400','500','600','700','800','900'].includes(String(line.weight))?String(line.weight):'700';
-   // The entered font size is in real 1370x2048 photo pixels. Never
-   // auto-shrink to the OCR rectangle: it made size changes invisible.
-   const size=limit(Number(line.fontSize)||h,6,500);
+   const size=limit(Number(line.fontSize)||Math.round(line.h*H),6,500);
    const drawX=limit(Math.round((line.drawX??line.x)*W),0,W-1);
    const drawY=limit(Math.round((line.drawY??line.y)*H),0,H-1);
    ctx.font=weight+' '+size+'px "'+family+'"';
-   let brightness=0;try{
-    const sample=ctx.getImageData(limit(x+2,0,W-1),limit(y+1,0,H-1),1,1).data;
-    brightness=sample[0]*0.21+sample[1]*0.72+sample[2]*0.07;
-   }catch{}
    ctx.textBaseline='middle';ctx.textAlign='left';
-   ctx.fillStyle=/^#[0-9a-f]{6}$/i.test(line.color||'')?line.color:brightness>170?'#151515':'#ffffff';
-   ctx.fillText(phrase,drawX+2,drawY+h/2);
+   ctx.fillStyle=/^#[0-9a-f]{6}$/i.test(line.color||'')?line.color:'#ffffff';
+   ctx.fillText(phrase,drawX+2,drawY+line.h*H/2);
   }
  }
  function draw(){if(!original)return;$('download').disabled=false;$('apply').disabled=false;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);ctx.drawImage(original,0,0,W,H);
