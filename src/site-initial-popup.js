@@ -1,3 +1,4 @@
+import {validatePopupLayers} from './popup-ocr.js';
 // Cubamax's optional welcome popup is isolated from WhatsApp's existing
 // wa_welcome_popup, referral alerts and associated-link behavior.
 export const cmPopupDefaults=Object.freeze({
@@ -19,5 +20,6 @@ export function cmPopupContent(store){
  }
  for(const key of ['color','textColor'])if(color(input[key]))result[key]=input[key];
  if(photo(input.photo))result.photo=input.photo;
+ try{result.layers=validatePopupLayers(input.layers);}catch{result.layers=[];}
  return result;
 }
