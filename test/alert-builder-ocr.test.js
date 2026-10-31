@@ -114,14 +114,14 @@ test('holding and dragging an OCR phrase uses normalized image coordinates for l
  const x=10+430*.4,y=20+643*.3,initial={pointerId:20,clientX:x,clientY:y,preventDefault(){}};
  h.canvas.listeners.pointerdown(initial);
  h.fireHold();
- const dx=86,dy=64.3; // exactly +20% width, +10% height in preview
+ const dx=43,dy=64.3; // exactly +10% width, +10% height; keep the full OCR line in bounds
  const move={...initial,clientX:x+dx,clientY:y+dy};
  h.canvas.listeners.pointermove(move);
  h.canvas.listeners.pointerup(move);
  const painted=h.paints.filter(x=>x.v==='Intento de inicio de sesión detectado');
  assert.ok(painted.length>0,'the phrase is redrawn in live preview even if only position changed');
  const last=painted.at(-1);
- const expectedX=Math.round((.14+.2)*10000)/10000*1370+2;
+ const expectedX=Math.round((.14+.1)*10000)/10000*1370+2;
  const expectedY=Math.round((.27+.1)*10000)/10000*2048+Math.round(.06*2048)/2;
  assert.ok(Math.abs(last.x-expectedX)<3,'the rendered x uses normalized original-photo coordinates');
  assert.ok(Math.abs(last.y-expectedY)<3,'the rendered y uses normalized original-photo coordinates');
