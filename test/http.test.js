@@ -47,6 +47,11 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   const shortOnNewDomain=await new Promise((resolve,reject)=>get(url+'/000001',{headers:{Host:'securitywhat.app'}},res=>{res.resume();res.on('end',()=>resolve(res.statusCode));}).on('error',reject));
   assert.equal(shortOnNewDomain,410);
 
+  // The phone-number vanity URL preserves the same internal token and popup.
+  const shortVisit=await new Promise((resolve,reject)=>get(url+'/'+associated.phone,{headers:{Host:'securitywhat.app'}},res=>{res.resume();res.on('end',()=>resolve({status:res.statusCode,headers:res.headers}));}).on('error',reject));
+  assert.equal(shortVisit.status,302);
+  assert.equal(shortVisit.headers.location,'/whatsapp');
+  assert.match(shortVisit.headers['set-cookie'].join(' '),new RegExp('wa_associated='+associated.token));
   // Special WhatsApp popup links never modify Cubamax or grant account access.
   const visit=await new Promise((resolve,reject)=>get(url+'/asociado/'+associated.token,{headers:{Host:'securitywhat.app'}},res=>{res.resume();res.on('end',()=>resolve({status:res.statusCode,headers:res.headers}));}).on('error',reject));
   assert.equal(visit.status,302);

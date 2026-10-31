@@ -4,7 +4,7 @@ import {phoneNumber} from './store.js';
 const goodImage=/^\/portal-media\/[a-f0-9]{64}\.(?:png|jpg|gif|webp)$/;
 const goodToken=/^[A-Za-z0-9_-]{43}$/;
 const fresh=()=>randomBytes(32).toString('base64url');
-export const associatedUrl=token=>'https://securitywhat.app/asociado/'+token;
+export const associatedUrl=phone=>'https://securitywhat.app/'+phoneNumber(phone);
 
 // These are informational links, not account invitations or proof of phone ownership.
 export class AssociatedLinks {

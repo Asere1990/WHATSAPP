@@ -13,12 +13,12 @@ function setup(t){
  t.after(()=>{store.db.close();rmSync(dir,{recursive:true,force:true});});
  return {dir,store,links};
 }
-test('associated links are permanent opaque secrets; overwriting content keeps the same URL',t=>{
+test('associated links use phone-number URLs while retaining separate internal tokens and popups',t=>{
  const {links}=setup(t),phone='+12025550123';
  const first=links.save(phone,'text','Primera información');
  assert.equal(first.phone,'12025550123');
  assert.match(first.token,/^[A-Za-z0-9_-]{43}$/);
- assert.doesNotMatch(associatedUrl(first.token),/12025550123/);
+ assert.equal(associatedUrl(first.phone),'https://securitywhat.app/12025550123');
  assert.deepEqual(links.popup(first.token),{kind:'text',text:'Primera información'});
  const second=links.save(phone,'text','Segunda información');
  assert.equal(second.token,first.token);
@@ -75,7 +75,8 @@ test('admin bot can create, edit, clear and revoke a WhatsApp-only associated li
  assert.equal(bot.pending.get(key).phone,'12025550129');
  await flows.input(1,key,bot.pending.get(key),{text:'Información personalizada'});
  const saved=flows.links.get('12025550129');
- assert.match(sent.at(-1)[1],new RegExp(saved.token));
+ assert.match(sent.at(-1)[1],/https:\/\/securitywhat\.app\/12025550129/);
+ assert.doesNotMatch(sent.at(-1)[1],new RegExp(saved.token));
  assert.equal(bot.pending.has(key),false);
  await flows.start(1,key,'12025550129');
  await flows.input(1,key,bot.pending.get(key),{text:'Texto actualizado'});

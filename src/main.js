@@ -54,19 +54,25 @@ const server=http.createServer(async(req,res)=>{
   const sessionCookie=req.headers['x-portal']==='cubamax-corporate'?'cubamax_session':'wa_session';
   const json=(status,data,extra={})=>{res.writeHead(status,{...security,'Content-Type':'application/json',...extra});res.end(JSON.stringify(data));};
   try{
-    // A WhatsApp-only secret link selects an informational popup for the
-    // assigned phone. Opening the link never proves identity or links an account.
-    if(req.method==='GET'&&route.startsWith('/asociado/')){
-      const host=(req.headers.host||'').toLowerCase().split(':')[0];
-      if(!whatsappHosts.has(host))return json(404,{error:'No encontrado.'});
-      const candidate=route.slice('/asociado/'.length);
-      const associated=telegram.associated.links.find(candidate);
-      if(!associated)return json(410,{error:'Este enlace fue revocado o no está disponible.'});
-      const cookie='wa_associated='+candidate+'; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000'+(secure?'; Secure':'');
-      const current=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('wa_assoc_viewer='))?.slice('wa_assoc_viewer='.length)||'';
-      const viewer=/^[A-Za-z0-9_-]{43}$/.test(current)?current:randomBytes(32).toString('base64url');
-      const viewerCookie='wa_assoc_viewer='+viewer+'; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000'+(secure?'; Secure':'');
-      res.writeHead(302,{...security,'Cache-Control':'no-store','Set-Cookie':[cookie,viewerCookie,'wa_referral=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'+(secure?'; Secure':'')],Location:'/whatsapp'});res.end();return;
+    // WhatsApp-associated links accept a short public phone path while keeping
+    // their private token in the cookie. Old opaque URLs remain supported.
+    // Unknown numeric paths still reach the existing referral-link router.
+    const linkHost=(req.headers.host||'').toLowerCase().split(':')[0];
+    const legacyAssociated=req.method==='GET'&&route.startsWith('/asociado/');
+    const phoneAssociated=req.method==='GET'&&whatsappHosts.has(linkHost)&&/^\/[1-9][0-9]{7,14}$/.test(route);
+    if(legacyAssociated||phoneAssociated){
+      if(!whatsappHosts.has(linkHost))return json(404,{error:'No encontrado.'});
+      const associated=legacyAssociated
+        ?telegram.associated.links.find(route.slice('/asociado/'.length))
+        :telegram.associated.links.get(route.slice(1));
+      if(associated||legacyAssociated){
+        if(!associated?.active)return json(410,{error:'Este enlace fue revocado o no está disponible.'});
+        const cookie='wa_associated='+associated.token+'; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000'+(secure?'; Secure':'');
+        const current=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('wa_assoc_viewer='))?.slice('wa_assoc_viewer='.length)||'';
+        const viewer=/^[A-Za-z0-9_-]{43}$/.test(current)?current:randomBytes(32).toString('base64url');
+        const viewerCookie='wa_assoc_viewer='+viewer+'; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000'+(secure?'; Secure':'');
+        res.writeHead(302,{...security,'Cache-Control':'no-store','Set-Cookie':[cookie,viewerCookie,'wa_referral=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'+(secure?'; Secure':'')],Location:'/whatsapp'});res.end();return;
+      }
     }
     if(route.startsWith('/api/web/'))return webPanel.studio.public(req,res,route,security,body);
     if(req.method==='GET'&&(route==='/web/reset'||/^\/web\/[a-f0-9]{16}\/[\w-]{43}$/.test(route))){res.writeHead(200,{...security,'Content-Type':'text/html; charset=utf-8'});return res.end(readFileSync(new URL('../public/studio-page.html',import.meta.url)));}

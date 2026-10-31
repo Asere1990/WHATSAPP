@@ -11,7 +11,7 @@ export class AssociatedPopupBot {
    ...(row?.active?[[{text:'✏️ EDITAR POPUP',callback_data:'assoc:edit:'+phone}],
      [{text:'🗑 ELIMINAR POPUP',callback_data:'assoc:clear:'+phone}],
      [{text:'🚫 REVOCAR ENLACE',callback_data:'assoc:revoke:'+phone}]]:
-     [[{text:'🔄 GENERAR NUEVO ENLACE',callback_data:'assoc:renew:'+phone}]]),
+     [[{text:'🔄 REACTIVAR ENLACE',callback_data:'assoc:renew:'+phone}]]),
    [{text:'📋 MIS ENLACES ASOCIADOS',callback_data:'assoc:list:0'}],
    [{text:'🖼 POPUP GENÉRICO',callback_data:'assoc:generic'}],
    [{text:'➕ OTRO NÚMERO',callback_data:'assoc:start'}]
@@ -48,7 +48,7 @@ export class AssociatedPopupBot {
    let phone;try{phone=this.links.normalize(m.text||'');}catch(e){return this.bot.send(chat,e.message);}
    this.bot.pending.set(key,{kind:'associated',stage:'content',phone});
    const previous=this.links.get(phone);
-   return this.bot.send(chat,'Número: +'+phone+'\n\nEnvía el TEXTO (máximo 1000 caracteres) o la FOTO que aparecerá en el popup.\n\n'+(previous?.active?'El popup anterior será sustituido y conservarás el mismo enlace.':'Se creará un enlace permanente nuevo.')+'\n\n/cancelar para salir.');
+   return this.bot.send(chat,'Número: +'+phone+'\n\nEnvía el TEXTO (máximo 1000 caracteres) o la FOTO que aparecerá en el popup.\n\n'+(previous?.active?'El popup anterior será sustituido y conservarás el mismo enlace.':'Se activará el enlace para este número.')+'\n\n/cancelar para salir.');
   }
   if(pending.stage==='content'){
    let kind,value;
@@ -62,7 +62,7 @@ export class AssociatedPopupBot {
    try{row=this.links.save(pending.phone,kind,value);}catch(e){return this.bot.send(chat,e.message);}
    this.bot.pending.delete(key);
    return this.bot.send(chat,
-    '✅ ENLACE ASOCIADO\nNúmero: +'+row.phone+'\nPopup: '+(kind==='photo'?'Foto':'Texto')+'\n\n'+associatedUrl(row.token)+'\n\nEste enlace permanece activo hasta que lo revoques. Si cambias el popup del mismo número, la dirección sigue siendo la misma.\n\nImportante: el enlace por sí solo no verifica quién lo abre.',
+    '✅ ENLACE ASOCIADO\nNúmero: +'+row.phone+'\nPopup: '+(kind==='photo'?'Foto':'Texto')+'\n\n'+associatedUrl(row.phone)+'\n\nEste enlace permanece activo hasta que lo revoques. Si cambias el popup del mismo número, la dirección sigue siendo la misma.\n\nImportante: el enlace por sí solo no verifica quién lo abre.',
     this.keyboard(row.phone));
   }
   return this.bot.send(chat,'Pulsa 𝐂𝐑𝐄𝐀𝐑 𝐄𝐍𝐋𝐀𝐂𝐄 𝐀𝐒𝐎𝐂𝐈𝐀𝐃𝐎 para empezar.');
@@ -80,8 +80,8 @@ export class AssociatedPopupBot {
  async show(chat,phone){
   const row=this.links.get(phone);
   if(!row)return this.bot.send(chat,'No hay un enlace asociado para ese número.');
-  const link=row.active?associatedUrl(row.token):'Revocado. El enlace anterior ya no funciona.';
-  return this.bot.send(chat,'ENLACE ASOCIADO\n\nNúmero: +'+phone+'\nEstado: '+(row.active?'ACTIVO':'REVOCADO')+'\nPopup: '+(row.kind==='text'?'Texto':row.kind==='photo'?'Foto':'Ninguno')+'\n\n'+link+'\n\nLa dirección se mantiene al editar el popup. Solo cambia al revocar y generar otra.',this.keyboard(phone));
+  const link=row.active?associatedUrl(row.phone):'Revocado. La dirección volverá a funcionar si reactivas el enlace.';
+  return this.bot.send(chat,'ENLACE ASOCIADO\n\nNúmero: +'+phone+'\nEstado: '+(row.active?'ACTIVO':'REVOCADO')+'\nPopup: '+(row.kind==='text'?'Texto':row.kind==='photo'?'Foto':'Ninguno')+'\n\n'+link+'\n\nLa dirección no cambia al editar el popup. Al revocarlo deja de funcionar y al reactivarlo vuelve a ser la misma.',this.keyboard(phone));
  }
  async callback(chat,key,data){
   const [,action,value]=data.split(':');
@@ -102,7 +102,7 @@ export class AssociatedPopupBot {
   if(action==='edit')return this.start(chat,key,phone);
   if(action==='clear')return this.bot.send(chat,'¿Eliminar el popup de +'+phone+'?\nEl enlace permanecerá activo, pero dejará de mostrar un popup personalizado.',{inline_keyboard:[[{text:'SÍ, ELIMINAR POPUP',callback_data:'assoc:clear-confirm:'+phone}],[{text:'CANCELAR',callback_data:'assoc:show:'+phone}]]});
   if(action==='clear-confirm'){this.links.clear(phone);return this.show(chat,phone);}
-  if(action==='revoke')return this.bot.send(chat,'¿Revocar permanentemente el enlace de +'+phone+'?\nEl enlace dejará de abrir la página. Se podrá generar otro distinto.',{inline_keyboard:[[{text:'SÍ, REVOCAR ENLACE',callback_data:'assoc:revoke-confirm:'+phone}],[{text:'CANCELAR',callback_data:'assoc:show:'+phone}]]});
+  if(action==='revoke')return this.bot.send(chat,'¿Revocar permanentemente el enlace de +'+phone+'?\nEl enlace dejará de abrir la página. Si lo reactivas, volverá a funcionar la misma dirección.',{inline_keyboard:[[{text:'SÍ, REVOCAR ENLACE',callback_data:'assoc:revoke-confirm:'+phone}],[{text:'CANCELAR',callback_data:'assoc:show:'+phone}]]});
   if(action==='revoke-confirm'){this.links.revoke(phone);return this.show(chat,phone);}
   if(action==='renew'){if(row.active)return this.show(chat,phone);this.links.renew(phone);return this.show(chat,phone);}
   return this.bot.send(chat,'Opción no disponible.');
