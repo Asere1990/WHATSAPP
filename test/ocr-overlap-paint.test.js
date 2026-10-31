@@ -13,7 +13,7 @@ const lines=[
   color:'#ffffff',family:'Arial',styled:true}
 ];
 const graphics=()=>{
- const actions=[],gradients=[];
+ const actions=[],gradients=[];let whiteSamples=0;
  const ctx={
   font:'',setTransform(){},clearRect(){},drawImage(){},
   fillRect(x,y,w,h){actions.push({type:'erase',x,y,w,h});},
@@ -23,16 +23,17 @@ const graphics=()=>{
   getImageData(x,y){
    // The old single-pixel edge sample could hit a white pixel from an
    // adjacent glyph, turning the restored RED background into a white bar.
-   const white=(Math.round(x)===Math.floor(.12*1370)-9&&Math.round(y)%6<3);
+   const white=([145,155].includes(Math.round(x))&&Math.round(y)%6<3);
+   if(white)whiteSamples++;
    return{data:white?[250,250,250,255]:[222,12,8,255]};
   }
  };
- return {ctx,actions,gradients};
+ return {ctx,actions,gradients,get whiteSamples(){return whiteSamples;}};
 };
 async function flush(){for(let i=0;i<60;i++)await new Promise(resolve=>setImmediate(resolve));}
 
 test('red ALERT preview restores overlapping OCR backgrounds BEFORE drawing moved text',async()=>{
- const {ctx,actions,gradients}=graphics(),elements=new Map();
+ const graphicsState=graphics(),{ctx,actions,gradients}=graphicsState,elements=new Map();
  const el=id=>{
   if(!elements.has(id))elements.set(id,{
    value:'',disabled:false,hidden:false,textContent:'',style:{},events:{},files:[],
@@ -70,12 +71,13 @@ test('red ALERT preview restores overlapping OCR backgrounds BEFORE drawing move
  assert.ok(Math.abs(texts[0].x-(.22*1370+2))<2,'dragged position uses original photo coordinates');
  assert.equal(texts[0].argumentsCount,3,'no canvas width parameter that compresses letters');
  assert.ok(gradients.length>0);
+ assert.ok(graphicsState.whiteSamples>0,'test includes white pixels in the original image border');
  assert.ok(gradients.flat().every(c=>!c.includes('250,250,250')),
   'bright pixel sampled from another glyph must not leave a white strip');
 });
 
 test('shared WhatsApp/Cubamax initial popup painting never erases a prior replacement',()=>{
- const {ctx,actions,gradients}=graphics(),registry=new Map();
+ const graphicsState=graphics(),{ctx,actions,gradients}=graphicsState,registry=new Map();
  class El{
   constructor(tag){
    this.tagName=tag.toUpperCase();this.children=[];this.events={};this.style={};this.dataset={};this.attrs={};
