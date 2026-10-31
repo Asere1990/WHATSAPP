@@ -4,7 +4,7 @@
  let original=null,csrf='',source='';
  // Editable OCR rectangles exist ONLY in this admin preview. They never
  // change the uploaded original image or any published popup until APPLY.
- let recognized=[],scanGeneration=0,lastTap=null,pointerStart=null,lastOpened=0;
+ let recognized=[],scanGeneration=0,lastTap=null,pointerStart=null,lastOpened=0,holdTimer=null;
  const getLayers=()=>recognized;
  const paintSource=(img,description)=>{original=img;source=description;};
 
@@ -38,7 +38,8 @@
  function paintEditedLines(){
   const limit=(v,a,b)=>Math.max(a,Math.min(b,v));
   for(const line of getLayers()){
-   if(line.text===line.original)continue;
+   if(line.text===line.original&&!line.styled&&
+     (line.drawX??line.x)===line.x&&(line.drawY??line.y)===line.y)continue;
    const x=limit(Math.round(line.x*W),0,W-1),y=limit(Math.round(line.y*H),0,H-1),
     right=limit(Math.ceil((line.x+line.w)*W),x+1,W),
     bottom=limit(Math.ceil((line.y+line.h)*H),y+1,H);
@@ -56,17 +57,19 @@
    const phrase=String(line.text||'').trim();if(!phrase)continue;
    const family=['Arial','Helvetica','Verdana','Georgia','Times New Roman','system-ui'].includes(line.family)?line.family:'Arial';
    const weight=['400','500','600','700','800','900'].includes(String(line.weight))?String(line.weight):'700';
-   let size=limit(Number(line.fontSize)||h,6,500);
+   // The entered font size is in real 1370x2048 photo pixels. Never
+   // auto-shrink to the OCR rectangle: it made size changes invisible.
+   const size=limit(Number(line.fontSize)||h,6,500);
+   const drawX=limit(Math.round((line.drawX??line.x)*W),0,W-1);
+   const drawY=limit(Math.round((line.drawY??line.y)*H),0,H-1);
    ctx.font=weight+' '+size+'px "'+family+'"';
-   const maxWidth=Math.max(1,w-4),width=ctx.measureText(phrase).width;
-   if(width>maxWidth){size=Math.max(5,size*maxWidth/Math.max(1,width));ctx.font=weight+' '+size+'px "'+family+'"';}
    let brightness=0;try{
     const sample=ctx.getImageData(limit(x+2,0,W-1),limit(y+1,0,H-1),1,1).data;
     brightness=sample[0]*0.21+sample[1]*0.72+sample[2]*0.07;
    }catch{}
    ctx.textBaseline='middle';ctx.textAlign='left';
    ctx.fillStyle=/^#[0-9a-f]{6}$/i.test(line.color||'')?line.color:brightness>170?'#151515':'#ffffff';
-   ctx.fillText(phrase,x+2,y+h/2,maxWidth);
+   ctx.fillText(phrase,drawX+2,drawY+h/2);
   }
  }
  function draw(){if(!original)return;$('download').disabled=false;$('apply').disabled=false;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);ctx.drawImage(original,0,0,W,H);
@@ -94,7 +97,7 @@
  async function recognizePreview(){
   if(!original)return;
   const img=original,version=++scanGeneration,old=getLayers();
-  if(old.some(l=>l.text!==l.original)&&!confirm('¿Volver a reconocer las frases? Se descartarán las ediciones de texto sin guardar de esta vista previa.'))return;
+  if(old.some(l=>l.text!==l.original||l.styled||(l.drawX??l.x)!==l.x||(l.drawY??l.y)!==l.y)&&!confirm('¿Volver a reconocer las frases? Se descartarán las ediciones de texto y posición sin guardar de esta vista previa.'))return;
   $('recognize-photo').disabled=true;
   notice('Reconociendo las frases de la vista previa…');
   try{
@@ -141,20 +144,74 @@
    notice('Frase modificada en vista previa. Puedes editar otras frases; la imagen original sigue intacta. Usa «Usar en popup inicial» para guardar el resultado como borrador.');
   });
  }
+ const stopHold=()=>{
+  if(holdTimer!=null&&typeof clearTimeout==='function')clearTimeout(holdTimer);
+  holdTimer=null;
+ };
+ const moveTo=(event,start)=>{
+  const nowPoint=atCanvas(event),first=start?.point;
+  if(!nowPoint||!first)return;
+  const line=recognized[start.index];if(!line)return;
+  const limit=(v,a,b)=>Math.max(a,Math.min(b,v));
+  line.drawX=Math.round(limit(start.x+nowPoint.x-first.x,0,Math.max(0,1-line.w))*10000)/10000;
+  line.drawY=Math.round(limit(start.y+nowPoint.y-first.y,0,Math.max(0,1-line.h))*10000)/10000;
+  start.moved=start.moved||line.drawX!==start.x||line.drawY!==start.y;
+  draw(); // The SAME 1370x2048 canvas is used for preview and exported PNG.
+ };
  canvas.addEventListener('pointerdown',event=>{
-  pointerStart={id:event.pointerId,x:event.clientX,y:event.clientY,t:Date.now()};
+  stopHold();
+  const point=atCanvas(event),index=findPhrase(point);
+  pointerStart={id:event.pointerId,x:event.clientX,y:event.clientY,t:Date.now(),
+   point,index,dragging:false,moved:false,
+   x:index>=0?(recognized[index].drawX??recognized[index].x):0,
+   y:index>=0?(recognized[index].drawY??recognized[index].y):0};
+  if(index>=0&&typeof setTimeout==='function')holdTimer=setTimeout(()=>{
+   const hold=pointerStart;
+   if(!hold||hold.id!==event.pointerId||hold.index!==index)return;
+   hold.dragging=true;lastTap=null;canvas.style.cursor='grabbing';
+   canvas.setPointerCapture?.(event.pointerId);
+   notice('Frase agarrada. Arrástrala con el dedo; al soltar quedará en esa posición exacta.');
+  },430);
+ });
+ canvas.addEventListener('pointermove',event=>{
+  const start=pointerStart;
+  if(!start||start.id!==event.pointerId)return;
+  if(!start.dragging){
+   if(Math.hypot(event.clientX-start.x,event.clientY-start.y)>12){
+    stopHold();pointerStart=null;
+   }
+   return;
+  }
+  event.preventDefault?.();
+  moveTo(event,start);
  });
  canvas.addEventListener('pointerup',event=>{
-  const start=pointerStart;pointerStart=null;
-  if(!start||start.id!==event.pointerId||Math.hypot(event.clientX-start.x,event.clientY-start.y)>16)return;
+  const start=pointerStart;
+  stopHold();pointerStart=null;
+  if(!start||start.id!==event.pointerId)return;
+  if(start.dragging){
+   canvas.style.cursor='text';
+   canvas.releasePointerCapture?.(event.pointerId);
+   event.preventDefault?.();
+   if(start.moved){
+    draw();
+    lastOpened=Date.now(); // avoid a dblclick from the drag release
+    notice('Posición actualizada en la vista previa. Al guardar se utilizarán exactamente las mismas coordenadas.');
+   }
+   return;
+  }
+  if(Math.hypot(event.clientX-start.x,event.clientY-start.y)>16)return;
   const point=atCanvas(event),index=findPhrase(point),now=Date.now();
   if(index<0){lastTap=null;if(!recognized.length)notice('Primero hay que identificar las frases. Pulsa «Reconocer frases».');return;}
   if(lastTap?.index===index&&now-lastTap.time<570&&Math.hypot(point.x-lastTap.point.x,point.y-lastTap.point.y)<.07){
-   lastTap=null;openPhrase(index);event.preventDefault();
-  }else{lastTap={index,time:now,point};notice('Frase seleccionada: '+recognized[index].text+'. Tócala otra vez para editarla.');}
+   lastTap=null;openPhrase(index);event.preventDefault?.();
+  }else{lastTap={index,time:now,point};notice('Frase seleccionada: '+recognized[index].text+'. Tócala otra vez para editarla o mantenla presionada para moverla.');}
  });
- canvas.addEventListener('pointercancel',()=>{pointerStart=null;lastTap=null;});
+ canvas.addEventListener('pointercancel',()=>{
+  stopHold();pointerStart=null;lastTap=null;canvas.style.cursor='text';
+ });
  canvas.addEventListener('dblclick',event=>{
+  if(Date.now()-lastOpened<650)return;
   const index=findPhrase(atCanvas(event));if(index>=0){event.preventDefault();openPhrase(index);}
  });
  $('recognize-photo').onclick=()=>recognizePreview().catch(e=>notice(e.message,true));
