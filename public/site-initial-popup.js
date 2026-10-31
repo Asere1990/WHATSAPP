@@ -31,46 +31,71 @@
  // The original image is never rewritten; a canvas renders a derived preview.
  // Background reconstruction is approximate on patterned/photographic surfaces.
  function redraw(dialog,layers){
-  const {photo,paint,cover}=dialog.initialParts;
+  const {photo,paint}=dialog.initialParts;
   const edited=layers.filter(a=>a.text!==a.original||a.styled===true||
     (Number.isFinite(a.drawX)&&a.drawX!==a.x)||(Number.isFinite(a.drawY)&&a.drawY!==a.y));
   if(!edited.length||!photo.complete||!photo.naturalWidth||!photo.naturalHeight){paint.hidden=true;return;}
-  const scale=Math.min(1,1600/photo.naturalWidth,2400/photo.naturalHeight),w=Math.round(photo.naturalWidth*scale),h=Math.round(photo.naturalHeight*scale);
+  const scale=Math.min(1,1600/photo.naturalWidth,2400/photo.naturalHeight);
+  const w=Math.round(photo.naturalWidth*scale),h=Math.round(photo.naturalHeight*scale);
   if(!w||!h)return;
   if(paint.width!==w)paint.width=w;if(paint.height!==h)paint.height=h;
   const ctx=paint.getContext?.('2d',{willReadFrequently:true});if(!ctx)return;
   try{ctx.clearRect(0,0,w,h);ctx.drawImage(photo,0,0,w,h);}
   catch{paint.hidden=true;return;}
-  for(const layer of edited){
+
+  // Sample ALL background colors from the untouched image before painting.
+  // Nearby white letters otherwise contaminate edge colors and make stripes.
+  const edge=(x,y,side)=>{
+   const points=[];
+   for(const gap of [9,19,31])for(const dy of [-5,0,5]){
+    try{
+     const c=ctx.getImageData(clamp(x+side*gap,0,w-1),clamp(y+dy,0,h-1),1,1).data;
+     points.push({color:[c[0],c[1],c[2]],light:c[0]*.2126+c[1]*.7152+c[2]*.0722});
+    }catch{}
+   }
+   if(!points.length)return [0,0,0];
+   points.sort((a,b)=>a.light-b.light);
+   const clean=points.slice(0,Math.max(1,Math.ceil(points.length*.65)));
+   return [0,1,2].map(i=>Math.round(clean.reduce((sum,p)=>sum+p.color[i],0)/clean.length));
+  };
+  const planned=edited.map(layer=>{
    const x=clamp(Math.round(layer.x*w),0,w-1),y=clamp(Math.round(layer.y*h),0,h-1);
-   const right=clamp(Math.ceil((layer.x+layer.w)*w),x+1,w),bottom=clamp(Math.ceil((layer.y+layer.h)*h),y+1,h);
-   const width=right-x,height=bottom-y;
-   // Reconstruct a background band, reading pixels on both sides of the
-   // original phrase. This is reversible because the underlying img is kept.
-   try{
-    for(let row=y;row<bottom;row++){
-     const left=ctx.getImageData(clamp(x-3,0,w-1),row,1,1).data;
-     const rightSide=ctx.getImageData(clamp(right+2,0,w-1),row,1,1).data;
-     const gradient=ctx.createLinearGradient(x,row,right,row);
-     gradient.addColorStop(0,'rgb('+left[0]+','+left[1]+','+left[2]+')');
-     gradient.addColorStop(1,'rgb('+rightSide[0]+','+rightSide[1]+','+rightSide[2]+')');
-     ctx.fillStyle=gradient;ctx.fillRect(x,row,width,1);
-    }
-   }catch{continue;}
+   const right=clamp(Math.ceil((layer.x+layer.w)*w),x+1,w);
+   const bottom=clamp(Math.ceil((layer.y+layer.h)*h),y+1,h);
+   const bands=[];
+   for(let row=y;row<bottom;row+=6){
+    const bandH=Math.min(6,bottom-row),mid=row+Math.floor(bandH/2);
+    bands.push({row,bandH,left:edge(x,mid,-1),right:edge(right-1,mid,1)});
+   }
+   return {layer,x,y,right,bottom,bands,
+    background:edge(x,y+Math.floor((bottom-y)/2),-1)};
+  });
+  // First remove all old OCR boxes. This prevents the next overlapping OCR
+  // line from erasing the text that was already moved/drawn.
+  for(const {x,right,bands} of planned){
+   for(const {row,bandH,left,right:other} of bands){
+    const gradient=ctx.createLinearGradient(x,row,right,row);
+    gradient.addColorStop(0,'rgb('+left.join(',')+')');
+    gradient.addColorStop(1,'rgb('+other.join(',')+')');
+    ctx.fillStyle=gradient;ctx.fillRect(x,row,right-x,bandH);
+   }
+  }
+  // Only when the entire background is restored, draw each changed phrase.
+  // This keeps manual font sizes and dragged coordinates completely intact.
+  for(const {layer,y,bottom,background} of planned){
    const phrase=layer.text.slice(0,280).trim();if(!phrase)continue;
    const family=['Arial','Helvetica','Georgia','Times New Roman','Verdana','system-ui'].includes(layer.family)?layer.family:'Arial';
    const weight=['400','500','600','700','800','900'].includes(String(layer.weight))?String(layer.weight):'700';
-   // The original OCR rectangle identifies what to erase. Explicit font
-   // size is in ORIGINAL photo pixels, never shrunk to fit the old box.
-   const font=Math.max(1,Number(layer.fontSize||height/scale)*scale);
+   const font=Math.max(1,Number(layer.fontSize||(bottom-y)/scale)*scale);
    const textX=clamp(Math.round((layer.drawX??layer.x)*w),0,w-1);
    const textY=clamp(Math.round((layer.drawY??layer.y)*h),0,h-1);
    ctx.font=weight+' '+font+'px "'+family+'"';
-   const background=ctx.getImageData(clamp(x+2,0,w-1),clamp(y+1,0,h-1),1,1).data;
-   const bright=(background[0]*0.21+background[1]*0.72+background[2]*0.07)>170;
-   ctx.fillStyle=validColor.test(layer.color||'')?(layer.color.toLowerCase()==='#ffffff'&&bright?'#151515':layer.color):(bright?'#151515':'#ffffff');
+   const bright=(background[0]*.21+background[1]*.72+background[2]*.07)>170;
+   ctx.fillStyle=validColor.test(layer.color||'')?
+    (layer.color.toLowerCase()==='#ffffff'&&bright?'#151515':layer.color):
+    (bright?'#151515':'#ffffff');
    ctx.textAlign='left';ctx.textBaseline='middle';
-   ctx.fillText(phrase,textX+2,textY+height/2);
+   ctx.fillText(phrase,textX+2,textY+(bottom-y)/2);
   }
   paint.hidden=false;
  }
