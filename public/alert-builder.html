@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#075e54"><title>Crear popup alerta · Editor</title><link rel="stylesheet" href="/alert-builder.css"><script defer src="/alert-builder.js"></script></head>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#075e54"><title>Crear popup alerta · Editor</title><link rel="stylesheet" href="/alert-builder.css"><link rel="stylesheet" href="/popup-photo-editor.css"><script defer src="/popup-photo-editor.js"></script><script defer src="/alert-builder.js"></script></head>
 <body>
 <header class="bar"><a href="/editor?site=wa" aria-label="Volver al editor">‹</a><strong>CREAR POPUP ALERTA<small>Editor de WhatsApp · solo administradores</small></strong></header>
 <main id="tool" hidden>
@@ -14,6 +14,6 @@ Miami, FL 33131</textarea>
  <p class="small">«Usar en popup inicial» guarda la imagen en un borrador. La web no cambia hasta que pulses <b>Publicar</b> en el editor.</p>
  <p id="status" role="status"></p>
  </section>
- <section class="preview"><h2>Vista previa</h2><canvas id="image" width="1370" height="2048" aria-label="Imagen del aviso de seguridad"></canvas><p>PNG · 1370 × 2048 px · diseño vertical, sin botones en la imagen</p></section>
+ <section class="preview"><h2>Vista previa</h2><p class="ocr-preview-help">Haz <strong>doble toque sobre una frase</strong> dentro de la imagen para cambiar su texto y ajustar la letra. La imagen original se conserva.</p><canvas id="image" width="1370" height="2048" aria-label="Vista previa de la alerta: doble toque sobre una frase reconocida para editarla"></canvas><div class="ocr-preview-actions"><button id="recognize-photo" type="button" disabled>Reconocer frases de la foto</button></div><p>PNG · 1370 × 2048 px · diseño vertical, sin botones en la imagen</p></section>
 </main><div id="locked" class="locked">Comprobando acceso de administrador…</div>
 </body></html>
