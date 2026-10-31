@@ -68,3 +68,15 @@
 .contact-info-gallery>span:last-child{font-size:12px;color:#5c8072;text-align:right}
 .contact-info-note{font-size:11px;line-height:1.5;color:#8a918c;margin:18px 27px}
 @media(max-width:760px){.contact-info-dialog{width:100%;max-width:100%;height:100dvh;max-height:100dvh;border-radius:0;margin:0}.contact-info-photo{width:160px;height:160px}.contact-info-top{min-height:100px}.contact-info-person{padding-top:29px}}
+
+
+/* Lightweight read-only chat filters; the message and gallery views are unchanged. */
+.chat-filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0 15px 10px}
+.chat-filter-grid label{display:flex;flex-direction:column;gap:5px;font-size:10px;color:#668478;font-weight:600;min-width:0}
+.chat-filter-grid input,.chat-filter-grid select{width:100%;min-width:0;border:1px solid #d9e5df;border-radius:9px;background:#f7faf8;color:#31594a;padding:9px 8px;font-size:11px;outline-color:#43ad80}
+.chat-folders{display:flex;gap:7px;margin:0 15px 8px;padding-bottom:3px;overflow-x:auto;flex-shrink:0;scrollbar-width:thin}
+.chat-folder{flex-shrink:0;background:#f4f8f5;color:#476b5d;border:1px solid #dfebe4;padding:8px 10px;border-radius:18px;font-size:11px;font-weight:600}
+.chat-folder.selected{background:#d9f1e3;color:#1f6b48;border-color:#bce2ca}
+#archived-total:not(:empty){margin-left:4px;color:#6b8a7c}
+.chat-copy .chat-stat{color:#277c59;font-weight:600}
+@media(max-width:760px){.chat-filter-grid{gap:8px}.chat-filter-grid input,.chat-filter-grid select{font-size:12px}.chat-folder{font-size:12px;padding:9px 12px}}
