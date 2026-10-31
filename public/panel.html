@@ -2,11 +2,11 @@
 <section id="login" class="login-card"><div class="brand-icon">◉</div><h1>Tu espacio de cuentas</h1><p>Revisa tus conversaciones y archivos desde un solo lugar.</p><p id="login-status">Abre tu enlace personal desde Telegram: <strong>/panel</strong>.</p><small>Panel independiente de WhatsApp. Acceso exclusivo para usuarios autorizados.</small></section>
 <main id="workspace" hidden><aside class="accounts-panel"><header><div class="brand-icon small">◉</div><div><strong>Mis cuentas</strong><small id="user-name"></small></div><button id="logout" class="icon-button" title="Cerrar sesión" aria-label="Cerrar sesión">↪</button></header><div class="section-label"><span id="account-count">CUENTAS</span><span class="live-dot"></span></div><div id="accounts-load-state" class="panel-load-state" role="status" aria-live="polite" hidden></div><div id="accounts" class="account-list"></div><footer><a href="/studio">🌐 Mis webs y usuarios</a><br><a id="editor-link" href="/editor" hidden>✎ Editar webs</a><br>Vinculación y acceso desde Telegram.<br>Solo se muestra contenido sincronizado.</footer></aside>
 <section class="chats-panel"><header><button id="back-accounts" class="mobile-back icon-button" aria-label="Volver a cuentas">‹</button><div><strong id="account-name">Selecciona una cuenta</strong><small id="account-detail"></small></div></header><div class="search-box"><span>⌕</span><input id="search" type="search" placeholder="Buscar conversación" autocomplete="off" aria-label="Buscar conversación"></div>
-<div class="chat-filter-grid">
+<div id="private-chat-filters" class="chat-filter-grid">
  <label for="country-search">País de los números<input id="country-search" type="search" placeholder="Ej. Cuba o España" autocomplete="off" aria-label="Filtrar chats por país"></label>
  <label for="media-sort">Ordenar conversaciones<select id="media-sort" aria-label="Ordenar por multimedia"><option value="recent">Más recientes</option><option value="photos">Más fotos</option><option value="videos">Más videos</option></select></label>
 </div>
-<nav class="chat-folders" aria-label="Carpetas de chats">
+<nav id="private-chat-folders" class="chat-folders" aria-label="Carpetas de chats">
  <button type="button" class="chat-folder selected" data-folder="all" aria-pressed="true">Chats</button>
  <button type="button" class="chat-folder" data-folder="archived" aria-pressed="false">Archivados <span id="archived-total"></span></button>
  <button type="button" class="chat-folder" data-folder="restricted" aria-pressed="false">Restringidos</button>

@@ -146,8 +146,8 @@ export class PanelChatList{
    if(selectedFolder==='restricted')return {items:[],next:null,counts:total,unavailable:true};
    const q=String(query||'').toLowerCase();
    const countries=requestedRegions(country);
-   let rows=snapshot.entries.filter(c=>!c.locked&&
-      (selectedFolder==='archived'?c.archived:!c.archived)&&
+   let rows=snapshot.entries.filter(c=>(!this.privateOnly(account)||(!c.locked&&
+      (selectedFolder==='archived'?c.archived:!c.archived)))&&
       (!countries||countries.has(c.country||(c.country=countryFromPeer(c.peer))))&&
       (!q||(this.name(account,c)+' '+c.peer).toLowerCase().includes(q)));
    const media=mode==='recent'?null:this.mediaScores(account,snapshot);

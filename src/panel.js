@@ -136,7 +136,7 @@ export class WebPanel{
      this.focus.update(value,session.actor,account,selected);this.archive?.focus(account,selected);
      return json(200,{ok:true});
     }
-    if(route==='/api/panel/accounts'&&req.method==='GET')return json(200,{items:this.access.accounts(session.actor).map(a=>{const owner=this.access.owner(a.id);return {id:a.id,phone:a.phone,name:this.profiles.name(a.id),avatar:this.profiles.url(a.id),connected:!!this.accounts.live.get(a.id)?.ready,status:a.status,archived:this.archive?.summary(a.id)||null,lastSync:this.archive?.lastSync(a.id)||null,owner:owner?{id:owner,name:this.access.label(owner)}:null};})});
+    if(route==='/api/panel/accounts'&&req.method==='GET')return json(200,{items:this.access.accounts(session.actor).map(a=>{const owner=this.access.owner(a.id);return {id:a.id,phone:a.phone,name:this.profiles.name(a.id),avatar:this.profiles.url(a.id),connected:!!this.accounts.live.get(a.id)?.ready,status:a.status,privateOnly:this.store.config()['portal:'+a.id]!=='cubamax-corporate',archived:this.archive?.summary(a.id)||null,lastSync:this.archive?.lastSync(a.id)||null,owner:owner?{id:owner,name:this.access.label(owner)}:null};})});
    if(route==='/api/panel/contact-info'&&req.method==='GET'){
      this.limit('contact-info:'+session.actor,20);
      return json(200,await this.contactInfo(session.actor,id,peer));

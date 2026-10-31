@@ -80,3 +80,5 @@
 #archived-total:not(:empty){margin-left:4px;color:#6b8a7c}
 .chat-copy .chat-stat{color:#277c59;font-weight:600}
 @media(max-width:760px){.chat-filter-grid{gap:8px}.chat-filter-grid input,.chat-filter-grid select{font-size:12px}.chat-folder{font-size:12px;padding:9px 12px}}
+
+.chat-filter-grid[hidden],.chat-folders[hidden]{display:none!important}

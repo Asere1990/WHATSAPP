@@ -185,7 +185,7 @@
 
  async function chooseAccount(account){
   resetChatDetails();pauseAutoChats();loadedChatPeers.clear();
-  state.account=account;state.chatSignature=null;state.chatsNext=null;lastChatsAt=0;
+  state.account=account;$('private-chat-filters').hidden=account.privateOnly===false;$('private-chat-folders').hidden=account.privateOnly===false;state.chatSignature=null;state.chatsNext=null;lastChatsAt=0;
   clearConversation();$('search').value='';$('country-search').value='';$('media-sort').value='recent';state.folder='all';for(const b of document.querySelectorAll('.chat-folder')){const active=b.dataset.folder==='all';b.classList.toggle('selected',active);b.setAttribute('aria-pressed',String(active));}$('chats').replaceChildren();
   accountHeader();view('chats');reportFocus();
   await chats(); // Account data was just loaded; do not immediately requery it.
