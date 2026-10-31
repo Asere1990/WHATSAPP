@@ -1,7 +1,7 @@
 import {toJid,describe} from './baileys.js';
 import {parsePhoneNumberFromString,getCountries} from 'libphonenumber-js';
 
-const validPeer=peer=>/^\d+@(s\.whatsapp\.net|lid|g\.us)$/.test(peer||'');
+const validPeer=peer=>/^\d+@(s\.whatsapp\.net|lid)$/.test(peer||'');
 const isPhone=peer=>/^\d+@s\.whatsapp\.net$/.test(peer||'');
 const isLid=peer=>/^\d+@lid$/.test(peer||'');
 const previews={image:'Foto',video:'Video',audio:'Audio',ptt:'Mensaje de voz',document:'Documento',sticker:'Sticker'};
@@ -37,6 +37,7 @@ export class PanelChatList{
     json_extract(value,'$.unreadCount') AS unread,
     COALESCE(json_extract(value,'$.archived'),json_extract(value,'$.archive'),0) AS archived
     FROM baileys_data WHERE account=? AND kind='chat'
+      AND (id LIKE '%@s.whatsapp.net' OR id LIKE '%@lid')
     ORDER BY timestamp DESC LIMIT 100000`).all(account);
   const mappings=this.store.db.prepare(
    "SELECT id,value FROM baileys_data WHERE account=? AND kind='mapping'"
@@ -62,7 +63,7 @@ export class PanelChatList{
   const merged=new Map();
   for(const c of raw){
    const source=toJid(c.id);
-   if(!validPeer(source)||(this.privateOnly(account)&&source.endsWith('@g.us')))continue;
+   if(!validPeer(source))continue; // No groups or channels in either portal.
    const peer=canonical(source),timestamp=Number(c.updated)||0,unread=Number(c.unread)||0;
    const old=merged.get(peer);
    if(old){old.timestamp=Math.max(old.timestamp,timestamp);old.unread=Math.max(old.unread,unread);old.archived=old.archived||!!c.archived;}

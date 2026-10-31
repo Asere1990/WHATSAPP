@@ -136,7 +136,13 @@ export class BaileysClient extends EventEmitter {
     }
   }
   saveMapping({lid,pn}){if(lid&&pn)this.store.put('mapping',toJid(lid),toJid(pn));}
-  saveContact(c){if(c.id){this.store.put('contact',toJid(c.id),{...c,id:toJid(c.id)},{merge:true});this.saveMapping({lid:c.lid||(c.id.endsWith('@lid')?c.id:null),pn:c.phoneNumber||(!c.id.endsWith('@lid')?c.id:null)});}}
+  saveContact(c){
+    if(!c?.id)return;
+    const id=toJid(c.id);
+    if(this.privateChatsOnly&&!privateJid(id))return;
+    this.store.put('contact',id,{...c,id},{merge:true});
+    this.saveMapping({lid:c.lid||(c.id.endsWith('@lid')?c.id:null),pn:c.phoneNumber||(!c.id.endsWith('@lid')?c.id:null)});
+  }
   // Record the first HISTORY BATCH observed for each chat after this feature
   // is installed. Older initial batches cannot be reconstructed from the DB.
   // This adds only aggregate metadata; it never requests history or media.

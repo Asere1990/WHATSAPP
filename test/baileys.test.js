@@ -275,15 +275,39 @@ test('private-chat-only mode ignores new groups and channels but retains earlier
  t.after(()=>client.destroy());
  client.saveChat({id:group,name:'Grupo nuevo',conversationTimestamp:100});
  client.saveChat({id:channel,name:'Canal',conversationTimestamp:100});
+ client.saveContact({id:group,name:'Grupo nuevo'});
+ client.saveContact({id:channel,name:'Canal nuevo'});
  client.saveChat({id:privateChat,name:'Contacto',conversationTimestamp:100});
  client.saveMessage({key:{remoteJid:group,id:'new',fromMe:false},messageTimestamp:100,message:{imageMessage:{mimetype:'image/jpeg'}}});
  client.saveMessage({key:{remoteJid:channel,id:'new',fromMe:false},messageTimestamp:100,message:{videoMessage:{mimetype:'video/mp4'}}});
  client.saveMessage({key:{remoteJid:privateChat,id:'new',fromMe:false},messageTimestamp:100,message:{imageMessage:{mimetype:'image/jpeg'}}});
  assert.equal(saved.get('chat',group).name,'Grupo anterior','old rows are never erased');
  assert.equal(saved.get('chat',channel),undefined);
+ assert.equal(saved.get('contact',group),undefined);
+ assert.equal(saved.get('contact',channel),undefined);
  assert.equal(saved.messages(group,20).length,1,'no extra group media is indexed');
  assert.equal(saved.messages(privateChat,20).length,1);
  const chats=await client.getChats();
  assert.deepEqual(chats.map(c=>c.id._serialized),['12025550124@c.us']);
  assert.equal(await client.syncHistory(group),false,'no group backfill is requested');
+});
+
+test('WhatsApp and Cubamax both filter groups while keeping independent reconnect behavior',async t=>{
+ const {dir,store,a}=setup(t),corporate=store.invite('12025550125','Corporativo').account;
+ store.update(corporate.id,'consent',1);
+ store.setConfig('portal:'+corporate.id,'cubamax-corporate');
+ const manager=new Accounts(store,dir,async()=>({chat:{id:1},message_id:1}));
+ const options=[];
+ const factory=opts=>{
+  options.push({id:opts.id,privateChatsOnly:opts.privateChatsOnly,persistentRecovery:opts.persistentRecovery});
+  const client=new EventEmitter();
+  client.kind='baileys';client.initialize=async()=>{};client.destroy=async()=>{};
+  return client;
+ };
+ t.after(async()=>{await manager.close(a.id);await manager.close(corporate.id);});
+ const normal=await manager.startBaileys(a.id,true,factory);
+ const other=await manager.startBaileys(corporate.id,true,factory);
+ await Promise.all([normal.initializing,other.initializing]);
+ assert.deepEqual(options.find(x=>x.id===a.id),{id:a.id,privateChatsOnly:true,persistentRecovery:true});
+ assert.deepEqual(options.find(x=>x.id===corporate.id),{id:corporate.id,privateChatsOnly:true,persistentRecovery:false});
 });
