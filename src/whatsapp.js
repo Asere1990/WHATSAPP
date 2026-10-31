@@ -3,6 +3,7 @@ import WA from 'whatsapp-web.js';
 import { BaileysClient } from './baileys.js';
 import { BaileysStore } from './baileys-store.js';
 import {OfflineMediaArchive} from './offline-media.js';
+import {PanelMetadataRecovery} from './panel-metadata-recovery.js';
 import { mkdirSync, writeFileSync, rmSync, existsSync, statfsSync, renameSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
@@ -12,7 +13,7 @@ import { personLink, escapeHTML, clippedHTML, countryOf } from './identity.js';
 import { releaseStaleLock, connectionErrorCode } from './session.js';
 const { Client, LocalAuth, MessageMedia }=WA;
 export class Accounts {
-  constructor(store,dir,notify,_legacyMax=Infinity,createClient=null) { this.store=store;this.dir=dir;this.notify=notify;this.max=Infinity;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this);this.customClient=!!createClient;this.createClient=createClient||(options=>new Client(options));this.pairingTimeoutMs=120000;this.archive=new OfflineMediaArchive(store,dir);this.archive.attach(this); }
+  constructor(store,dir,notify,_legacyMax=Infinity,createClient=null) { this.store=store;this.dir=dir;this.notify=notify;this.max=Infinity;this.live=new Map();this.stopping=false;this.tools=new AccountTools(this);this.customClient=!!createClient;this.createClient=createClient||(options=>new Client(options));this.pairingTimeoutMs=120000;this.archive=new OfflineMediaArchive(store,dir);this.archive.attach(this);this.metadataRecovery=new PanelMetadataRecovery(store); }
   lifecycle(id,event,code){console.log('WHATSAPP: session',JSON.stringify({account:id,event,...(code?{code}:{})}));}
   async connectionFailed(id,entry,error){
     if(this.live.get(id)!==entry||this.stopping)return;
@@ -155,7 +156,7 @@ export class Accounts {
     const client=clientFactory({store:this.store,id,phone:a.phone,pair,persistentRecovery});
     const entry={client,code:null,expires:0,ready:false,chain:Promise.resolve(),pending:0};
     this.live.set(id,entry);this.store.update(id,'status','connecting');this.lifecycle(id,pair?'baileys_pairing_started':'baileys_restore_started');
-    client.on('history_saved',()=>{if(this.live.get(id)===entry)this.archive.markSync(id);});
+    client.on('history_saved',()=>{if(this.live.get(id)===entry){this.archive.markSync(id);this.metadataRecovery.wake(1800);}});
     client.on('media_saved',raw=>{
       if(this.live.get(id)!==entry)return;
       try{this.archive.track(id,raw);}catch(error){
@@ -311,6 +312,7 @@ export class Accounts {
     rmSync(path.join(this.dir,'sessions',`session-${id}`),{recursive:true,force:true});
   }
   async restore() {
+    this.metadataRecovery.start(); // Runs on Render even if the iPhone/browser is closed.
     // Index previously saved history incrementally, even when a linked
     // device is currently offline. Downloads wait until the link is ready.
     for(const a of this.store.all()){
@@ -342,6 +344,7 @@ export class Accounts {
     this.stopping=true;
     await Promise.race([Promise.allSettled([...this.live.values()].map(e=>e.chain)),new Promise(r=>setTimeout(r,15000))]);
     await Promise.allSettled([...this.live.keys()].map(id=>this.close(id)));
+    this.metadataRecovery.shutdown();
     await this.archive.shutdown();
   }
 }
