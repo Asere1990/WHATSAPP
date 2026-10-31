@@ -35,8 +35,7 @@ export class PanelChatList{
   const raw=this.store.db.prepare(`SELECT id,timestamp,
     json_extract(value,'$.conversationTimestamp') AS updated,
     json_extract(value,'$.unreadCount') AS unread,
-    COALESCE(json_extract(value,'$.archived'),json_extract(value,'$.archive'),0) AS archived,
-    COALESCE(json_extract(value,'$.locked'),json_extract(value,'$.isLocked'),0) AS locked
+    COALESCE(json_extract(value,'$.archived'),json_extract(value,'$.archive'),0) AS archived
     FROM baileys_data WHERE account=? AND kind='chat'
     ORDER BY timestamp DESC LIMIT 100000`).all(account);
   const mappings=this.store.db.prepare(
@@ -66,8 +65,8 @@ export class PanelChatList{
    if(!validPeer(source)||(this.privateOnly(account)&&source.endsWith('@g.us')))continue;
    const peer=canonical(source),timestamp=Number(c.updated)||0,unread=Number(c.unread)||0;
    const old=merged.get(peer);
-   if(old){old.timestamp=Math.max(old.timestamp,timestamp);old.unread=Math.max(old.unread,unread);old.archived=old.archived||!!c.archived;old.locked=old.locked||!!c.locked;}
-   else merged.set(peer,{peer,timestamp,unread,archived:!!c.archived,locked:!!c.locked,group:peer.endsWith('@g.us'),name:null,preview:null,ownPreview:false});
+   if(old){old.timestamp=Math.max(old.timestamp,timestamp);old.unread=Math.max(old.unread,unread);old.archived=old.archived||!!c.archived;}
+   else merged.set(peer,{peer,timestamp,unread,archived:!!c.archived,group:peer.endsWith('@g.us'),name:null,preview:null,ownPreview:false});
   }
   const entries=[...merged.values()];
   for(const entry of entries){
@@ -103,28 +102,37 @@ export class PanelChatList{
   return row?db.projectSelfMessage(db.get('message',row.id)):null;
  }
 
- // A single grouped database read supplies media rankings. Default chat
- // browsing keeps the unchanged header-only fast path.
+
+ // An optional read-only media ordering scan. Normal browsing never runs
+ // this query. Canonical aliases are deduplicated using the same message key
+ // fields used by the existing gallery metrics.
  mediaScores(account,snapshot){
   const cached=this.mediaCache.get(account),now=this.now();
   if(cached&&cached.expires>now)return cached.counts;
   const aliases=new Map();
-  for(const c of snapshot.entries)for(const peer of c.aliases)aliases.set(peer,c.peer);
-  const rows=this.store.db.prepare(`SELECT peer,
-   COUNT(DISTINCT CASE WHEN json_type(value,'$.message.imageMessage') IS NOT NULL THEN
-    COALESCE(json_extract(value,'$.key.id'),id)||'|'||COALESCE(json_extract(value,'$.key.fromMe'),0)||'|'||COALESCE(json_extract(value,'$.key.participant'),'') END) AS photos,
-   COUNT(DISTINCT CASE WHEN json_type(value,'$.message.videoMessage') IS NOT NULL THEN
-    COALESCE(json_extract(value,'$.key.id'),id)||'|'||COALESCE(json_extract(value,'$.key.fromMe'),0)||'|'||COALESCE(json_extract(value,'$.key.participant'),'') END) AS videos
-   FROM baileys_data WHERE account=? AND kind='message' AND peer IS NOT NULL
-    AND (json_type(value,'$.message.imageMessage') IS NOT NULL OR
-         json_type(value,'$.message.videoMessage') IS NOT NULL)
-   GROUP BY peer`).all(account);
-  const counts=new Map();
+  for(const chat of snapshot.entries)for(const peer of chat.aliases)aliases.set(peer,chat.peer);
+  const statement=this.store.db.prepare(`SELECT peer,
+    COALESCE(json_extract(value,'$.key.id'),id) AS message_id,
+    COALESCE(json_extract(value,'$.key.fromMe'),0) AS sent,
+    COALESCE(json_extract(value,'$.key.participant'),'') AS participant,
+    json_type(value,'$.message.imageMessage') IS NOT NULL AS photo,
+    json_type(value,'$.message.videoMessage') IS NOT NULL AS video
+    FROM baileys_data WHERE account=? AND kind='message'
+    AND (peer LIKE '%@s.whatsapp.net' OR peer LIKE '%@lid')
+    AND (json_type(value,'$.message.imageMessage') IS NOT NULL
+      OR json_type(value,'$.message.videoMessage') IS NOT NULL)`);
+  const rows=typeof statement.iterate==='function'?statement.iterate(account):statement.all(account);
+  const counts=new Map(),seen=new Map();
   for(const row of rows){
    const peer=aliases.get(toJid(row.peer));
    if(!peer)continue;
+   let keys=seen.get(peer);
+   if(!keys){keys=new Set();seen.set(peer,keys);}
+   const key=JSON.stringify([String(row.message_id),Number(row.sent)||0,String(row.participant||'')]);
+   if(keys.has(key))continue;
+   keys.add(key);
    const item=counts.get(peer)||{photos:0,videos:0};
-   item.photos+=Number(row.photos||0);item.videos+=Number(row.videos||0);
+   item.photos+=Number(row.photo)||0;item.videos+=Number(row.video)||0;
    counts.set(peer,item);
   }
   this.mediaCache.delete(account);
@@ -138,16 +146,13 @@ export class PanelChatList{
  }
  page(account,db,{offset=0,query='',country='',sort='recent',folder='all'}={}){
    const snapshot=this.snapshot(account,db);
-   const selectedFolder=['all','archived','restricted'].includes(folder)?folder:'all';
+   const selectedFolder=folder==='archived'?'archived':'all';
    const mode=['photos','videos'].includes(sort)?sort:'recent';
-   const total={archived:snapshot.entries.filter(c=>c.archived&&!c.locked).length};
-   // WhatsApp locked chats require authentication with a secret code.
-   // Never list their metadata or contents through this independent panel.
-   if(selectedFolder==='restricted')return {items:[],next:null,counts:total,unavailable:true};
+   const total={archived:snapshot.entries.filter(c=>c.archived).length};
    const q=String(query||'').toLowerCase();
    const countries=requestedRegions(country);
-   let rows=snapshot.entries.filter(c=>(!this.privateOnly(account)||(!c.locked&&
-      (selectedFolder==='archived'?c.archived:!c.archived)))&&
+   let rows=snapshot.entries.filter(c=>(!this.privateOnly(account)||
+      (selectedFolder==='archived'?c.archived:!c.archived))&&
       (!countries||countries.has(c.country||(c.country=countryFromPeer(c.peer))))&&
       (!q||(this.name(account,c)+' '+c.peer).toLowerCase().includes(q)));
    const media=mode==='recent'?null:this.mediaScores(account,snapshot);

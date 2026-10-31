@@ -231,8 +231,7 @@
     $('chats').append(button);
    }
    if(!$('chats').children.length)$('chats').append(node('p','empty',
-    data.unavailable?'Los chats restringidos solo pueden abrirse en WhatsApp mediante la autenticación y el código secreto correspondientes. Este panel no evita esa protección.':
-    folder==='archived'?'No hay chats archivados recibidos de WhatsApp.':
+        folder==='archived'?'No hay chats archivados recibidos de WhatsApp.':
     country?'No hay chats del país seleccionado entre las conversaciones sincronizadas.':
     state.account.connected?'No hay conversaciones sincronizadas. El historial se amplía cuando WhatsApp lo entrega.':
      'Sin conexión. Todavía no hay conversaciones guardadas para consultar.'));

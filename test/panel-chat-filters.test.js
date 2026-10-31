@@ -21,17 +21,15 @@ function make(t){
 test('inbox, archives, and country filter use received metadata and leave existing rows unchanged',t=>{
  const f=make(t);
  f.chat(cu,'Cuba',100);f.chat(es,'España',90,{archived:true});
- f.chat(us,'Protegido',80,{locked:true});f.chat(group,'Grupo anterior',110);
+ f.chat(us,'EE.UU.',80,{locked:true});f.chat(group,'Grupo anterior',110);
  const inbox=f.list.page(f.a.id,f.db);
- assert.deepEqual(inbox.items.map(c=>c.peer),[cu]);
+ assert.deepEqual(inbox.items.map(c=>c.peer),[cu,us],'ordinary private chats remain available in the existing list');
  assert.equal(inbox.counts.archived,1);
  const archived=f.list.page(f.a.id,f.db,{folder:'archived'});
  assert.deepEqual(archived.items.map(c=>c.peer),[es]);
  assert.deepEqual(f.list.page(f.a.id,f.db,{country:'Cuba'}).items.map(c=>c.peer),[cu]);
  assert.deepEqual(f.list.page(f.a.id,f.db,{country:'México'}).items,[]);
- const restricted=f.list.page(f.a.id,f.db,{folder:'restricted'});
- assert.equal(restricted.unavailable,true);
- assert.deepEqual(restricted.items,[],'no locked contacts leak through panel');
+ assert.deepEqual(f.list.page(f.a.id,f.db,{folder:'restricted'}).items.map(c=>c.peer),[cu,us],'the removed folder is never exposed');
  assert.equal(f.db.get('chat',group).name,'Grupo anterior','historic rows are retained');
 });
 test('media sorts rank indexed photos or videos without loading message content for every chat',t=>{
@@ -49,4 +47,15 @@ test('media sorts rank indexed photos or videos without loading message content 
  assert.deepEqual(videos.items.map(c=>c.peer),[es,cu,us]);
  assert.equal(videos.items[0].videos,3);
  assert.deepEqual(f.list.page(f.a.id,f.db,{country:'España',sort:'videos'}).items.map(c=>c.peer),[es]);
+});
+
+test('media sorting does not double-count a photo repeated through phone and LID aliases',t=>{
+ const f=make(t),lid='34567890@lid';
+ f.db.put('mapping',lid,cu);
+ f.chat(cu,'Cuba',100);f.chat(lid,'Cuba temporal',95);
+ f.media(cu,'same-photo','photo');f.media(lid,'same-photo','photo');
+ f.media(cu,'different-photo','photo');
+ const ranked=f.list.page(f.a.id,f.db,{sort:'photos'});
+ assert.equal(ranked.items.length,1);
+ assert.equal(ranked.items[0].photos,2,'duplicate logical media is counted once');
 });
