@@ -94,7 +94,7 @@ export class BaileysClient extends EventEmitter {
       this.retries=0;const user=this.socket.user||{};this.info={wid:{user:toJid(user.id).split('@')[0]},pushname:user.name||this.store.authValue('creds','self')?.me?.name};
       this.emit('authenticated');this.emit('ready');
       if(this.archiveMessages){const counts=this.store.db.prepare("SELECT COUNT(*) AS total,SUM(json_type(value,'$.message.conversation') IS NOT NULL OR json_type(value,'$.message.extendedTextMessage') IS NOT NULL) AS texts,SUM(json_type(value,'$.message.audioMessage') IS NOT NULL) AS audios FROM baileys_data WHERE account=? AND kind='message'").get(this.account);console.log('WHATSAPP: panel_history_index',JSON.stringify({account:this.account,...counts}));}
-      this.historyOnline=true;this.scheduleHistory(this.panelFocusUntil>Date.now()?15000:90000);
+      this.historyOnline=true;this.scheduleHistory(this.panelFocusUntil>Date.now()?15000:this.archiveMessages&&this.persistentRecovery?30000:90000);
     }
     if(update.connection==='close'){
       this.stopHistory();
@@ -255,7 +255,7 @@ export class BaileysClient extends EventEmitter {
     }finally{
       this.historyPumpActive=false;
       if(this.generation===epoch&&!this.closed&&this.historyOnline)
-        this.scheduleHistory(focused?45000:90000);
+        this.scheduleHistory(focused?45000:this.archiveMessages&&this.persistentRecovery?55000:90000);
     }
   }
   async syncHistory(peer,now=Date.now()){
