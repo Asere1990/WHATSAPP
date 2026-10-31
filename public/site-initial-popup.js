@@ -74,7 +74,7 @@
  }
  function setTargets(dialog,layers,options){
   const {targets}=dialog.initialParts;
-  targets.replaceChildren();
+  if(typeof targets.replaceChildren==='function')targets.replaceChildren();else targets.children=[];
   if(typeof options.onTextDoubleTap!=='function'||!layers.length){targets.hidden=true;return;}
   targets.hidden=false;
   layers.forEach((layer,index)=>{
