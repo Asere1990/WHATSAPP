@@ -10,11 +10,13 @@
   if(autoChatsTimer!==null)clearTimeout(autoChatsTimer);
   autoChatsTimer=null;
   autoChatsVersion++;
+  $('more-chats').textContent='Cargar más conversaciones';
  }
  function resumeAutoChats(delay=AUTO_CHAT_DELAY_MS){
   if(autoChatsTimer!==null)clearTimeout(autoChatsTimer);
   autoChatsTimer=null;
   if(!state.me||document.hidden||!state.account||document.body.dataset.view!=='chats'||state.chatsNext==null)return;
+  $('more-chats').textContent='Cargando las demás conversaciones…';
   const version=autoChatsVersion,account=state.account.id,query=$('search').value,offset=state.chatsNext;
   autoChatsTimer=setTimeout(()=>{
    autoChatsTimer=null;
