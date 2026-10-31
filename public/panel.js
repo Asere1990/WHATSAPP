@@ -176,6 +176,18 @@
   }finally{finish();}
  }
 
+
+ function setChatFiltersExpanded(expanded){
+  const filters=$('private-chat-filters'),toggle=$('chat-filter-toggle');
+  filters.hidden=!expanded;
+  toggle.setAttribute('aria-expanded',String(expanded));
+  toggle.setAttribute('aria-label',expanded?'Ocultar filtros de chats':'Mostrar filtros de chats');
+  toggle.title=expanded?'Ocultar filtros':'Mostrar filtros';
+ }
+ function markActiveChatFilters(){
+  $('chat-filter-toggle').classList.toggle('has-active-filters',!!$('country-search').value.trim()||$('media-sort').value!=='recent');
+ }
+
  function accountHeader(){
   $('account-name').textContent=state.account.name;
   $('account-detail').textContent='+'+state.account.phone
@@ -185,8 +197,8 @@
 
  async function chooseAccount(account){
   resetChatDetails();pauseAutoChats();loadedChatPeers.clear();
-  state.account=account;$('private-chat-filters').hidden=account.privateOnly===false;$('private-chat-folders').hidden=account.privateOnly===false;state.chatSignature=null;state.chatsNext=null;lastChatsAt=0;
-  clearConversation();$('search').value='';$('country-search').value='';$('media-sort').value='recent';state.folder='all';for(const b of document.querySelectorAll('.chat-folder')){const active=b.dataset.folder==='all';b.classList.toggle('selected',active);b.setAttribute('aria-pressed',String(active));}$('chats').replaceChildren();
+  state.account=account;setChatFiltersExpanded(false);$('private-chat-folders').hidden=account.privateOnly===false;state.chatSignature=null;state.chatsNext=null;lastChatsAt=0;
+  clearConversation();$('search').value='';$('country-search').value='';$('media-sort').value='recent';markActiveChatFilters();state.folder='all';for(const b of document.querySelectorAll('.chat-folder')){const active=b.dataset.folder==='all';b.classList.toggle('selected',active);b.setAttribute('aria-pressed',String(active));}$('chats').replaceChildren();
   accountHeader();view('chats');reportFocus();
   await chats(); // Account data was just loaded; do not immediately requery it.
  }
@@ -368,8 +380,9 @@
  function openMedia(message){$('media-title').textContent=message.name;$('media-body').replaceChildren(node('p','empty','Abriendo archivo…'));$('download').href=mediaUrl(message.id)+'&download=1';$('download').textContent='↓ Descargar archivo';$('media-dialog').showModal();const src=mediaUrl(message.id);let el;if(message.type==='image'||message.type==='sticker'){el=node('img');el.alt=message.text||message.name;}else if(message.type==='video'){el=node('video');el.controls=true;el.playsInline=true;el.preload='metadata';}else if(message.type==='audio'||message.type==='ptt'){el=node('audio');el.controls=true;el.playsInline=true;el.preload='metadata';}if(el){el.src=src;el.onerror=()=>{$('media-body').replaceChildren(node('p','empty','No se pudo abrir el archivo. La cuenta debe estar conectada y WhatsApp debe tenerlo disponible.'));};$('media-body').replaceChildren(el);}else $('media-body').replaceChildren(node('p','empty','Usa Descargar archivo para abrir este documento.'));}
  $('close-media').onclick=()=>{$('media-dialog').close();$('media-body').replaceChildren();};$('media-dialog').addEventListener('click',e=>{if(e.target===$('media-dialog'))$('close-media').click();});
  $('search').oninput=()=>{chatListGeneration++;detailsRefreshAt=0;pauseAutoChats();clearTimeout(searchTimer);searchTimer=setTimeout(()=>chats().catch(e=>notice(e.message)),250);};$('more-chats').onclick=()=>{pauseAutoChats();chats(true).catch(e=>notice(e.message));};$('older').onclick=()=>messages(true);
- $('country-search').oninput=()=>{pauseAutoChats();clearTimeout(searchTimer);searchTimer=setTimeout(()=>chats().catch(e=>notice(e.message)),300);};
- $('media-sort').onchange=()=>{pauseAutoChats();chats().catch(e=>notice(e.message));};
+ $('chat-filter-toggle').onclick=()=>setChatFiltersExpanded($('private-chat-filters').hidden);
+ $('country-search').oninput=()=>{markActiveChatFilters();pauseAutoChats();clearTimeout(searchTimer);searchTimer=setTimeout(()=>chats().catch(e=>notice(e.message)),300);};
+ $('media-sort').onchange=()=>{markActiveChatFilters();pauseAutoChats();chats().catch(e=>notice(e.message));};
  for(const button of document.querySelectorAll('.chat-folder'))button.onclick=()=>{
   if(state.folder===button.dataset.folder)return;
   state.folder=button.dataset.folder;

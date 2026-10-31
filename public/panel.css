@@ -82,3 +82,15 @@
 @media(max-width:760px){.chat-filter-grid{gap:8px}.chat-filter-grid input,.chat-filter-grid select{font-size:12px}.chat-folder{font-size:12px;padding:9px 12px}}
 
 .chat-filter-grid[hidden],.chat-folders[hidden]{display:none!important}
+
+/* A compact expandable filter control beside the chat search field. */
+.search-box{gap:9px}
+.search-box input{flex:1 1 auto;width:auto}
+.search-box .chat-filter-toggle{display:flex;align-items:center;justify-content:center;flex:0 0 37px;width:37px;height:37px;border:1px solid #cfdfd6;border-radius:11px;background:#fff;color:#286f4e;box-shadow:0 2px 7px rgba(20,77,48,.09);padding:0;touch-action:manipulation}
+.search-box .chat-filter-toggle:focus-visible{outline:2px solid #328d66;outline-offset:2px}
+.search-box .chat-filter-toggle .filter-chevron{display:block;font-size:29px;line-height:1;transform:translateY(-3px);transition:transform .18s ease}
+.search-box .chat-filter-toggle[aria-expanded="true"] .filter-chevron{transform:translateY(1px) rotate(180deg)}
+.search-box .chat-filter-toggle.has-active-filters{background:#ddf3e5;border-color:#8ec7a6;color:#176b42}
+#private-chat-filters:not([hidden]){animation:chat-filter-expand .2s ease-out both}
+@keyframes chat-filter-expand{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){#private-chat-filters:not([hidden]){animation:none}.search-box .chat-filter-toggle .filter-chevron{transition:none}}
