@@ -6,7 +6,7 @@
 #wa-welcome #wa-welcome-photo-ocr-targets .site-initial-target{
  position:absolute;box-sizing:border-box;background:rgba(34,166,111,.04);
  border:1px dashed rgba(19,172,106,.75);border-radius:3px;padding:0;
- min-height:8px;min-width:10px;pointer-events:auto;touch-action:manipulation;cursor:text
+ min-height:8px;min-width:10px;pointer-events:auto;touch-action:none;cursor:grab
 }
 #wa-welcome #wa-welcome-photo-ocr-targets .site-initial-target:focus-visible{
  outline:3px solid #06c98c;outline-offset:1px

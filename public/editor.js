@@ -148,6 +148,28 @@ function rememberPlacement(key,position){
 }
 $('reset-placement').onclick=()=>{if(selectedPlacement)send({type:'placement-reset',key:selectedPlacement});};
 window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==$('page').contentWindow)return;const m=e.data;
+if(m?.type==='popup-ocr-move'&&m.site==='wa'&&data?.site==='wa'&&
+ Number.isInteger(m.index)&&m.index>=0&&m.index<60){
+ if(field?.id==='welcome:photo'&&value!==field.value)return status('Guarda primero la foto del popup inicial.');
+ let layers;try{layers=JSON.parse(data.fields.find(f=>f.id==='welcome:layers')?.value||'[]');}catch{layers=[];}
+ const photo=data.fields.find(f=>f.id==='welcome:photo')?.value,layer=layers[m.index];
+ if(!layer||layer.source!==photo)return status('La imagen cambió. Reconoce las frases de la foto actual.');
+ const x=Number(m.drawX),y=Number(m.drawY);
+ if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x+layer.w>1.001||y+layer.h>1.001)
+  return status('No se pudo guardar la posición: fuera de la fotografía.');
+ const nextLayers=layers.map((v,i)=>i===m.index?
+  {...v,drawX:Math.round(x*10000)/10000,drawY:Math.round(y*10000)/10000}:v);
+ placementQueue=placementQueue.then(async()=>{
+  if(data?.site!=='wa')return;
+  const next=await api('editor/draft',{site:'wa',revision:data.base,version:data.version,
+   changes:[{id:'welcome:layers',value:JSON.stringify(nextLayers)}]});
+  loaded(next);status('Posición guardada en borrador. La vista previa y la publicación usan las mismas coordenadas.');
+ }).catch(error=>{
+  status('No se guardó el movimiento: '+error.message+'. La vista previa se restablecerá.');
+  loaded(data);
+ });
+ return;
+}
 if(m?.type==='popup-ocr-edit'&&data?.site==='wa'&&Number.isInteger(m.index)&&m.index>=0&&m.index<60){
  if(field?.id==='welcome:photo'&&value!==field.value)return status('Guarda primero la foto del popup inicial.');
  let layers;try{layers=JSON.parse(data.fields.find(f=>f.id==='welcome:layers')?.value||'[]');}catch{layers=[];}
