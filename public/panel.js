@@ -279,7 +279,8 @@
    // entire chat directory while a conversation or gallery is open.
    const screen=document.body.dataset.view;
    if(state.chat&&screen==='thread')await messages();
-   if(state.account&&screen==='chats'&&Date.now()-lastChatsAt>=30000)await chats();
+   // Do not collapse pages that the user has already expanded with Cargar más.
+   if(state.account&&screen==='chats'&&$('chats').querySelectorAll('.chat-item').length<=50&&Date.now()-lastChatsAt>=30000)await chats();
    if(Date.now()-lastAccountsAt>=30000)await accounts();
   }catch(e){notice(e.message);}finally{refreshBusy=false;}
  },10000);
