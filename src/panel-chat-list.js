@@ -9,8 +9,8 @@ const previews={image:'Foto',video:'Video',audio:'Audio',ptt:'Mensaje de voz',do
 // It avoids doing an expensive contact/mapping lookup for every chat on every
 // panel refresh. Only the visible 50 rows receive full names and previews.
 export class PanelChatList{
- constructor(store,profiles,{now=()=>Date.now(),ttl=15000,pageSize=50}={}){
-  this.store=store;this.profiles=profiles;this.now=now;this.ttl=ttl;this.pageSize=pageSize;this.cache=new Map();
+ constructor(store,profiles,{now=()=>Date.now(),ttl=15000,pageSize=50,visibleFilter=null}={}){
+  this.store=store;this.profiles=profiles;this.now=now;this.ttl=ttl;this.pageSize=pageSize;this.cache=new Map();this.visibleFilter=visibleFilter;
  }
  snapshot(account,db){
   const cached=this.cache.get(account),now=this.now();
@@ -77,7 +77,7 @@ export class PanelChatList{
   return result;
  }
  // Only the own chat needs the existing special projection/visibility filter.
- selfFilter(db,peer){return this.visibleFilter?.(db,peer)||{sql:'',params:[]};}
+ selfFilter(db,peer){return this.visibleFilter?.(db,peer)||{sql:' AND 1=0',params:[]};}
  lastMessage(account,db,peers,filter={sql:'',params:[]}){
   const query="SELECT id FROM baileys_data WHERE account=? AND kind='message' AND peer IN ("+
    peers.map(()=>'?').join(',')+")"+(filter.sql||'')+" ORDER BY timestamp DESC,rowid DESC LIMIT 1";
@@ -88,9 +88,7 @@ export class PanelChatList{
   if(entry.name===null)entry.name=this.profiles.name(account,entry.peer,entry.aliases);
   return entry.name;
  }
- page(account,db,{offset=0,query='',visibleFilter}={}){
-  this.visibleFilter=visibleFilter;
-  try{
+ page(account,db,{offset=0,query=''}={}){
    const snapshot=this.snapshot(account,db);
    const q=String(query||'').toLowerCase();
    const rows=q?snapshot.entries.filter(c=>
@@ -116,6 +114,5 @@ export class PanelChatList{
     return result;
    });
    return {items,next:rows.length>offset+this.pageSize?offset+this.pageSize:null};
-  }finally{this.visibleFilter=null;}
  }
 }
