@@ -16,6 +16,7 @@ export class PanelProfiles{
   let found=names.find(usable);
   if(!found&&self){const row=this.store.db.prepare("SELECT json_extract(value,'$.pushName') AS name FROM baileys_data WHERE account=? AND kind='message' AND json_extract(value,'$.key.fromMe')=1 AND length(json_extract(value,'$.pushName'))>0 ORDER BY timestamp DESC LIMIT 1").get(id);if(usable(row?.name))found=row.name;}
   if(!found)found=[...profiles.map(p=>p.name),...(self?[a.name]:[])].find(usable);
+  if(!found&&!self&&!jid.endsWith('@g.us'))found=[...peers].map(p=>db.get('panel-name',p)?.name).find(usable);
   return found?String(found).trim().slice(0,120):self?'WhatsApp · +'+a.phone:jid.split('@')[0];
  }
  async businessInfo(id,peer){
