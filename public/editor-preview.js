@@ -79,7 +79,7 @@ function popup(service,step=0){const previous=section;section=service;guideStep=
  }
  if(site==='cm'&&service==='initial'){
   const content=window.currentPublicContent?.initialPopup||window.SiteInitialPopup?.defaults||{};
-  window.SiteInitialPopup?.show('cm-initial-popup',content,{preview:true});
+  window.SiteInitialPopup?.show('cm-initial-popup',content,{preview:true,onTextDoubleTap:index=>tell({type:'popup-ocr-edit',index})});
   return;
  }
  if(site==='wa'&&service==='prelink'){document.getElementById('prelink-tutorial')?.showModal();return;}

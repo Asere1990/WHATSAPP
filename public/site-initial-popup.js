@@ -107,7 +107,7 @@
   else{
    const repaint=()=>{if(photo.naturalWidth&&photo.naturalHeight)cover.style.aspectRatio=photo.naturalWidth+' / '+photo.naturalHeight;redraw(dialog,layers);};
    photo.onload=repaint;
-   if(photo.getAttribute('src')!==config.photo)photo.src=config.photo;
+   if(photo.getAttribute?.('src')!==config.photo)photo.src=config.photo;
    else if(photo.complete&&photo.naturalWidth)repaint();
   }
   copy.classList.toggle('is-visually-hidden',hasPhoto);
