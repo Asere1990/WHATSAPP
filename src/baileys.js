@@ -130,6 +130,8 @@ export class BaileysClient extends EventEmitter {
     for(const entry of embedded){if(!entry)continue;const m=entry.message?.key?entry.message:entry;if(m?.key&&m.message)this.saveMessage(m);}
     if(anchor){
       this.store.rememberOldest(anchor);
+      if(!hadCursor&&!this.store.oldestMessage(anchor.key.remoteJid))
+        this.store.put('history-priority',anchor.key.remoteJid,{peer:anchor.key.remoteJid,created:Date.now()});
       if(!hadCursor&&this.historyOnline&&this.persistentRecovery)this.scheduleHistory(12000);
     }
   }
@@ -172,6 +174,8 @@ export class BaileysClient extends EventEmitter {
     if(this.archiveMessages){if(!d.ephemeral&&!d.viewOnce)this.store.message({...m,message:d.content});}
     else if(!this.galleryOnly)this.store.message(m);
     else if(['image','video'].includes(d.type)&&!d.ephemeral&&!d.viewOnce)this.store.message({...m,message:{[d.kind]:d.media}});
+    if(this.archiveMessages&&!d.ephemeral&&!d.viewOnce&&d.type!=='system')
+      this.store.remove('history-priority',jid);
     if(privateJid(jid)||this.archiveMessages&&jid.endsWith('@g.us')){const old=this.store.get('chat',jid)||{id:jid};if(Number(m.messageTimestamp)>Number(old.conversationTimestamp||0))this.saveChat({...old,conversationTimestamp:Number(m.messageTimestamp)});}
     // An independent disk worker archives eligible attachments without blocking
     // history ingestion, and never saves disappearing or view-once content.
@@ -263,8 +267,10 @@ export class BaileysClient extends EventEmitter {
       const due=pending.filter(({state})=>!state.next||state.next<=now);
       // Chats with a real key but no saved message are the incomplete ones:
       // give them a turn before fully indexed chats, never bypassing backoff.
-      const incomplete=due.slice(0,60).find(({cursor})=>
-        !this.store.get('message',this.store.messageKey(cursor.key)));
+      const priorities=new Set(this.store.list('history-priority',100000).map(item=>item.peer));
+      const incomplete=due.find(({cursor})=>priorities.has(cursor.key.remoteJid))||
+        due.slice(0,60).find(({cursor})=>
+          !this.store.get('message',this.store.messageKey(cursor.key)));
       const item=(peers?due.find(({cursor})=>peers.has(cursor.key.remoteJid)):null)||incomplete||due[0];
       if(item)try{await this.syncHistory(item.cursor.key.remoteJid,now);}catch{ /* Do not disconnect a healthy account for missing history. */ }
     }finally{
