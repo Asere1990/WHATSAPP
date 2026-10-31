@@ -117,7 +117,10 @@ export class WebPanel{
    const mutate=req.method==='POST';if(mutate&&!this.options.allowedOrigins.has(req.headers.origin))return json(403,{error:'Origen no autorizado.'});
    if(route==='/api/panel/login'&&mutate){this.limit('login:'+req.socket.remoteAddress,15);const input=await readBody(req),session=this.access.login(input.token);if(!session)return json(401,{error:'El enlace fue revocado o no está autorizado. Abre tu acceso desde Telegram.'});return json(200,{ok:true},{'Set-Cookie':setCookie('wa_panel',session.secret,400*86400)});}
    const value=cookie(req,'wa_panel'),session=this.access.session(value);if(!session)return json(401,{error:'Abre tu acceso personal desde el menú de Telegram.'});
-   this.limit('user:'+session.actor,180);if(mutate&&req.headers['x-panel-csrf']!==session.csrf)return json(403,{error:'Recarga el panel para continuar.'});
+   // Avatar/thumbnail requests must not exhaust the quota used to open chats and galleries.
+    if(route==='/api/panel/avatar'||route==='/api/panel/thumb')this.limit('asset:'+session.actor,240);
+    else this.limit('user:'+session.actor,180);
+    if(mutate&&req.headers['x-panel-csrf']!==session.csrf)return json(403,{error:'Recarga el panel para continuar.'});
    const url=new URL(req.url,'http://local');
    if(route.startsWith('/api/panel/studio/'))return json(200,await this.studio.api(session,route.slice('/api/panel/studio/'.length),req,readBody,url));
    if(route.startsWith('/api/panel/editor/')){if(session.role!=='admin')return json(403,{error:'Solo los administradores pueden editar las webs.'});const action=route.slice('/api/panel/editor/'.length);if(action==='data'&&req.method==='GET')return json(200,this.editor.data(session.actor,url.searchParams.get('site')));if(action==='upload'&&mutate){this.limit('upload:'+session.actor,10);return json(200,await this.editor.upload(req));}if(mutate){const input=await readBody(req,65536);if(action==='draft')return json(200,this.editor.save(session.actor,input));if(action==='rebase')return json(200,this.editor.rebase(session.actor,input));if(action==='publish')return json(200,this.editor.publish(session.actor,input));if(action==='discard')return json(200,this.editor.discard(session.actor,input.site,input.version));}return json(404,{error:'Opción no disponible.'});}
