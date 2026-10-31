@@ -32,6 +32,10 @@ function pick(target){
  const siteName=target.closest('header .corporate-brand>img,header .corporate-brand>.page-name-text');
  if(siteName)return {field:find('identity:mode'),el:siteName};
  if(site==='wa')for(const key of ['title','text','button','photo']){const el=target.closest('#wa-welcome-'+key);if(el)return {field:find('welcome:'+key),el};}
+ if(site==='cm'){
+  const el=target.closest('#cm-initial-popup [data-initial-part]');
+  if(el)return {field:find('initial:'+el.dataset.initialPart),el};
+ }
  const pairingInstruction=target.closest('#pairing-account + p');if(pairingInstruction)return {field:find('pairing:instructions'),el:pairingInstruction};
  const pairingAccount=target.closest('#pairing-account');if(pairingAccount)return {field:fields.find(f=>f.source==='Número que estás vinculando: {numero}'),el:pairingAccount};
  const country=target.closest('#country');if(country){const option=country.options[0],text=option?.textContent.trim();return {field:fields.find(f=>f.kind==='text'&&(f.value===text||f.source===text)),el:country};}
@@ -72,6 +76,11 @@ function popup(service,step=0){const previous=section;section=service;guideStep=
   const guide=document.getElementById('guide');if(guide)guide.hidden=true;
   const content=document.getElementById('guide-content');if(content)content.hidden=true;
   const welcome=document.getElementById('welcome');if(welcome)welcome.hidden=false;
+ }
+ if(site==='cm'&&service==='initial'){
+  const content=window.currentPublicContent?.initialPopup||window.SiteInitialPopup?.defaults||{};
+  window.SiteInitialPopup?.show('cm-initial-popup',content,{preview:true});
+  return;
  }
  if(site==='wa'&&service==='prelink'){document.getElementById('prelink-tutorial')?.showModal();return;}
  if(site==='wa'&&(service==='prelink-iphone'||service==='prelink-android')){renderGuideStep();document.getElementById('prelink-tutorial')?.showModal();return;}
