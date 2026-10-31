@@ -138,9 +138,13 @@
   }catch(error){
    if(state.account?.id===id){
     if(hadRows){notice('No se pudieron actualizar las conversaciones; se conserva la lista anterior.');return;}
-    finish('No se pudieron cargar las conversaciones. Inténtalo nuevamente.');throw error;
+    finish('No se pudieron cargar las conversaciones. Inténtalo nuevamente.');
+    throw error;
    }
-  }finally{chatRequests.delete(requestKey);finish();}
+  }finally{
+   chatRequests.delete(requestKey);
+   if(state.account?.id!==id||hadRows||!$('chats-load-state').classList.contains('is-error'))finish();
+  }
  }
  async function chooseChat(chat){state.epoch++;state.chat=chat;state.items=[];state.next=null;state.itemSignature=null;state.mode='messages';$('chat-name').textContent=chat.name;$('chat-detail').textContent=chat.phone&&!chat.group?chat.phone:state.account.name+(chat.group?' · Grupo':'');$('chat-avatar').textContent=chat.group?'▧':chat.name.slice(0,1).toUpperCase();avatarPhoto($('chat-avatar'),chat.avatar,chat.name);$('contact-info-trigger').classList.toggle('is-contact',!chat.group);$('contact-info-trigger').setAttribute('aria-label',chat.group?'Información de grupo no disponible':'Ver información de '+chat.name);$('tabs').hidden=false;$('sync').hidden=false;$('message').value='';$('composer').hidden=chat.group;$('group-note').hidden=!chat.group;view('thread');reportFocus();selectTab();$('thread').replaceChildren(node('p','empty','Cargando conversación…'));await messages();const key=state.account.id+':'+chat.peer;if(state.account.connected&&(!syncTimes.has(key)||Date.now()-syncTimes.get(key)>600000)){syncTimes.set(key,Date.now());api('sync',{account:state.account.id,peer:chat.peer}).catch(()=>{});}}
  async function openContactInfo(){
