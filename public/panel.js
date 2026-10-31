@@ -1,6 +1,7 @@
 (()=>{
  window.addEventListener('hashchange',()=>{if(location.hash)location.reload();});
- const $=id=>document.getElementById(id),state={me:null,account:null,chat:null,mode:'messages',items:[],next:null,chatsNext:null,epoch:0,busy:false};let csrf='',searchTimer,noticeTimer,focusChain=Promise.resolve(),lastFocus='',lastFocusAt=0,refreshBusy=false;
+ const $=id=>document.getElementById(id),state={me:null,account:null,chat:null,mode:'messages',items:[],next:null,chatsNext:null,epoch:0,busy:false};let csrf='',searchTimer,noticeTimer,focusChain=Promise.resolve(),lastFocus='',lastFocusAt=0,refreshBusy=false,lastAccountsAt=0,lastChatsAt=0;
+ const chatRequests=new Set();
  const node=(tag,className,text)=>{const el=document.createElement(tag);if(className)el.className=className;if(text!==undefined)el.textContent=text;return el;};
  const avatarPhoto=(element,src,label)=>{const old=element.querySelector('img');if(old?.getAttribute('src')===src)return;old?.remove();if(!src)return;const image=node('img');image.src=src;image.alt='Foto de '+label;image.loading='lazy';image.decoding='async';image.onerror=()=>image.remove();element.append(image);};
  const view=value=>document.body.dataset.view=value;
@@ -16,7 +17,7 @@
  }
  const accountStatus=a=>a.connected?'Conectada':({connecting:'Reconectando…',needs_pairing:'Requiere vinculación',auth_failure:'Requiere vinculación',error:'Error de conexión',expired:'Conexión interrumpida',disconnected:'Sin conexión'})[a.status]||'Sin conexión';
  function notice(text){$('notice').textContent=text;$('notice').hidden=!text;clearTimeout(noticeTimer);if(text)noticeTimer=setTimeout(()=>{$('notice').hidden=true;},8000);}
- function locked(text){if($('contact-info-dialog').open)$('contact-info-dialog').close();state.me=null;state.account=null;state.chat=null;csrf='';$('accounts').replaceChildren();$('chats').replaceChildren();$('thread').replaceChildren();$('media-dialog').close();$('media-body').replaceChildren();$('message').value='';$('workspace').hidden=true;$('login').hidden=false;$('login-status').textContent=text||'Abre tu acceso personal desde Telegram: /panel.';}
+ function locked(text){lastAccountsAt=0;lastChatsAt=0;chatRequests.clear();if($('contact-info-dialog').open)$('contact-info-dialog').close();state.me=null;state.account=null;state.chat=null;csrf='';$('accounts').replaceChildren();$('chats').replaceChildren();$('thread').replaceChildren();$('media-dialog').close();$('media-body').replaceChildren();$('message').value='';$('workspace').hidden=true;$('login').hidden=false;$('login-status').textContent=text||'Abre tu acceso personal desde Telegram: /panel.';}
 
  async function api(path,body,timeout=0){
   let response;
@@ -57,6 +58,7 @@
   try{
    const data=await api('accounts',undefined,22000);
    if(!state.me)return;
+   lastAccountsAt=Date.now();
    const old=state.account?.id,signature=JSON.stringify([old,data.items]);
    if(state.accountSignature===signature)return;
    state.accountSignature=signature;
@@ -90,20 +92,26 @@
  }
 
  async function chooseAccount(account){
-  state.account=account;state.chatSignature=null;state.chatsNext=null;
+  state.account=account;state.chatSignature=null;state.chatsNext=null;lastChatsAt=0;
   clearConversation();$('search').value='';$('chats').replaceChildren();
   accountHeader();view('chats');reportFocus();
-  await chats();await accounts();
+  await chats(); // Account data was just loaded; do not immediately requery it.
  }
 
  async function chats(append=false){
   if(!state.account)return;
   const id=state.account.id,query=$('search').value,offset=append?state.chatsNext:0;
+  if(append&&offset==null)return;
+  const requestKey=JSON.stringify([id,query,offset,append]);
+  if(chatRequests.has(requestKey))return;
+  chatRequests.add(requestKey);
+  const hadRows=!!$('chats').querySelector('.chat-item');
   const finish=beginLoading('chats-load-state',append?'Cargando más conversaciones…':'Cargando conversaciones e historial…',
-   $('chats').querySelector('.chat-item')?900:0);
+   hadRows?5000:0);
   try{
    const data=await api('chats?account='+encodeURIComponent(id)+'&q='+encodeURIComponent(query)+'&offset='+(offset||0),undefined,25000);
    if(state.account?.id!==id||$('search').value!==query)return;
+   if(!append)lastChatsAt=Date.now();
    const signature=JSON.stringify([id,query,data.items]);
    if(!append&&state.chatSignature===signature)return;
    state.chatSignature=append?null:signature;
@@ -128,8 +136,11 @@
     state.account.connected?'No hay conversaciones sincronizadas. El historial se amplía cuando WhatsApp lo entrega.':
      'Sin conexión. Todavía no hay conversaciones guardadas para consultar.'));
   }catch(error){
-   if(state.account?.id===id){finish('No se pudieron cargar las conversaciones. Inténtalo nuevamente.');throw error;}
-  }finally{finish();}
+   if(state.account?.id===id){
+    if(hadRows){notice('No se pudieron actualizar las conversaciones; se conserva la lista anterior.');return;}
+    finish('No se pudieron cargar las conversaciones. Inténtalo nuevamente.');throw error;
+   }
+  }finally{chatRequests.delete(requestKey);finish();}
  }
  async function chooseChat(chat){state.epoch++;state.chat=chat;state.items=[];state.next=null;state.itemSignature=null;state.mode='messages';$('chat-name').textContent=chat.name;$('chat-detail').textContent=chat.phone&&!chat.group?chat.phone:state.account.name+(chat.group?' · Grupo':'');$('chat-avatar').textContent=chat.group?'▧':chat.name.slice(0,1).toUpperCase();avatarPhoto($('chat-avatar'),chat.avatar,chat.name);$('contact-info-trigger').classList.toggle('is-contact',!chat.group);$('contact-info-trigger').setAttribute('aria-label',chat.group?'Información de grupo no disponible':'Ver información de '+chat.name);$('tabs').hidden=false;$('sync').hidden=false;$('message').value='';$('composer').hidden=chat.group;$('group-note').hidden=!chat.group;view('thread');reportFocus();selectTab();$('thread').replaceChildren(node('p','empty','Cargando conversación…'));await messages();const key=state.account.id+':'+chat.peer;if(state.account.connected&&(!syncTimes.has(key)||Date.now()-syncTimes.get(key)>600000)){syncTimes.set(key,Date.now());api('sync',{account:state.account.id,peer:chat.peer}).catch(()=>{});}}
  async function openContactInfo(){
@@ -260,10 +271,12 @@
   if(!state.me||document.hidden||refreshBusy)return;
   refreshBusy=true;reportFocus();
   try{
-   // Refresh the displayed conversation/gallery before broad account lists.
-   if(state.chat&&document.body.dataset.view==='thread')await messages();
-   if(state.account&&document.body.dataset.view!=='accounts')await chats();
-   await accounts();
+   // Keep the active conversation responsive. Do not keep reloading the
+   // entire chat directory while a conversation or gallery is open.
+   const screen=document.body.dataset.view;
+   if(state.chat&&screen==='thread')await messages();
+   if(state.account&&screen==='chats'&&Date.now()-lastChatsAt>=30000)await chats();
+   if(Date.now()-lastAccountsAt>=30000)await accounts();
   }catch(e){notice(e.message);}finally{refreshBusy=false;}
  },10000);
  window.addEventListener('online',()=>{if(state.me){reportFocus(true);accounts().catch(e=>notice(e.message));}});
