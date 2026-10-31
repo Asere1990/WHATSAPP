@@ -30,6 +30,8 @@
   photo.hidden=!valid;dialog.classList.toggle('has-photo',valid);if(valid)photo.src=content.photo;else photo.removeAttribute('src');
   const sheet=[...document.styleSheets].find(s=>s.href?.split('?')[0].endsWith('/welcome-popup.css'));
   if(sheet){const validColor=value=>/^#[0-9a-f]{6}$/i.test(value);for(let i=sheet.cssRules.length-1;i>=0;i--)if(sheet.cssRules[i].selectorText==='#wa-welcome #wa-welcome-button[type="button"]')sheet.deleteRule(i);sheet.insertRule('#wa-welcome #wa-welcome-button[type="button"]{background:'+(validColor(content.color)?content.color:'#128c7e')+';color:'+(validColor(content.textColor)?content.textColor:'#ffffff')+'}',sheet.cssRules.length);}
+  // Match the editor selection outline to the button background, never a fixed green.
+  if(document.body.dataset.operatorPopupSite!=='cm'&&button.style?.setProperty)button.style.setProperty('outline-color',/^#[0-9a-f]{6}$/i.test(content.color)?content.color:'#128c7e','important');
   fitAfterLayout();
  }
  button.addEventListener('click',()=>{dismissed=true;dialog.close();});
