@@ -40,7 +40,7 @@ function visibleChatFilter(db,peer,media=false){
 const publicId=value=>Buffer.from(value).toString('base64url');
 const internalId=value=>{if(typeof value!=='string'||value.length>2000||!/^[\w-]+$/.test(value))fail(400,'Archivo no válido.');return Buffer.from(value,'base64url').toString();};
 export class WebPanel{
- constructor(store,accounts,telegram,options){this.store=store;this.accounts=accounts;this.telegram=telegram;this.options=options;this.access=new PanelAccess(store,id=>telegram.admins().has(String(id))?'admin':telegram.permissions().has(String(id))?'operator':null);this.media=new Map();this.downloads=new Map();this.rates=new Map();this.archive=accounts.archive||null;this.profiles=new PanelProfiles(store,accounts);this.chatList=new PanelChatList(store,this.profiles);this.focus=new PanelFocus(accounts);this.editor=new VisualEditor(store,options.dir||accounts.dir||"./data");this.studio=new PageStudio(this);}
+ constructor(store,accounts,telegram,options){this.store=store;this.accounts=accounts;this.telegram=telegram;this.options=options;this.access=new PanelAccess(store,id=>telegram.admins().has(String(id))?'admin':telegram.permissions().has(String(id))?'operator':null);this.media=new Map();this.downloads=new Map();this.rates=new Map();this.archive=accounts.archive||null;this.profiles=new PanelProfiles(store,accounts);this.chatList=new PanelChatList(store,this.profiles,{visibleFilter:visibleChatFilter});this.focus=new PanelFocus(accounts);this.editor=new VisualEditor(store,options.dir||accounts.dir||"./data");this.studio=new PageStudio(this);}
  role(actor){return this.access.role(String(actor));}
  referral(req){return this.access.referral(cookie(req,'wa_referral'));}
  consent(account,req,reference){const ref=typeof reference==='string'?reference:'';if(ref)return this.access.attach(account,ref);return null;}
@@ -145,7 +145,7 @@ export class WebPanel{
     const query=(url.searchParams.get('q')||'').trim().toLowerCase().slice(0,80);
     // Only compact chat metadata is indexed; names and previews are resolved
     // for the visible page. Stored messages and synchronization are unchanged.
-    return json(200,this.chatList.page(id,db,{offset,query,visibleFilter:visibleChatFilter}));
+    return json(200,this.chatList.page(id,db,{offset,query}));
    }
    if((route==='/api/panel/messages'||route==='/api/panel/gallery')&&req.method==='GET')return json(200,this.messages(session.actor,id,peer,url.searchParams.get('before'),route.endsWith('gallery')));
    if((route==='/api/panel/media'||route==='/api/panel/thumb')&&req.method==='GET'){
