@@ -47,6 +47,7 @@ export class VisualEditor{
   }else{
    const intro=publicSnapshot(store,site).welcomePopup;
    for(const [k,label]of Object.entries({title:'Título',text:'Texto informativo',button:'Texto del botón',color:'Color del botón',textColor:'Color del texto del botón',photo:'Foto completa'}))add('welcome:'+k,'Popup inicial · '+label,k==='photo'?'image':['color','textColor'].includes(k)?'color':'text',intro[k],'wa_welcome_popup',k,{group:'popup-welcome',max:4000,optional:k==='photo'});
+   add('welcome:layers','Popup inicial · Frases de la foto','layers',JSON.stringify(intro.layers||[]),'wa_welcome_popup','layers',{group:'popup-welcome'});
    const b=publicSnapshot(store,site).branding;for(const k of ['title','description','button','color','logo'])add('brand:'+k,{title:'Título principal',description:'Descripción principal',button:'Botón principal',color:'Color principal',logo:'Logo de la página'}[k],k==='logo'?'image':k==='color'?'color':'text',b[k]||'',k,null,{group:k==='logo'?'identity':'branding',max:4000,optional:k==='logo'});
    const subtitleSource='Cuenta no oficial de WhatsApp',subtitleEntry=Object.entries(pageCatalog.wa).find(([,f])=>f.text===subtitleSource);
    add('brand:subtitle','Descripción bajo el nombre','text',config.wa_brand_subtitle||(subtitleEntry?values[subtitleEntry[0]]:undefined)||subtitleSource,'wa_brand_subtitle',null,{group:'identity',max:4000,source:subtitleSource});

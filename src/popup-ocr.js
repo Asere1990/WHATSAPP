@@ -1,5 +1,5 @@
-// OCR and editable text layers for the *new* Cubamax/Studio initial popups.
-// No WhatsApp popup, chat content or account material is accessed here.
+// Bounded OCR and editable text layers for informational initial popups.
+// Only the explicitly supplied editor image is processed, never chat media.
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {statSync} from 'node:fs';
@@ -30,8 +30,13 @@ export function validatePopupLayers(value){
   const weight=['400','500','600','700','800','900'].includes(String(layer.weight))?String(layer.weight):'700';
   const family=['Arial','Helvetica','Georgia','Times New Roman','Verdana','system-ui'].includes(layer.family)?layer.family:'Arial';
   const id=typeof layer.id==='string'&&/^[a-z0-9-]{1,32}$/i.test(layer.id)?layer.id:'ocr-'+index;
+  // The original WhatsApp popup can change its picture through a separate
+  // alert builder. Bind replacement layers to the exact photo they came from.
+  const source=layer.source;
+  if(source!==undefined&&!(typeof source==='string'&&/^\/portal-media\/[a-f0-9]{64}\.(?:png|jpg|gif|webp)$/.test(source)))
+   fail(400,'La frase no pertenece a una fotografía válida.');
   return {id,x:round(layer.x),y:round(layer.y),w:round(layer.w),h:round(layer.h),
-   original,text,color,fontSize:Math.round(size*10)/10,weight,family};
+   original,text,color,fontSize:Math.round(size*10)/10,weight,family,...(source?{source}:{})};
  });
 }
 export function parseTesseractTsv(tsv,width,height){

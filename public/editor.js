@@ -17,8 +17,8 @@ function buttons(){
 function loaded(next,reload=true){data=next;document.body.dataset.site=next.site;if(reload){selectedPlacement=null;$('reset-placement').hidden=true;}buttons();status(data.conflict?(data.site==='wa'?'⚠ Borrador de una versión anterior. Pulsa PUBLICAR para actualizarlo conservando tus cambios.':'La web cambió. Descarta el borrador y vuelve a editar para conservar los cambios nuevos.'):data.dirty?'● Cambios sin publicar':'Doble toque: editar. Mantén pulsado: mover. Dos dedos: tamaño.');if(reload)$('page').src='/editor/preview?site='+data.site+'&draft='+data.version;}
 async function openSite(){close();service='';scroll=0;guideStep=0;dismissedWelcome=false;loaded(await api('editor/data?site='+$('site').value));$('popup').replaceChildren();for(const [value,label]of (data.site==='wa'?[['','Secciones'],['identity','Logo, nombre, descripción e icono'],['align-header','Alinear cabecera'],['connect','Vincular cuenta'],['pairing','Autoriza en WhatsApp'],['copy-help','Popup · Código copiado'],['share-preview','Miniatura del enlace'],['prelink','Popup · Antes del código'],['prelink-iphone','Popup · Pasos iPhone'],['prelink-android','Popup · Pasos Android'],['main-guide','Página principal · Guía de pasos'],['guide-iphone','Página principal · Pasos iPhone'],['guide-android','Página principal · Pasos Android'],['welcome','Popup inicial']]:[['','Secciones'],['identity','Nombre / foto de la página'],['connect','Crear cuenta'],['pairing','Autoriza en WhatsApp'],['copy-help','Popup · Código copiado'],['guide-iphone','Pasos · iPhone'],['guide-android','Pasos · Android'],['initial','Popup inicial'],['money','Popup · Dinero'],['combo','Popup · Combos'],['packages','Popup · Paquetes'],['topup','Popup · Recargas']])){const option=node('option',label);option.value=value;$('popup').append(option);}$('popup').hidden=false;}
 function close(){$('sheet').hidden=true;document.body.classList.remove('editing');field=null;value=null;send({type:'unselect'});}
-function choose(id){if(id==='initial:photo'&&field?.id!==id)pendingInitialLayers=null;if(field&&field.id!==id&&value!==field.value&&!confirm('¿Cambiar de elemento sin guardar este cambio?'))return;const chosen=data?.fields.find(f=>f.id===id);if(!chosen)return;field=chosen;value=field.value;$('selection-title').textContent=field.label;$('selection').replaceChildren();$('sheet').hidden=false;document.body.classList.add('editing');$('catalog').close();const box=$('selection');
-if(['media','image'].includes(field.kind)){if(value){const media=node(value.endsWith('.mp4')?'video':'img');media.src=value;media.alt='Contenido actual';if(media.tagName==='VIDEO'){media.controls=true;media.playsInline=true;}box.append(media);}else box.append(node('p','Sin imagen configurada.'));const actions=node('div');actions.className='upload-buttons';for(const [text,accept]of [['Sustituir foto','image/jpeg,image/png,image/webp,image/gif'],...(field.kind==='media'?[['Subir video','video/mp4']]:[])]){const b=node('button',text);b.onclick=()=>{$('upload').accept=accept;$('upload').value='';$('upload').click();};actions.append(b);}box.append(actions);if(field.id==='initial:photo'&&data.site==='cm'){
+function choose(id){if(['initial:photo','welcome:photo'].includes(id)&&field?.id!==id)pendingInitialLayers=null;if(field&&field.id!==id&&value!==field.value&&!confirm('¿Cambiar de elemento sin guardar este cambio?'))return;const chosen=data?.fields.find(f=>f.id===id);if(!chosen)return;field=chosen;value=field.value;$('selection-title').textContent=field.label;$('selection').replaceChildren();$('sheet').hidden=false;document.body.classList.add('editing');$('catalog').close();const box=$('selection');
+if(['media','image'].includes(field.kind)){if(value){const media=node(value.endsWith('.mp4')?'video':'img');media.src=value;media.alt='Contenido actual';if(media.tagName==='VIDEO'){media.controls=true;media.playsInline=true;}box.append(media);}else box.append(node('p','Sin imagen configurada.'));const actions=node('div');actions.className='upload-buttons';for(const [text,accept]of [['Sustituir foto','image/jpeg,image/png,image/webp,image/gif'],...(field.kind==='media'?[['Subir video','video/mp4']]:[])]){const b=node('button',text);b.onclick=()=>{$('upload').accept=accept;$('upload').value='';$('upload').click();};actions.append(b);}box.append(actions);if((field.id==='initial:photo'&&data.site==='cm')||(field.id==='welcome:photo'&&data.site==='wa')){
  const b=node('button','Reconocer frases de esta foto');
  b.className='related';b.onclick=async()=>{
   if(!value)return status('Sube una imagen del popup inicial.');
@@ -26,9 +26,10 @@ if(['media','image'].includes(field.kind)){if(value){const media=node(value.ends
   busy=true;buttons();status('Reconociendo las letras de la foto…');
   try{
    const result=await api('editor/ocr',{asset:value});
-   pendingInitialLayers=result.layers||[];
+   pendingInitialLayers=(result.layers||[]).map(layer=>data.site==='wa'?{...layer,source:value}:layer);
    if(value===field.value){
-    const next=await api('editor/draft',{site:'cm',revision:data.base,version:data.version,changes:[{id:'initial:layers',value:JSON.stringify(pendingInitialLayers)}]});
+    const target=data.site==='wa'?'welcome:layers':'initial:layers';
+    const next=await api('editor/draft',{site:data.site,revision:data.base,version:data.version,changes:[{id:target,value:JSON.stringify(pendingInitialLayers)}]});
     loaded(next);status('Frases reconocidas y guardadas en borrador. Abre Secciones → Popup inicial y da doble toque sobre una frase.');
    }else status('Detectadas '+pendingInitialLayers.length+' frases. Guarda primero la foto para utilizar el doble toque.');
   }catch(e){status('No fue posible reconocer letras: '+e.message);}
@@ -43,18 +44,21 @@ if(['media','image'].includes(field.kind)){if(value){const media=node(value.ends
 }else{const label=node('label',field.kind==='color'?'Color #RRGGBB':'Contenido');const input=node(field.kind==='color'?'input':'textarea');input.id='field-value';label.htmlFor=input.id;if(input.tagName==='INPUT')input.type='text';input.value=value;input.maxLength=field.max||4000;input.oninput=()=>{value=input.value;buttons();};box.append(label,input);}
 const group=field.group;if(group&&(group==='identity'||group==='share-preview'||group.startsWith('popup-')||group.startsWith('guide-')))for(const other of data.fields.filter(f=>f.group===group&&f.kind!=='layers'&&f.id!==id&&!f.id.startsWith('page:')&&(!group.startsWith('guide-')||f.id.split(':')[2]===id.split(':')[2]))){const b=node('button','✎ '+other.label);b.className='related';b.onclick=()=>choose(other.id);box.append(b);}if(field.group==='popup-welcome'){const alert=node('a','CREAR POPUP ALERTA');alert.href='/alert-builder.html';alert.className='alert-create';box.append(alert);}buttons();}
 $('upload').onchange=async()=>{const file=$('upload').files[0];if(!file||!field)return;if(file.size>12*1024*1024)return status('Archivo máximo: 12 MB.');const chosen=field.id;busy=true;buttons();status('Subiendo archivo…');try{const r=await api('editor/upload'+(chosen.startsWith('guide:')&&data.site==='cm'?'?guide=1':''),file,true);if(field?.id!==chosen)return;value=r.asset;
- if(chosen==='initial:photo'&&data.site==='cm'){
+ if((chosen==='initial:photo'&&data.site==='cm')||(chosen==='welcome:photo'&&data.site==='wa')){
   pendingInitialLayers=[];
   try{
    status('Foto subida. Detectando las frases automáticamente…');
    const result=await api('editor/ocr',{asset:value});
-   pendingInitialLayers=result.layers||[];
+   pendingInitialLayers=(result.layers||[]).map(layer=>data.site==='wa'?{...layer,source:value}:layer);
   }catch(e){status('Foto subida; OCR no disponible: '+e.message+'. Puedes usar la foto sin cambios.');}
  }
- const media=$('selection').querySelector('img,video');if(media)media.remove();const preview=node(value.endsWith('.mp4')?'video':'img');preview.src=value;preview.alt='Archivo nuevo';if(preview.tagName==='VIDEO'){preview.controls=true;preview.playsInline=true;}$('selection').prepend(preview);status(chosen==='initial:photo'?'Foto subida, '+(pendingInitialLayers?.length||0)+' frases reconocidas. Guarda el borrador y abre Popup inicial para editar con doble tap.':'Archivo listo. Guarda el borrador para ver cómo queda.');}catch(e){status(e.message);}finally{busy=false;buttons();}};
+ const media=$('selection').querySelector('img,video');if(media)media.remove();const preview=node(value.endsWith('.mp4')?'video':'img');preview.src=value;preview.alt='Archivo nuevo';if(preview.tagName==='VIDEO'){preview.controls=true;preview.playsInline=true;}$('selection').prepend(preview);status(['initial:photo','welcome:photo'].includes(chosen)?'Foto subida, '+(pendingInitialLayers?.length||0)+' frases reconocidas. Guarda el borrador y abre Popup inicial para editar con doble tap.':'Archivo listo. Guarda el borrador para ver cómo queda.');}catch(e){status(e.message);}finally{busy=false;buttons();}};
 function changesForSelection(){
  const id=field.id,changes=[{id,value}];
- if(id==='initial:photo'&&data.site==='cm'&&value!==field.value)changes.push({id:'initial:layers',value:JSON.stringify(pendingInitialLayers||[])});
+ if(value!==field.value&&((id==='initial:photo'&&data.site==='cm')||(id==='welcome:photo'&&data.site==='wa'))){
+  const target=data.site==='wa'?'welcome:layers':'initial:layers';
+  changes.push({id:target,value:JSON.stringify(pendingInitialLayers||[])});
+ }
  if(id==='identity:text')changes.push({id:'identity:mode',value:'text'});
  if(id==='identity:photo'&&value)changes.push({id:'identity:mode',value:'photo'});
  // Only a new photo for a Cubamax service popup defaults to edge-to-edge.
@@ -144,6 +148,21 @@ function rememberPlacement(key,position){
 }
 $('reset-placement').onclick=()=>{if(selectedPlacement)send({type:'placement-reset',key:selectedPlacement});};
 window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==$('page').contentWindow)return;const m=e.data;
+if(m?.type==='popup-ocr-edit'&&data?.site==='wa'&&Number.isInteger(m.index)&&m.index>=0&&m.index<60){
+ if(field?.id==='welcome:photo'&&value!==field.value)return status('Guarda primero la foto del popup inicial.');
+ let layers;try{layers=JSON.parse(data.fields.find(f=>f.id==='welcome:layers')?.value||'[]');}catch{layers=[];}
+ const originalPhoto=data.fields.find(f=>f.id==='welcome:photo')?.value;
+ const existing=layers[m.index];
+ if(!existing||existing.source!==originalPhoto)return status('La imagen cambió. Reconoce las frases de la foto actual.');
+ window.PopupPhotoEditor?.open(existing,async updated=>{
+  if(data?.site!=='wa')throw Error('Regresa al editor de WhatsApp para guardar la frase.');
+  const nextLayers=layers.map((x,i)=>i===m.index?{...updated,source:originalPhoto}:x);
+  const next=await api('editor/draft',{site:'wa',revision:data.base,version:data.version,changes:[{id:'welcome:layers',value:JSON.stringify(nextLayers)}]});
+  loaded(next);
+  status('Frase editada y guardada en borrador. Verifica la vista previa y pulsa PUBLICAR cuando estés conforme.');
+ });
+ return;
+}
 if(m?.type==='popup-ocr-edit'&&data?.site==='cm'&&Number.isInteger(m.index)&&m.index>=0&&m.index<60){
  if(field?.id==='initial:photo'&&value!==field.value)return status('Guarda primero la foto del popup inicial.');
  let layers;try{layers=JSON.parse(data.fields.find(f=>f.id==='initial:layers')?.value||'[]');}catch{layers=[];}
