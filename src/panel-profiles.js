@@ -12,11 +12,12 @@ export class PanelProfiles{
   const aliases=Array.isArray(knownAliases)?knownAliases:db.peers(jid);
   const self=aliases.includes(toJid(a.phone+'@c.us')),client=this.accounts.live.get(id)?.client,creds=self?db.authValue('creds','self'):null;
   const peers=new Set([...aliases,...(self?[toJid(creds?.me?.id||''),toJid(creds?.me?.lid||'')]:[])]),contacts=[...peers].map(p=>db.get('contact',p)).filter(Boolean),chats=[...peers].map(p=>db.get('chat',p)).filter(Boolean),profiles=[...peers].map(p=>this.store.profile(id,toPeer(p))).filter(Boolean);
-  const names=self?[client?.info?.pushname,client?.socket?.user?.name,client?.socket?.user?.notify,client?.socket?.user?.verifiedName,creds?.me?.name,creds?.me?.notify,creds?.me?.verifiedName,...contacts.flatMap(c=>[c.notify,c.name,c.verifiedName])]:[...chats.map(c=>c.subject||c.name),...contacts.flatMap(c=>[c.name,c.notify,c.verifiedName])];
+  const names=self?[client?.info?.pushname,client?.socket?.user?.name,client?.socket?.user?.notify,client?.socket?.user?.verifiedName,creds?.me?.name,creds?.me?.notify,creds?.me?.verifiedName,...contacts.flatMap(c=>[c.notify,c.name,c.verifiedName])]:[...chats.flatMap(c=>[c.subject,c.name,c.displayName]),...contacts.flatMap(c=>[c.name,c.notify,c.verifiedName,c.displayName])];
   let found=names.find(usable);
   if(!found&&self){const row=this.store.db.prepare("SELECT json_extract(value,'$.pushName') AS name FROM baileys_data WHERE account=? AND kind='message' AND json_extract(value,'$.key.fromMe')=1 AND length(json_extract(value,'$.pushName'))>0 ORDER BY timestamp DESC LIMIT 1").get(id);if(usable(row?.name))found=row.name;}
   if(!found)found=[...profiles.map(p=>p.name),...(self?[a.name]:[])].find(usable);
-  if(!found&&!self&&!jid.endsWith('@g.us'))found=[...peers].map(p=>db.get('panel-name',p)?.name).find(usable);
+  if(!found&&!self)found=[...peers].map(p=>db.get('panel-name',p)?.name).find(usable);
+  if(!found&&!self)found=[...contacts.map(c=>c.username),...chats.map(c=>c.username)].find(usable);
   return found?String(found).trim().slice(0,120):self?'WhatsApp · +'+a.phone:jid.split('@')[0];
  }
  async businessInfo(id,peer){
