@@ -2,3 +2,18 @@
 @media(max-width:760px){.editor-layout{display:block;padding:10px}.inspector{position:relative;top:auto;max-height:none;margin-top:14px}.bar{font-size:14px}.bar button{padding:10px}.content{padding:12px}.studio-canvas{max-width:100%}body.editing .inspector{scroll-margin-top:100px}dialog{max-height:88dvh}.public-options{padding-bottom:max(20px,env(safe-area-inset-bottom))}}
 
 #close-properties{display:none}@media(max-width:760px){body.element-editing .inspector{position:fixed;bottom:0;left:0;right:0;top:auto;z-index:8;max-height:55dvh;border-radius:20px 20px 0 0;box-shadow:0 -8px 30px #173a3340;padding-bottom:max(18px,env(safe-area-inset-bottom));margin:0}body.element-editing .inspector .page-settings,body.element-editing .inspector .add-element,body.element-editing .inspector h2{display:none}body.element-editing #close-properties{display:block;float:right;margin-bottom:8px}body.element-editing .inspector .required-note{font-size:12px}body.element-editing .inspector>label{clear:both}}
+
+/* Standalone Studio page initial-popup controls; no changes to WhatsApp. */
+.studio-popup-settings{border-top:1px solid #d9e8e0;margin:18px 0 20px;padding-top:15px}
+.studio-popup-settings h2{margin:0 0 6px}
+.studio-popup-hint{font-size:12px;line-height:1.5;color:#60766d;margin:6px 0 11px}
+.studio-popup-settings textarea{width:100%;min-height:78px;resize:vertical}
+.studio-popup-toggle{display:flex;gap:8px;align-items:center;font-weight:700;color:#195849}
+.studio-popup-toggle input{width:auto;accent-color:#178964}
+.studio-popup-photo-wrap{margin-top:10px;padding:10px;border:1px dashed #bbd5c7;border-radius:12px;text-align:center;display:grid;justify-items:center;gap:6px}
+.studio-popup-photo-wrap img{display:block;width:min(140px,100%);max-height:200px;object-fit:contain}
+.studio-popup-photo-wrap img[hidden]{display:none}
+.studio-popup-photo-wrap span{font-size:12px;color:#657d75}
+.studio-popup-settings .actions button{flex:1;font-size:12px;white-space:normal}
+
+@media(max-width:760px){body.element-editing .inspector .studio-popup-settings{display:none}}
