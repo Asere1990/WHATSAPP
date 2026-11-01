@@ -148,24 +148,33 @@ function rememberPlacement(key,position){
 }
 $('reset-placement').onclick=()=>{if(selectedPlacement)send({type:'placement-reset',key:selectedPlacement});};
 window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==$('page').contentWindow)return;const m=e.data;
-if(m?.type==='popup-ocr-move'&&m.site==='wa'&&data?.site==='wa'&&
+if(m?.type==='popup-ocr-move'&&['wa','cm'].includes(m.site)&&m.site===data?.site&&
  Number.isInteger(m.index)&&m.index>=0&&m.index<60){
- if(field?.id==='welcome:photo'&&value!==field.value)return status('Guarda primero la foto del popup inicial.');
- let layers;try{layers=JSON.parse(data.fields.find(f=>f.id==='welcome:layers')?.value||'[]');}catch{layers=[];}
- const photo=data.fields.find(f=>f.id==='welcome:photo')?.value,layer=layers[m.index];
- if(!layer||layer.source!==photo)return status('La imagen cambió. Reconoce las frases de la foto actual.');
+ const site=m.site,key=site==='wa'?'welcome:layers':'initial:layers';
+ const photoKey=site==='wa'?'welcome:photo':'initial:photo';
+ if(field?.id===photoKey&&value!==field.value)return status('Guarda primero la foto del popup inicial.');
  const x=Number(m.drawX),y=Number(m.drawY);
- if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x+layer.w>1.001||y+layer.h>1.001)
-  return status('No se pudo guardar la posición: fuera de la fotografía.');
- const nextLayers=layers.map((v,i)=>i===m.index?
-  {...v,drawX:Math.round(x*10000)/10000,drawY:Math.round(y*10000)/10000}:v);
+ const size=m.fontSize==null?null:Number(m.fontSize);
+ if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||
+  (size!==null&&(!Number.isFinite(size)||size<6||size>500)))
+  return status('El tamaño o la posición de la frase no son válidos.');
+ // Serialize photo edits: a pinch after a drag must not overwrite the
+ // previous save with an older copy of the layers.
  placementQueue=placementQueue.then(async()=>{
-  if(data?.site!=='wa')return;
-  const next=await api('editor/draft',{site:'wa',revision:data.base,version:data.version,
-   changes:[{id:'welcome:layers',value:JSON.stringify(nextLayers)}]});
-  loaded(next);status('Posición guardada en borrador. La vista previa y la publicación usan las mismas coordenadas.');
+  if(data?.site!==site)return;
+  let layers;try{layers=JSON.parse(data.fields.find(f=>f.id===key)?.value||'[]');}catch{layers=[];}
+  const photo=data.fields.find(f=>f.id===photoKey)?.value,layer=layers[m.index];
+  if(!layer||(site==='wa'&&layer.source!==photo))throw Error('La foto cambió. Reconoce las frases de nuevo.');
+  if(x+layer.w>1.001||y+layer.h>1.001)throw Error('La frase debe quedar dentro de la fotografía.');
+  const replacement={...layer,drawX:Math.round(x*10000)/10000,drawY:Math.round(y*10000)/10000,
+   ...(size!==null?{fontSize:Math.round(size*10)/10,styled:true}:{})};
+  const nextLayers=layers.map((v,i)=>i===m.index?replacement:v);
+  const next=await api('editor/draft',{site,revision:data.base,version:data.version,
+   changes:[{id:key,value:JSON.stringify(nextLayers)}]});
+  loaded(next);
+  status(size===null?'Posición guardada en borrador.':'Tamaño y posición guardados en borrador. La vista previa conservará los valores al publicar.');
  }).catch(error=>{
-  status('No se guardó el movimiento: '+error.message+'. La vista previa se restablecerá.');
+  status('No se guardó el ajuste: '+error.message+'. Vuelve a abrir la vista previa.');
   loaded(data);
  });
  return;
