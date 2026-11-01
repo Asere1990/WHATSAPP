@@ -79,7 +79,12 @@ function popup(service,step=0){const previous=section;section=service;guideStep=
  }
  if(site==='cm'&&service==='initial'){
   const content=window.currentPublicContent?.initialPopup||window.SiteInitialPopup?.defaults||{};
-  window.SiteInitialPopup?.show('cm-initial-popup',content,{preview:true,onTextDoubleTap:index=>tell({type:'popup-ocr-edit',index})});
+  window.SiteInitialPopup?.show('cm-initial-popup',content,{
+   preview:true,
+   onTextDoubleTap:index=>tell({type:'popup-ocr-edit',index}),
+   onTextDragEnd:(index,position)=>tell({type:'popup-ocr-move',site:'cm',index,...position}),
+   onTextPinchEnd:(index,position)=>tell({type:'popup-ocr-move',site:'cm',index,...position})
+  });
   return;
  }
  if(site==='wa'&&service==='prelink'){document.getElementById('prelink-tutorial')?.showModal();return;}
@@ -126,6 +131,7 @@ function popup(service,step=0){const previous=section;section=service;guideStep=
   if(service==='welcome'){
    window.WelcomePhotoOCR?.enableEditing(
      index=>tell({type:'popup-ocr-edit',site:'wa',index}),
+     (index,position)=>tell({type:'popup-ocr-move',site:'wa',index,...position}),
      (index,position)=>tell({type:'popup-ocr-move',site:'wa',index,...position})
    );
    document.getElementById('wa-welcome')?.showModal();
@@ -245,6 +251,7 @@ document.addEventListener('click',e=>{const target=e.target.closest?.('*');if(!t
 document.addEventListener('submit',e=>{e.preventDefault();e.stopImmediatePropagation();},true);
 if(site==='wa')window.WelcomePhotoOCR?.enableEditing(
      index=>tell({type:'popup-ocr-edit',site:'wa',index}),
+     (index,position)=>tell({type:'popup-ocr-move',site:'wa',index,...position}),
      (index,position)=>tell({type:'popup-ocr-move',site:'wa',index,...position})
    );
 window.addEventListener('message',e=>{if(e.source!==parent||e.origin!==location.origin)return;const m=e.data;if(m?.type==='mode'){editing=!!m.editing;document.body.dataset.editing=String(editing);if(!editing)selected?.removeAttribute('data-editor-selected');}if(m?.type==='unselect')selected?.removeAttribute('data-editor-selected');if(m?.type==='popup')popup(m.service,m.step);if(m?.type==='restore'){scrollTo(0,Number(m.scroll)||0);if(m.dismissedWelcome&&!m.service)document.getElementById('wa-welcome')?.close();if(m.service)popup(m.service,m.step);}

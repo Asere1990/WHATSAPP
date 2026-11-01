@@ -102,71 +102,154 @@
  function setTargets(dialog,layers,options){
   const {targets,cover}=dialog.initialParts;
   if(typeof targets.replaceChildren==='function')targets.replaceChildren();else targets.children=[];
-  const editable=typeof options.onTextDoubleTap==='function'||typeof options.onTextDragEnd==='function';
+  const editable=['onTextDoubleTap','onTextDragEnd','onTextPinchEnd'].some(name=>typeof options[name]==='function');
   if(!editable||!layers.length){targets.hidden=true;return;}
   targets.hidden=false;
-  // Never mutate the public snapshot while moving the phrase in a draft.
-  const preview=layers.map(layer=>({...layer}));
+  // Do not alter a published snapshot while the editor is previewing a move.
+  const preview=layers.map(item=>({...item}));
+  let activeSecondFinger=null;
+  targets.style.pointerEvents='none';
+  targets.style.touchAction='none';
+  targets.onpointerdown=event=>{
+   // Permit a second finger anywhere on the popup photo, while the first
+   // finger is on a recognized phrase. The photo outside the phrase remains
+   // scrollable before the first gesture.
+   if(event.target===targets&&activeSecondFinger)activeSecondFinger(event);
+  };
   layers.forEach((_,index)=>{
    const layer=preview[index],target=make('button','site-initial-target');
    target.type='button';target.setAttribute('aria-label','Doble toque para editar: '+layer.text.slice(0,100));
-   target.title='Doble toque para editar; mantener pulsado para mover';
+   target.title='Doble toque editar · mantener pulsado mover · dos dedos tamaño';
    target.style.left=((layer.drawX??layer.x)*100)+'%';
    target.style.top=((layer.drawY??layer.y)*100)+'%';
    target.style.width=(layer.w*100)+'%';target.style.height=(layer.h*100)+'%';
    target.dataset.layerIndex=String(index);
-   let last=0,press=null,skipClickUntil=0,raf=false;
-   const cancelTimer=()=>{if(press?.timer&&typeof clearTimeout==='function')clearTimeout(press.timer);};
+   let last=0,press=null,skipClickUntil=0,raf=false,pinch=null;
+   const fingers=new Map();
+   const normalizedPoint=p=>{
+    const rect=cover.getBoundingClientRect?.();
+    if(!rect?.width||!rect?.height)return null;
+    return {x:(p.x-rect.left)/rect.width,y:(p.y-rect.top)/rect.height};
+   };
    const repaint=()=>{
     if(typeof requestAnimationFrame==='function'){
-     if(raf)return;raf=true;requestAnimationFrame(()=>{raf=false;redraw(dialog,preview);});
+     if(raf)return;
+     raf=true;requestAnimationFrame(()=>{raf=false;redraw(dialog,preview);});
     }else redraw(dialog,preview);
    };
-   target.addEventListener('pointerdown',event=>{
-    if(typeof options.onTextDragEnd!=='function'||event.button>0)return;
+   const cancelTimer=()=>{
+    if(press?.timer&&typeof clearTimeout==='function')clearTimeout(press.timer);
+   };
+   const finishAll=()=>{
+    cancelTimer();press=null;fingers.clear();pinch=null;
+    activeSecondFinger=null;targets.style.pointerEvents='none';
+    target.classList?.remove?.('is-dragging');
+   };
+   const beginPinch=()=>{
+    if(fingers.size!==2||pinch||typeof options.onTextPinchEnd!=='function')return;
+    const entries=[...fingers],a=entries[0][1],b=entries[1][1];
+    const distance=Math.hypot(a.x-b.x,a.y-b.y);
+    if(distance<10)return;
+    const mid=normalizedPoint({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+    if(!mid)return;
+    cancelTimer();press=null;last=0;target.classList?.add?.('is-dragging');
+    const startFont=Number(layer.fontSize)||Math.max(6,Math.round(layer.h*(dialog.initialParts.photo?.naturalHeight||2048)));
+    pinch={ids:entries.map(p=>p[0]),distance,mid,
+      x:layer.drawX??layer.x,y:layer.drawY??layer.y,font:startFont,changed:false};
+    for(const id of pinch.ids)target.setPointerCapture?.(id);
+   };
+   const movePinch=event=>{
+    if(!pinch||!pinch.ids.every(id=>fingers.has(id)))return;
+    const a=fingers.get(pinch.ids[0]),b=fingers.get(pinch.ids[1]);
+    const ratio=Math.hypot(a.x-b.x,a.y-b.y)/pinch.distance;
+    const now=normalizedPoint({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+    if(!now||!Number.isFinite(ratio))return;
+    const fontSize=Math.round(clamp(pinch.font*ratio,6,500)*10)/10;
+    const drawX=Math.round(clamp(now.x+(pinch.x-pinch.mid.x)*ratio,0,Math.max(0,1-layer.w))*10000)/10000;
+    const drawY=Math.round(clamp(now.y+(pinch.y+layer.h/2-pinch.mid.y)*ratio-layer.h/2,0,Math.max(0,1-layer.h))*10000)/10000;
+    if(fontSize===layer.fontSize&&drawX===(layer.drawX??layer.x)&&drawY===(layer.drawY??layer.y))return;
+    pinch.changed=true;layer.fontSize=fontSize;layer.styled=true;layer.drawX=drawX;layer.drawY=drawY;
+    target.style.left=(drawX*100)+'%';target.style.top=(drawY*100)+'%';
+    event.preventDefault?.();repaint();
+   };
+   const addPointer=event=>{
+    if(typeof options.onTextDragEnd!=='function'&&typeof options.onTextPinchEnd!=='function')return;
+    if(event.button>0||fingers.has(event.pointerId))return;
+    fingers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    if(fingers.size===2){beginPinch();if(pinch)event.preventDefault?.();return;}
+    if(fingers.size!==1)return;
     if(press)cancelTimer();
     press={id:event.pointerId,sx:event.clientX,sy:event.clientY,
-     x:layer.drawX??layer.x,y:layer.drawY??layer.y,active:false,moved:false,timer:null};
-    if(typeof setTimeout==='function')press.timer=setTimeout(()=>{
-     if(!press||press.id!==event.pointerId)return;
-     press.active=true;last=0;
-     target.classList?.add?.('is-dragging');
-     target.setPointerCapture?.(event.pointerId);
-    },420);
+      x:layer.drawX??layer.x,y:layer.drawY??layer.y,active:false,moved:false,timer:null};
+    activeSecondFinger=addPointer;
+    // The overlay only captures touches after the first finger is down.
+    targets.style.pointerEvents='auto';
+    if(typeof setTimeout==='function'&&typeof options.onTextDragEnd==='function'){
+      press.timer=setTimeout(()=>{
+       if(!press||press.id!==event.pointerId||fingers.size!==1)return;
+       press.active=true;last=0;target.classList?.add?.('is-dragging');
+       target.setPointerCapture?.(event.pointerId);
+      },420);
+    }
+   };
+   target.addEventListener('pointerdown',event=>{
+    // A second finger may land on a neighboring OCR phrase. Continue the
+    // currently selected pinch instead of starting a second drag.
+    if(activeSecondFinger&&activeSecondFinger!==addPointer){
+     activeSecondFinger(event);event.preventDefault?.();return;
+    }
+    addPointer(event);
    });
    target.addEventListener('pointermove',event=>{
+    if(fingers.has(event.pointerId))fingers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+    if(pinch){if(pinch.ids.includes(event.pointerId))movePinch(event);return;}
     if(!press||press.id!==event.pointerId)return;
     if(!press.active){
-     if(Math.hypot(event.clientX-press.sx,event.clientY-press.sy)>12){cancelTimer();press=null;}
+     if(Math.hypot(event.clientX-press.sx,event.clientY-press.sy)>12){
+      cancelTimer();press=null;fingers.delete(event.pointerId);
+      if(!fingers.size){activeSecondFinger=null;targets.style.pointerEvents='none';}
+     }
      return;
     }
     event.preventDefault?.();
     const rect=cover.getBoundingClientRect?.();
     if(!rect?.width||!rect?.height)return;
-    const drawX=clamp(press.x+(event.clientX-press.sx)/rect.width,0,Math.max(0,1-layer.w));
-    const drawY=clamp(press.y+(event.clientY-press.sy)/rect.height,0,Math.max(0,1-layer.h));
-    layer.drawX=Math.round(drawX*10000)/10000;
-    layer.drawY=Math.round(drawY*10000)/10000;
+    const x=clamp(press.x+(event.clientX-press.sx)/rect.width,0,Math.max(0,1-layer.w));
+    const y=clamp(press.y+(event.clientY-press.sy)/rect.height,0,Math.max(0,1-layer.h));
+    layer.drawX=Math.round(x*10000)/10000;layer.drawY=Math.round(y*10000)/10000;
     press.moved=press.moved||layer.drawX!==press.x||layer.drawY!==press.y;
     target.style.left=(layer.drawX*100)+'%';target.style.top=(layer.drawY*100)+'%';
     repaint();
    });
-   const finish=event=>{
-    if(!press||event.pointerId!==press.id)return;
-    const done=press;cancelTimer();press=null;
+   const stopPointer=event=>{
+    if(pinch&&pinch.ids.includes(event.pointerId)){
+      const changed=pinch.changed;
+      for(const id of pinch.ids)target.releasePointerCapture?.(id);
+      fingers.delete(event.pointerId);
+      skipClickUntil=Date.now()+700;last=0;
+      if(changed){
+       redraw(dialog,preview);
+       options.onTextPinchEnd(index,{fontSize:layer.fontSize,styled:true,
+        drawX:layer.drawX??layer.x,drawY:layer.drawY??layer.y});
+      }
+      finishAll();event.preventDefault?.();return;
+    }
+    if(!press||press.id!==event.pointerId){fingers.delete(event.pointerId);return;}
+    const done=press;cancelTimer();press=null;fingers.delete(event.pointerId);
+    if(!fingers.size){activeSecondFinger=null;targets.style.pointerEvents='none';}
     if(done.active){
      skipClickUntil=Date.now()+650;
      target.classList?.remove?.('is-dragging');
      target.releasePointerCapture?.(event.pointerId);
-     if(done.moved){
-      redraw(dialog,preview);
-      options.onTextDragEnd(index,{drawX:layer.drawX,drawY:layer.drawY});
-     }
+     if(done.moved){redraw(dialog,preview);options.onTextDragEnd?.(index,{drawX:layer.drawX,drawY:layer.drawY});}
      event.preventDefault?.();
     }
    };
-   target.addEventListener('pointerup',finish);
-   target.addEventListener('pointercancel',event=>{cancelTimer();press=null;target.classList?.remove?.('is-dragging');});
+   target.addEventListener('pointerup',stopPointer);
+   target.addEventListener('pointercancel',event=>{
+    if(pinch&&pinch.ids.includes(event.pointerId)){stopPointer(event);return;}
+    finishAll();
+   });
    target.addEventListener('click',event=>{
     event.preventDefault();
     if(Date.now()<skipClickUntil)return;

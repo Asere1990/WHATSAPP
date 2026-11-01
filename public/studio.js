@@ -23,6 +23,18 @@ function openInitialPreview(){
     changed();refreshInitialPreview();
     status('Frase editada en el borrador. Pulsa Guardar y Publicar para aplicarla.');
    });
+  },
+  onTextDragEnd:(index,position)=>{
+   const layer=initial().layers?.[index];if(!layer)return;
+   initial().layers[index]={...layer,...position};
+   changed();refreshInitialPreview();
+   status('Posición actualizada en borrador. Guarda y publica cuando esté correcta.');
+  },
+  onTextPinchEnd:(index,position)=>{
+   const layer=initial().layers?.[index];if(!layer)return;
+   initial().layers[index]={...layer,...position};
+   changed();refreshInitialPreview();
+   status('Tamaño y posición actualizados en borrador. Guarda y publica cuando estés conforme.');
   }
  });
 }

@@ -177,6 +177,12 @@
    notice('Frase modificada en vista previa. Puedes editar otras frases; la imagen original sigue intacta. Usa «Usar en popup inicial» para guardar el resultado como borrador.');
   });
  }
+ // One finger held = move. Two fingers on the selected phrase = pinch to
+ // resize and translate. Both modes operate in original-photo coordinates.
+ const activeFingers=new Map();
+ let pinch=null,ignoreTapUntil=0;
+ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+ const round4=n=>Math.round(n*10000)/10000;
  const stopHold=()=>{
   if(holdTimer!=null&&typeof clearTimeout==='function')clearTimeout(holdTimer);
   holdTimer=null;
@@ -185,13 +191,63 @@
   const nowPoint=atCanvas(event),first=start?.point;
   if(!nowPoint||!first)return;
   const line=recognized[start.index];if(!line)return;
-  const limit=(v,a,b)=>Math.max(a,Math.min(b,v));
-  line.drawX=Math.round(limit(start.x+nowPoint.x-first.x,0,Math.max(0,1-line.w))*10000)/10000;
-  line.drawY=Math.round(limit(start.y+nowPoint.y-first.y,0,Math.max(0,1-line.h))*10000)/10000;
+  line.drawX=round4(clamp(start.x+nowPoint.x-first.x,0,Math.max(0,1-line.w)));
+  line.drawY=round4(clamp(start.y+nowPoint.y-first.y,0,Math.max(0,1-line.h)));
   start.moved=start.moved||line.drawX!==start.x||line.drawY!==start.y;
-  draw(); // The SAME 1370x2048 canvas is used for preview and exported PNG.
+  draw(); // Exact 1370×2048 canvas used for preview and PNG export.
+ };
+ const fingerMid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+ const fingerDist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+ const startPinch=()=>{
+  if(activeFingers.size!==2||pinch||!pointerStart||pointerStart.index<0)return;
+  const line=recognized[pointerStart.index];
+  if(!line)return;
+  const entries=[...activeFingers];
+  const a=entries[0][1],b=entries[1][1],distance=fingerDist(a,b);
+  if(distance<12)return;
+  const mid=fingerMid(a,b),initial=atCanvas({clientX:mid.x,clientY:mid.y});
+  if(!initial)return;
+  stopHold();lastTap=null;lastOpened=Date.now();canvas.style.cursor='grabbing';
+  pinch={ids:entries.map(p=>p[0]),index:pointerStart.index,distance,
+   font:Math.max(6,Number(line.fontSize)||Math.round(line.h*H)),
+   x:line.drawX??line.x,y:line.drawY??line.y,mid:initial,changed:false};
+  pointerStart=null;
+  for(const id of pinch.ids)canvas.setPointerCapture?.(id);
+ };
+ const resizePinch=event=>{
+  if(!pinch||!pinch.ids.every(id=>activeFingers.has(id)))return;
+  const a=activeFingers.get(pinch.ids[0]),b=activeFingers.get(pinch.ids[1]);
+  const dist=fingerDist(a,b),factor=dist/pinch.distance;
+  const midpoint=fingerMid(a,b),now=atCanvas({clientX:midpoint.x,clientY:midpoint.y});
+  if(!now||!Number.isFinite(factor))return;
+  const line=recognized[pinch.index];if(!line)return;
+  const font=Math.round(clamp(pinch.font*factor,6,500)*10)/10;
+  // Scale the phrase around the midpoint between fingers, not around the
+  // top-left of the page. The original OCR erasure box is unchanged.
+  const x=clamp(now.x+(pinch.x-pinch.mid.x)*factor,0,Math.max(0,1-line.w));
+  const y=clamp(now.y+(pinch.y+line.h/2-pinch.mid.y)*factor-line.h/2,0,Math.max(0,1-line.h));
+  const nextX=round4(x),nextY=round4(y);
+  if(font===line.fontSize&&nextX===(line.drawX??line.x)&&nextY===(line.drawY??line.y))return;
+  pinch.changed=true;
+  line.fontSize=font;line.styled=true;line.drawX=nextX;line.drawY=nextY;
+  event.preventDefault?.();
+  draw();
+ };
+ const finishPinch=event=>{
+  if(!pinch||!pinch.ids.includes(event.pointerId))return false;
+  const wasChanged=pinch.changed;
+  for(const id of pinch.ids)canvas.releasePointerCapture?.(id);
+  pinch=null;pointerStart=null;stopHold();lastTap=null;
+  ignoreTapUntil=Date.now()+700;lastOpened=Date.now();
+  canvas.style.cursor='text';
+  if(wasChanged)notice('Tamaño y posición ajustados con dos dedos. La vista previa y el PNG guardado mantienen el mismo tamaño.');
+  event.preventDefault?.();
+  return true;
  };
  canvas.addEventListener('pointerdown',event=>{
+  activeFingers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+  if(activeFingers.size===2){startPinch();if(pinch)event.preventDefault?.();return;}
+  if(activeFingers.size!==1)return; // New pinch gestures may start immediately after a previous one.
   stopHold();
   const point=atCanvas(event),index=findPhrase(point);
   pointerStart={id:event.pointerId,sx:event.clientX,sy:event.clientY,t:Date.now(),
@@ -200,35 +256,36 @@
    y:index>=0?(recognized[index].drawY??recognized[index].y):0};
   if(index>=0&&typeof setTimeout==='function')holdTimer=setTimeout(()=>{
    const hold=pointerStart;
-   if(!hold||hold.id!==event.pointerId||hold.index!==index)return;
+   if(!hold||hold.id!==event.pointerId||hold.index!==index||activeFingers.size!==1)return;
    hold.dragging=true;lastTap=null;canvas.style.cursor='grabbing';
    canvas.setPointerCapture?.(event.pointerId);
    notice('Frase agarrada. Arrástrala con el dedo; al soltar quedará en esa posición exacta.');
   },430);
  });
  canvas.addEventListener('pointermove',event=>{
+  if(activeFingers.has(event.pointerId))activeFingers.set(event.pointerId,{x:event.clientX,y:event.clientY});
+  if(pinch){if(pinch.ids.includes(event.pointerId))resizePinch(event);return;}
   const start=pointerStart;
   if(!start||start.id!==event.pointerId)return;
   if(!start.dragging){
-   if(Math.hypot(event.clientX-start.sx,event.clientY-start.sy)>12){
-    stopHold();pointerStart=null;
-   }
+   if(Math.hypot(event.clientX-start.sx,event.clientY-start.sy)>12){stopHold();pointerStart=null;}
    return;
   }
   event.preventDefault?.();
   moveTo(event,start);
  });
  canvas.addEventListener('pointerup',event=>{
+  const pinching=finishPinch(event);
+  activeFingers.delete(event.pointerId);
+  if(pinching)return;
   const start=pointerStart;
   stopHold();pointerStart=null;
-  if(!start||start.id!==event.pointerId)return;
+  if(!start||start.id!==event.pointerId||activeFingers.size>0||Date.now()<ignoreTapUntil)return;
   if(start.dragging){
-   canvas.style.cursor='text';
-   canvas.releasePointerCapture?.(event.pointerId);
+   canvas.style.cursor='text';canvas.releasePointerCapture?.(event.pointerId);
    event.preventDefault?.();
    if(start.moved){
-    draw();
-    lastOpened=Date.now(); // avoid a dblclick from the drag release
+    draw();lastOpened=Date.now();
     notice('Posición actualizada en la vista previa. Al guardar se utilizarán exactamente las mismas coordenadas.');
    }
    return;
@@ -238,13 +295,17 @@
   if(index<0){lastTap=null;if(!recognized.length)notice('Primero hay que identificar las frases. Pulsa «Reconocer frases».');return;}
   if(lastTap?.index===index&&now-lastTap.time<570&&Math.hypot(point.x-lastTap.point.x,point.y-lastTap.point.y)<.07){
    lastTap=null;openPhrase(index);event.preventDefault?.();
-  }else{lastTap={index,time:now,point};notice('Frase seleccionada: '+recognized[index].text+'. Tócala otra vez para editarla o mantenla presionada para moverla.');}
+  }else{
+   lastTap={index,time:now,point};
+   notice('Frase seleccionada: '+recognized[index].text+'. Doble toque para editar, un dedo sostenido para mover o dos dedos para cambiar su tamaño.');
+  }
  });
- canvas.addEventListener('pointercancel',()=>{
+ canvas.addEventListener('pointercancel',event=>{
+  finishPinch(event);activeFingers.delete(event.pointerId);
   stopHold();pointerStart=null;lastTap=null;canvas.style.cursor='text';
  });
  canvas.addEventListener('dblclick',event=>{
-  if(Date.now()-lastOpened<650)return;
+  if(Date.now()-lastOpened<650||Date.now()<ignoreTapUntil)return;
   const index=findPhrase(atCanvas(event));if(index>=0){event.preventDefault();openPhrase(index);}
  });
  $('recognize-photo').onclick=()=>recognizePreview().catch(e=>notice(e.message,true));
