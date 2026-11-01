@@ -247,7 +247,7 @@
  canvas.addEventListener('pointerdown',event=>{
   activeFingers.set(event.pointerId,{x:event.clientX,y:event.clientY});
   if(activeFingers.size===2){startPinch();if(pinch)event.preventDefault?.();return;}
-  if(activeFingers.size!==1||Date.now()<ignoreTapUntil)return;
+  if(activeFingers.size!==1)return; // New pinch gestures may start immediately after a previous one.
   stopHold();
   const point=atCanvas(event),index=findPhrase(point);
   pointerStart={id:event.pointerId,sx:event.clientX,sy:event.clientY,t:Date.now(),
