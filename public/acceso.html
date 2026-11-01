@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0b7665">
+<title>Acceso · Administración web</title>
+<link rel="stylesheet" href="/acceso.css">
+<script src="/acceso.js" defer></script>
+</head>
+<body>
+<main class="wrap">
+ <section class="card">
+  <div class="logo" aria-hidden="true">◉</div>
+  <h1>Acceso al sistema</h1>
+  <p>Utiliza tu Telegram ID y la contraseña asignada en <strong>admins.txt</strong> o <strong>permisos.txt</strong>.</p>
+  <form id="login">
+   <label>Telegram ID
+    <input id="telegram-id" type="text" inputmode="numeric" autocomplete="username" maxlength="20" required placeholder="Tu Telegram ID">
+   </label>
+   <label>Contraseña
+    <input id="password" type="password" autocomplete="current-password" minlength="8" maxlength="256" required placeholder="Tu contraseña">
+   </label>
+   <p id="login-message" role="status" class="error" hidden></p>
+   <button id="enter" type="submit">ENTRAR</button>
+  </form>
+  <p class="hint">Puedes seguir entrando desde el bot de Telegram como siempre.</p>
+ </section>
+ <details class="card secondary">
+  <summary>Preparar una contraseña protegida para GitHub</summary>
+  <p>Solo para quien administra los archivos. La contraseña se protege <strong>en este dispositivo</strong> y no se envía al servidor al generar el código.</p>
+  <form id="generator">
+   <label>Telegram ID
+    <input id="generator-id" type="text" inputmode="numeric" maxlength="20" required placeholder="Telegram ID">
+   </label>
+   <label>Contraseña nueva
+    <input id="generator-password" type="password" autocomplete="new-password" minlength="12" maxlength="256" required placeholder="Mínimo 12 caracteres">
+   </label>
+   <p id="generator-message" role="status" hidden></p>
+   <button type="submit" id="protect">GENERAR LÍNEA PROTEGIDA</button>
+  </form>
+  <label for="protected-line" class="output-label">Copia esta línea en el archivo correspondiente:</label>
+  <textarea id="protected-line" rows="4" spellcheck="false" readonly aria-label="Línea protegida para GitHub"></textarea>
+  <button type="button" id="copy" class="outline">COPIAR LÍNEA</button>
+  <small>En GitHub utiliza una línea por usuario. Conserva los demás IDs sin modificarlos. Al guardar, Render aplicará el cambio al desplegar la versión actualizada.</small>
+ </details>
+</main>
+</body>
+</html>

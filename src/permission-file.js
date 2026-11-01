@@ -19,7 +19,7 @@ export class PermissionFile{
     const result=new Set();
     for(const file of new Set([this.source,this.path]))
       for(const line of readText(file).split(/\r?\n/)){
-        const id=line.split('#')[0].trim();
+        const id=line.split('#')[0].split(',')[0].trim();
         if(/^\d+$/.test(id))result.add(id);
       }
     return result;

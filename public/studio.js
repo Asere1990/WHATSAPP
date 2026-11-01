@@ -51,7 +51,7 @@ function refreshInitialPreview(){
  const dialog=document.getElementById('studio-popup-preview');
  if(dialog?.open)window.SiteInitialPopup?.render(dialog,initial());
 }
-async function api(route,body,raw=false){const r=await fetch('/api/panel/'+route,{cache:'no-store',method:body?'POST':'GET',headers:body?{'X-Panel-CSRF':csrf,...(raw?{}:{'Content-Type':'application/json'})}:{},body:body?(raw?body:JSON.stringify(body)):undefined});const data=await r.json();if(!r.ok)throw Error(data.error||'No se pudo completar.');return data;}
+async function api(route,body,raw=false){const r=await fetch('/api/panel/'+route,{cache:'no-store',method:body?'POST':'GET',headers:body?{'X-Panel-CSRF':csrf,...(raw?{}:{'Content-Type':'application/json'})}:{},body:body?(raw?body:JSON.stringify(body)):undefined});const data=await r.json();if(!r.ok){const e=Error(data.error||'No se pudo completar.');e.status=r.status;throw e;}return data;}
 const run=fn=>async()=>{if(busy)return;busy=true;try{await fn();}catch(e){status(e.message);}finally{busy=false;}};
 function changed(){dirty=true;status('● Cambios sin guardar ni publicar');}
 function field(){return page?.draft.elements.find(e=>e.id===selected);}
@@ -88,5 +88,5 @@ $('publish').onclick=run(async()=>{if(!confirm('¿Publicar este diseño para tod
 $('canvas').addEventListener('click',event=>{if(!editing&&event.target.closest('a,button'))event.preventDefault();});
 $('preview').onclick=()=>{editing=!editing;document.body.classList.toggle('previewing',!editing);$('preview').textContent=editing?'Vista previa':'Volver a editar';draw();};
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});window.addEventListener('hashchange',()=>{if(location.hash)location.reload();});
-(async()=>{try{const token=location.hash.slice(1);if(token){history.replaceState(null,'',location.pathname);await api('login',{token});}me=await api('me');csrf=me.csrf;await list();}catch(e){status(e.message);}})();
+(async()=>{try{const token=location.hash.slice(1);if(token){history.replaceState(null,'',location.pathname);await api('login',{token});}me=await api('me');csrf=me.csrf;await list();}catch(e){if(e.status===401&&!location.hash){location.replace('/acceso?next=%2Fstudio');return;}status(e.message);}})();
 })();

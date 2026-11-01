@@ -41,7 +41,7 @@ function visibleChatFilter(db,peer,media=false){
 const publicId=value=>Buffer.from(value).toString('base64url');
 const internalId=value=>{if(typeof value!=='string'||value.length>2000||!/^[\w-]+$/.test(value))fail(400,'Archivo no válido.');return Buffer.from(value,'base64url').toString();};
 export class WebPanel{
- constructor(store,accounts,telegram,options){this.store=store;this.accounts=accounts;this.telegram=telegram;this.options=options;this.access=new PanelAccess(store,id=>telegram.admins().has(String(id))?'admin':telegram.permissions().has(String(id))?'operator':null);this.media=new Map();this.downloads=new Map();this.rates=new Map();this.archive=accounts.archive||null;this.profiles=new PanelProfiles(store,accounts);this.chatList=new PanelChatList(store,this.profiles,{visibleFilter:visibleChatFilter,privateOnly:id=>this.store.config()['portal:'+id]!=='cubamax-corporate'});this.focus=new PanelFocus(accounts);this.editor=new VisualEditor(store,options.dir||accounts.dir||"./data");this.studio=new PageStudio(this);}
+ constructor(store,accounts,telegram,options){this.store=store;this.accounts=accounts;this.telegram=telegram;this.options=options;this.access=new PanelAccess(store,id=>telegram.admins().has(String(id))?'admin':telegram.permissions().has(String(id))?'operator':null,telegram.permissionFile?.path);this.media=new Map();this.downloads=new Map();this.rates=new Map();this.archive=accounts.archive||null;this.profiles=new PanelProfiles(store,accounts);this.chatList=new PanelChatList(store,this.profiles,{visibleFilter:visibleChatFilter,privateOnly:id=>this.store.config()['portal:'+id]!=='cubamax-corporate'});this.focus=new PanelFocus(accounts);this.editor=new VisualEditor(store,options.dir||accounts.dir||"./data");this.studio=new PageStudio(this);}
  role(actor){return this.access.role(String(actor));}
  referral(req){return this.access.referral(cookie(req,'wa_referral'));}
  consent(account,req,reference){const ref=typeof reference==='string'?reference:'';if(ref)return this.access.attach(account,ref);return null;}
@@ -117,6 +117,13 @@ export class WebPanel{
    if(route.startsWith('/vincular/')||/^\/\d{5,15}$/.test(route)){const code=route.startsWith('/vincular/')?route.slice('/vincular/'.length):route.slice(1);const reference=this.access.referral(code);if(req.method!=='GET'||!reference)return json(410,{error:'Este enlace venció o fue revocado. Solicita uno nuevo en Telegram.'});res.writeHead(302,{...headers,'Set-Cookie':setCookie('wa_referral',code,86400),Location:reference.site==='wa'?'/whatsapp':'/cubamax'});res.end();return;}
    const mutate=req.method==='POST';if(mutate&&!this.options.allowedOrigins.has(req.headers.origin))return json(403,{error:'Origen no autorizado.'});
    if(route==='/api/panel/login'&&mutate){this.limit('login:'+req.socket.remoteAddress,15);const input=await readBody(req),session=this.access.login(input.token);if(!session)return json(401,{error:'El enlace fue revocado o no está autorizado. Abre tu acceso desde Telegram.'});return json(200,{ok:true},{'Set-Cookie':setCookie('wa_panel',session.secret,400*86400)});}
+   if(route==='/api/panel/password-login'&&mutate){
+    this.limit('password-login:'+req.socket.remoteAddress,8);
+    const input=await readBody(req);
+    const login=this.access.webLogin(input.telegram_id,input.password);
+    if(!login)return json(401,{error:'Telegram ID o contraseña incorrectos.'});
+    return json(200,{ok:true},{'Set-Cookie':setCookie('wa_panel',login.secret,7*86400)});
+   }
    const value=cookie(req,'wa_panel'),session=this.access.session(value);if(!session)return json(401,{error:'Abre tu acceso personal desde el menú de Telegram.'});
    // Avatar/thumbnail requests must not exhaust the quota used to open chats and galleries.
     if(route==='/api/panel/avatar'||route==='/api/panel/thumb')this.limit('asset:'+session.actor,240);
