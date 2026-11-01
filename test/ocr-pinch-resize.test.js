@@ -150,6 +150,31 @@ test('shared image popup lets two fingers resize and move a line; one-finger dra
  assert.equal(updated.fontSize,160,'the underlying saved size is not overwritten by drag');
 });
 
+test('numeric font size edit remains available alongside pinch and is stored in original-photo pixels',async()=>{
+ const code=readFileSync(new URL('../public/popup-photo-editor.js',import.meta.url),'utf8');
+ const elements=new Map();
+ class Node{
+  constructor(tag){this.tagName=tag.toUpperCase();this.children=[];this.style={};this.value='';this.textContent='';this.open=false;}
+  set id(v){this._id=v;elements.set(v,this);}get id(){return this._id;}
+  append(...children){this.children.push(...children);}
+  showModal(){this.open=true;}close(){this.open=false;}focus(){}
+ }
+ const ctx={window:{},document:{getElementById:id=>elements.get(id),
+  createElement:tag=>new Node(tag),body:{append(element){elements.set(element.id,element);}}}};
+ vm.runInNewContext(code,ctx);
+ const line={original:'Sistema de prueba',text:'Sistema de prueba',
+  x:.2,y:.2,w:.5,h:.05,fontSize:50,color:'#ffffff',weight:'700',family:'Arial'};
+ let result;
+ ctx.window.PopupPhotoEditor.open(line,updated=>{result=updated;});
+ const panel=elements.get('popup-photo-text-editor'),actions=panel.children.at(-1);
+ elements.get('ocr-edit-size').value='235';
+ await actions.children.at(-1).onclick();
+ assert.equal(result.fontSize,235);
+ assert.equal(result.styled,true);
+ assert.equal(result.text,line.text);
+ assert.equal(panel.open,false);
+});
+
 test('WhatsApp, Cubamax and independent page previews persist pinch fontSize as an editable layer',()=>{
  const wa=readFileSync(new URL('../public/wa-popup-photo-layers.js',import.meta.url),'utf8');
  const preview=readFileSync(new URL('../public/editor-preview.js',import.meta.url),'utf8');
