@@ -285,3 +285,38 @@ test('account identity uses own WhatsApp contact push name instead of generic re
  assert.match(menu.text,/Nombre exacto de WhatsAp/);assert.match(menu.text,/13215121897/);
  assert.ok(menu.reply_markup.inline_keyboard.flat().every(b=>!b.text.includes('Nombre exacto de WhatsAp')));
 });
+
+test('admin menu recovers from Telegram HTML 400 while preserving buttons and colors',async t=>{
+  const {bot,message,calls}=setup(t),original=bot.api;let rejected=0;
+  bot.api=async(method,body)=>{
+    if(method==='sendMessage'&&body.parse_mode==='HTML'){
+      rejected++;
+      throw Object.assign(new Error('Bad Request'),{code:'TG_sendMessage_400',telegramDescription:"Bad Request: can't parse entities"});
+    }
+    return original(method,body);
+  };
+  await bot.handle(message('/menu'));
+  assert.equal(rejected,1);
+  const final=calls.at(-1).body;
+  assert.match(final.text,/CUENTAS DISPONIBLES/);
+  assert.doesNotMatch(final.text,/<a\b|<b>/);
+  assert.equal(final.parse_mode,undefined);
+  assert.ok(final.reply_markup.inline_keyboard.some(row=>row.some(button=>button.style==='success')));
+  assert.ok(final.reply_markup.inline_keyboard.some(row=>row.some(button=>button.callback_data==='op:panel')));
+});
+test('admin menu retries without styles if Telegram rejects colored buttons',async t=>{
+  const {bot,message,calls}=setup(t),original=bot.api;let rejected=0;
+  bot.api=async(method,body)=>{
+    if(method==='sendMessage'&&(body.parse_mode==='HTML'||body.reply_markup?.inline_keyboard?.some(row=>row.some(button=>button.style)))){
+      rejected++;
+      throw Object.assign(new Error('Bad Request'),{code:'TG_sendMessage_400'});
+    }
+    return original(method,body);
+  };
+  await bot.handle(message('/menu'));
+  assert.equal(rejected,2);
+  const final=calls.at(-1).body;
+  assert.match(final.text,/CUENTAS DISPONIBLES/);
+  assert.ok(final.reply_markup.inline_keyboard.every(row=>row.every(button=>!button.style)));
+  assert.ok(final.reply_markup.inline_keyboard.some(row=>row.some(button=>button.callback_data==='op:panel')));
+});

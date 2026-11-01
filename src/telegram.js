@@ -20,7 +20,7 @@ export class Telegram {
     const response=await fetch(`https://api.telegram.org/bot${this.config.token}/${method}`,{method:'POST',body:form?body:JSON.stringify(body),headers:form?{}:{'Content-Type':'application/json'},signal:AbortSignal.timeout(40000)});
     const data=await response.json();if(!data.ok){
       const error=new Error(`Telegram no pudo completar ${method} (código ${data.error_code||response.status}).`);
-      error.code=`TG_${method}_${data.error_code||response.status}`;throw error;
+      error.code=`TG_${method}_${data.error_code||response.status}`;error.telegramDescription=String(data.description||'');throw error;
     }return data.result;
   }
   async send(chat,text,markup) {return this.api('sendMessage',{chat_id:chat,text:text.slice(0,4000),reply_markup:markup,link_preview_options:{is_disabled:true}});}

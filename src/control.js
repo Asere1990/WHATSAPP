@@ -21,12 +21,37 @@ export class Control {
     const pageItems=accounts.slice(page*10,page*10+10),rows=[],lines=[`<b>WHATSAPP · MENÚ PRINCIPAL</b>\nCuentas conectadas: ${connected}\n\n<b>CUENTAS DISPONIBLES</b>\nEscribe el número de una cuenta (1, 2, 3…) para abrirla.\n`];
     for(const [i,a]of pageItems.entries()){
       const profile=await this.bot.accounts.tools.identity(a.id,`${a.phone}@c.us`,!!this.bot.accounts.live.get(a.id)?.ready);
-      lines.push(`${page*10+i+1}. ${personLink({...profile,name:profile.name.slice(0,24)})}\n${escapeHTML(profile.country)} · ${connectionLabel(this.bot.accounts,a)}${a.phone===selectedSystem?' · SISTEMA':''}${a.paused?' · Pausada':''}`);
+      lines.push(`${page*10+i+1}. ${personLink({...profile,name:Array.from(String(profile.name||'Sin nombre')).slice(0,24).join('')})}\n${escapeHTML(profile.country)} · ${connectionLabel(this.bot.accounts,a)}${a.phone===selectedSystem?' · SISTEMA':''}${a.paused?' · Pausada':''}`);
     }
     const nav=[];if(page)nav.push(this.button(chat,actor,'◀️ ANTERIOR',{kind:'home',page:page-1}));if((page+1)*10<accounts.length)nav.push(this.button(chat,actor,'SIGUIENTE ▶️',{kind:'home',page:page+1}));if(nav.length)rows.push(...nav.map(button=>[{...button,style:'primary'}]));
     rows.push(...this.bot.menu().inline_keyboard);
     this.views.set(this.key(chat,actor),{kind:'accounts',items:accounts.map(a=>a.id),expires:Date.now()+1800000});
-    return this.text(chat,lines.join('\n\n')+(accounts.length?'':'No hay cuentas conectadas en este momento.'),rows);
+    const menuText=lines.join('\n\n')+(accounts.length?'':'No hay cuentas conectadas en este momento.');
+    try{return await this.text(chat,menuText,rows);}
+    catch(error){
+      if(error?.code!=='TG_sendMessage_400')throw error;
+      // Retry invalid Telegram HTML as plain text while preserving controls.
+      console.warn('WHATSAPP: admin_menu_rejected',JSON.stringify({
+        description:String(error.telegramDescription||'Bad Request').replace(/\b\d{6,}\b/g,'[id]').slice(0,200)
+      }));
+      const plain=menuText.replace(/<a\b[^>]*>/g,'').replace(/<\/a>|<\/?b>/g,'')
+        .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+        .replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+      const clean=Array.from(plain,ch=>ch.length===1&&/[\uD800-\uDFFF]/.test(ch)?'�':ch).join('');
+      const options=[rows,rows.map(row=>row.map(({style,...button})=>button))];
+      for(const [index,buttons] of options.entries()){
+        try{
+          const sent=await this.bot.api('sendMessage',{chat_id:chat,text:clean.slice(0,4000),
+            reply_markup:keyboard(buttons),link_preview_options:{is_disabled:true}});
+          console.log('WHATSAPP: admin_menu_recovered',JSON.stringify({format:index?'plain_unstyled':'plain_styled'}));
+          return sent;
+        }catch(retryError){
+          if(retryError?.code!=='TG_sendMessage_400')throw retryError;
+          error=retryError;
+        }
+      }
+      throw error;
+    }
   }
   async account(chat,actor,id){
     this.outgoingDrafts.delete(this.key(chat,actor));
