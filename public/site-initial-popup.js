@@ -109,6 +109,7 @@
   const preview=layers.map(item=>({...item}));
   let activeSecondFinger=null;
   targets.style.pointerEvents='none';
+  targets.style.touchAction='none';
   targets.onpointerdown=event=>{
    // Permit a second finger anywhere on the popup photo, while the first
    // finger is on a recognized phrase. The photo outside the phrase remains
@@ -191,7 +192,14 @@
       },420);
     }
    };
-   target.addEventListener('pointerdown',addPointer);
+   target.addEventListener('pointerdown',event=>{
+    // A second finger may land on a neighboring OCR phrase. Continue the
+    // currently selected pinch instead of starting a second drag.
+    if(activeSecondFinger&&activeSecondFinger!==addPointer){
+     activeSecondFinger(event);event.preventDefault?.();return;
+    }
+    addPointer(event);
+   });
    target.addEventListener('pointermove',event=>{
     if(fingers.has(event.pointerId))fingers.set(event.pointerId,{x:event.clientX,y:event.clientY});
     if(pinch){if(pinch.ids.includes(event.pointerId))movePinch(event);return;}
