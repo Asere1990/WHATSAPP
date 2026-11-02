@@ -27,7 +27,7 @@
   e.preventDefault();
   const id=el('generator-id').value.trim(),password=el('generator-password').value,button=el('protect');
   if(!idValid(id)){msg('generator-message','El ID debe ser numérico y tener entre 5 y 20 cifras.',true);return;}
-  if(password.length<12||password.length>256){msg('generator-message','Utiliza una contraseña de al menos 12 caracteres.',true);return;}
+  if(password.length<8||password.length>256){msg('generator-message','La contraseña debe tener una longitud válida.',true);return;}
   if(!crypto?.subtle||!crypto?.getRandomValues){msg('generator-message','Este navegador no admite el generador seguro.',true);return;}
   button.disabled=true;button.textContent='PROTEGIENDO…';msg('generator-message','');
   try{
