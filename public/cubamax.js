@@ -5,6 +5,15 @@ function renderServicePopup(){
  document.getElementById('selected-service-name').textContent=corporateServices[corporateService];
  document.getElementById('service-dialog-title').textContent=corporatePopups[corporateService].title;
  document.getElementById('service-dialog-description').textContent=corporatePopups[corporateService].description;
+ // This copy belongs to the selected service, not to all four popups.
+ for(const [element,suffix]of [
+  ['service-dialog-notice-title','PopupNoticeTitle'],
+  ['service-dialog-notice-description','PopupNoticeDescription'],
+  ['service-dialog-note','PopupNote']
+ ]){
+  const value=corporateAppearance.fields[corporateService+suffix];
+  if(typeof value==='string')document.getElementById(element).textContent=value;
+ }
  const button=document.getElementById('service-continue'),photo=document.getElementById('service-dialog-photo');
  button.textContent=corporateAppearance.fields[corporateService+'PopupButton']||'Vincular WhatsApp';
  button.setAttribute?.('data-service-color',corporateService);

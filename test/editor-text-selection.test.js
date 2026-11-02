@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const script=readFileSync(new URL('../public/editor-preview.js',import.meta.url),'utf8');
-async function setup(site='cm'){
+async function setup(site='cm',service='money'){
  const handlers={},messages=[],body={classList:{contains:()=>site==='cm'},dataset:{}};
  const fields=[{id:'portal:moneyPopupTitle',kind:'text',value:'Título'},{id:'portal:moneyTitle',kind:'text',value:'Dinero'},{id:'page:notice',kind:'text',source:'Qué acceso autorizas',value:'Permisos actuales'},{id:'portal:moneyPopupDescription',kind:'text',value:'Descripción'},{id:'portal:moneyPopupButton',kind:'text',value:'Continuar'}];
+ for(const suffix of ['PopupNoticeTitle','PopupNoticeDescription','PopupNote'])fields.push({id:'portal:'+service+suffix,kind:'text',value:service+suffix});
  const document={body,addEventListener:(k,f)=>handlers[k]=f,getElementById:()=>null};
  const window={addEventListener:()=>{}};
  const parent={postMessage:m=>messages.push(m)};
- vm.runInNewContext(script,{document,window,parent,location:{origin:'http://local'},corporateService:'money',scrollY:0,fetch:async()=>({ok:true,json:async()=>({fields})}),setTimeout,clearTimeout});
+ vm.runInNewContext(script,{document,window,parent,location:{origin:'http://local'},corporateService:service,scrollY:0,fetch:async()=>({ok:true,json:async()=>({fields})}),setTimeout,clearTimeout});
  await new Promise(resolve=>setImmediate(resolve));
  function el(text,selector='') {const e={childNodes:[{nodeType:3,textContent:text}],parentElement:body,getAttribute:()=>null,setAttribute(){},removeAttribute(){},closest(s){if(s==='*'||s===selector)return e;if(s==='#service-dialog'&&site==='cm')return {};return null;}};return e;}
  function click(target){handlers.click({target,preventDefault(){},stopImmediatePropagation(){}});}
@@ -21,6 +22,15 @@ test('Cubamax selects popup notice itself only after double tap, including edite
 test('each service popup element maps to its own field',async()=>{
  for(const [selector,id]of [['#service-dialog-title','portal:moneyPopupTitle'],['#service-dialog-description','portal:moneyPopupDescription'],['#service-continue','portal:moneyPopupButton'],['#selected-service-name','portal:moneyTitle']]){
   const p=await setup(),e=p.el('text',selector);p.click(e);p.click(e);assert.equal(p.messages.at(-1).id,id);
+ }
+});
+test('Cubamax service-popup text selection is scoped to each of the four services',async()=>{
+ for(const service of ['money','combo','packages','topup']){
+  for(const [selector,suffix]of [['#service-dialog-notice-title','PopupNoticeTitle'],['#service-dialog-notice-description','PopupNoticeDescription'],['#service-dialog-note','PopupNote']]){
+   const p=await setup('cm',service),el=p.el('Texto de '+service,selector);
+   p.click(el);p.click(el);
+   assert.equal(p.messages.at(-1).id,'portal:'+service+suffix);
+  }
  }
 });
 test('different text targets and cancelled gestures do not trigger editing',async()=>{

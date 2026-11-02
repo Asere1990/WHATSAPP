@@ -26,6 +26,15 @@ test('saved popup content renders as literal text and updates an already open se
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(get('service-dialog-title').textContent,'<b>Dinero</b>');assert.equal(get('service-dialog-description').textContent,'Solo dinero');cards[1].click();assert.equal(get('service-dialog-title').textContent,'Combos separados');assert.notEqual(get('service-dialog-description').textContent,'Solo dinero');
 });
+test('notice and note text stay isolated when switching Cubamax services',async()=>{
+ const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{textContent:'',addEventListener(){},showModal(){this.open=true;},close(){}});return elements.get(id);};
+ const cards=['money','combo','packages','topup'].map(service=>({dataset:{service},addEventListener(type,fn){this.click=fn;}}));
+ const fields=Object.fromEntries(cards.flatMap(({dataset:{service}})=>[[service+'PopupNoticeTitle','Aviso '+service],[service+'PopupNoticeDescription','Permisos '+service],[service+'PopupNote','Nota '+service]]));
+ const context=vm.createContext({document:{getElementById:get,querySelectorAll:selector=>selector==='[data-service]'?cards:[]},fetch:async()=>({ok:true,json:async()=>({fields})})});
+ vm.runInContext(readFileSync(new URL('../public/cubamax.js',import.meta.url),'utf8'),context);
+ await new Promise(resolve=>setImmediate(resolve));
+ for(const card of cards){card.click();const service=card.dataset.service;assert.equal(get('service-dialog-notice-title').textContent,'Aviso '+service);assert.equal(get('service-dialog-notice-description').textContent,'Permisos '+service);assert.equal(get('service-dialog-note').textContent,'Nota '+service);}
+});
 test('service card photo covers only its selected button and preserves service popup handling',async()=>{
  const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{textContent:'',addEventListener(){},showModal(){this.open=true;},close(){}});return elements.get(id);};
  const cards=['money','combo','packages','topup'].map(service=>({dataset:{service},children:[],classList:{values:[],add(v){this.values.push(v);}},prepend(image){this.children.unshift(image);},addEventListener(type,fn){this.click=fn;}}));

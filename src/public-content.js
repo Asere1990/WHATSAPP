@@ -23,11 +23,19 @@ export function publicSnapshot(store,site){
   const hasPopupChanges=site==='wa'&&!!(config.wa_prelink_copy||config.wa_prelink_guide_android||config.wa_prelink_guide_iphone);
   const hasMainChanges=site==='wa'&&!!(config.wa_main_guide_android||config.wa_main_guide_iphone);
   const hasLinkPreview=site==='wa'&&!!config.wa_link_preview;
+  // Preserve existing Cubamax draft revisions until the newly independent
+  // popup text has actually been customized.
+  let savedCm={};if(site==='cm')try{savedCm=JSON.parse(config.cubamax_content||'{}')||{};}catch{}
   const hashValue=site==='wa'?Object.fromEntries(Object.entries(result).filter(([key])=>
     !(key==='mainGuides'&&!hasMainChanges)&&
     !(key==='linkPreview'&&!hasLinkPreview)&&
     !((key==='prelinkCopy'||key==='prelinkGuides')&&!hasPopupChanges)
-  )):result;
+  )):site==='cm'?{
+    ...result,
+    portal:{...result.portal,fields:Object.fromEntries(Object.entries(result.portal.fields).filter(([key])=>
+     !/^(money|combo|packages|topup)Popup(NoticeTitle|NoticeDescription|Note)$/.test(key)||Object.hasOwn(savedCm,key)
+    ))}
+  }:result;
   return {...result,revision:createHash('sha256').update(JSON.stringify(hashValue)).digest('hex')};
 }
 export function renderPublicContent(html,snapshot,build){

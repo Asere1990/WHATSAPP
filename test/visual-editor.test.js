@@ -1,5 +1,25 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {mkdtempSync,rmSync,writeFileSync,mkdirSync} from 'node:fs';import {tmpdir} from 'node:os';import {Store} from '../src/store.js';import {renderWhatsAppPreview} from '../src/link-preview.js';import {createHash} from 'node:crypto';import {VisualEditor} from '../src/visual-editor.js';import {publicSnapshot} from '../src/public-content.js';
+import test from 'node:test';import assert from 'node:assert/strict';import {mkdtempSync,rmSync,writeFileSync,mkdirSync} from 'node:fs';import {tmpdir} from 'node:os';import {Store} from '../src/store.js';import {renderWhatsAppPreview} from '../src/link-preview.js';import {createHash} from 'node:crypto';import {VisualEditor} from '../src/visual-editor.js';import {publicSnapshot} from '../src/public-content.js';import {pageCatalog} from '../src/page-editor.js';
 function setup(t){const dir=mkdtempSync(tmpdir()+'/wa-visual-'),store=new Store(dir),editor=new VisualEditor(store,dir);t.after(()=>{store.db.close();rmSync(dir,{recursive:true,force:true});});return {store,editor,dir};}
+test('Cubamax popup texts inherit existing copy and save independently',t=>{
+ const {store,editor}=setup(t),ids=['money','combo','packages','topup'];
+ const note='Solo para trabajadores autorizados y teléfonos de la compañía. Este paso crea un acceso de trabajo; no confirma una entrega, una recarga ni un movimiento de dinero.';
+ const entry=Object.entries(pageCatalog.cm).find(([,field])=>field.text===note)[0];
+ store.setConfig('page_cm',JSON.stringify({[entry]:'Nota heredada'}));
+ const data=editor.data('admin','cm'),waRevision=publicSnapshot(store,'wa').revision;
+ assert.ok(!data.fields.some(f=>f.source===note));
+ for(const service of ids)assert.equal(data.fields.find(f=>f.id==='portal:'+service+'PopupNote').value,'Nota heredada');
+ const changes=ids.map(service=>({id:'portal:'+service+'PopupNote',value:'Nota exclusiva '+service}));
+ changes.push({id:'portal:comboPopupDescription',value:'Descripción exclusiva de combos'});
+ const draft=editor.save('admin',{site:'cm',revision:data.base,version:data.version,changes});
+ const preview=editor.data('admin','cm');
+ for(const service of ids)assert.equal(preview.fields.find(f=>f.id==='portal:'+service+'PopupNote').value,'Nota exclusiva '+service);
+ editor.publish('admin',{site:'cm',version:draft.version});
+ const published=publicSnapshot(store,'cm').portal.fields;
+ for(const service of ids)assert.equal(published[service+'PopupNote'],'Nota exclusiva '+service);
+ assert.equal(published.comboPopupDescription,'Descripción exclusiva de combos');
+ assert.equal(published.moneyPopupDescription,data.fields.find(f=>f.id==='portal:moneyPopupDescription').value);
+ assert.equal(publicSnapshot(store,'wa').revision,waRevision);
+});
 test('drafts persist privately and publish atomically without changing other site settings',t=>{const {store,editor,dir}=setup(t),before=publicSnapshot(store,'cm'),data=editor.data('1','cm');const saved=editor.save('1',{site:'cm',version:data.version,revision:data.base,changes:[{id:'portal:serviceHeading',value:'SERVICIOS DE PRUEBA'},{id:'portal:moneyPopupTitle',value:'Popup de prueba'}]});assert.equal(saved.version,1);assert.equal(publicSnapshot(store,'cm').revision,before.revision);assert.equal(editor.data('2','cm').dirty,false);assert.equal(editor.data('1','wa').dirty,false);const other=new Store(dir);assert.equal(new VisualEditor(other,dir).data('1','cm').dirty,true);other.db.close();const html=editor.preview('1','cm','qa');assert.match(html,/SERVICIOS DE PRUEBA/);assert.doesNotMatch(html,/src="\/app.js/);assert.match(html,/data-visual-preview/);editor.publish('1',{site:'cm',version:1});assert.equal(publicSnapshot(store,'cm').portal.fields.serviceHeading,'SERVICIOS DE PRUEBA');assert.equal(editor.data('1','cm').dirty,false);assert.equal(store.config().panel_archive,undefined);});
 test('another administrator or Telegram cannot be overwritten by a stale draft',t=>{const {store,editor}=setup(t),data=editor.data('1','cm');editor.save('1',{site:'cm',revision:data.base,version:0,changes:[{id:'portal:cta',value:'Nuevo botón'}]});assert.throws(()=>editor.save('1',{site:'cm',revision:data.base,version:0,changes:[]}),/pestaña/);store.setConfig('cubamax_content',JSON.stringify({cta:'Cambio desde Telegram'}));assert.equal(editor.data('1','cm').conflict,true);assert.throws(()=>editor.publish('1',{site:'cm',version:1}),/web cambió/);assert.equal(publicSnapshot(store,'cm').portal.fields.cta,'Cambio desde Telegram');editor.discard('1','cm',1);assert.equal(editor.data('1','cm').dirty,false);});
 test('editor rejects arbitrary settings, external assets, invalid colors and missing files',t=>{const {editor}=setup(t),d=editor.data('1','cm'),save=(id,value)=>editor.save('1',{site:'cm',version:0,revision:d.base,changes:[{id,value}]});assert.throws(()=>save('TOKEN','x'),/editable/);assert.throws(()=>save('portal:moneyPopupColor','url(javascript:x)'),/color/);assert.throws(()=>save('logo','https://evil.test/x.svg'),/válido/);assert.throws(()=>save('extra:moneyPopupPhoto','/portal-media/'+'a'.repeat(64)+'.jpg'),/disponible/);assert.throws(()=>editor.data('1','unknown'),/Página/);});
