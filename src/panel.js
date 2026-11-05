@@ -130,6 +130,26 @@ export class WebPanel{
     else this.limit('user:'+session.actor,180);
     if(mutate&&req.headers['x-panel-csrf']!==session.csrf)return json(403,{error:'Recarga el panel para continuar.'});
    const url=new URL(req.url,'http://local');
+   if(route==='/api/panel/public-wa-users'&&req.method==='GET'){
+    if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
+    return json(200,{users:this.telegram.publicWa.links.adminUsers()});
+   }
+   if(route==='/api/panel/public-wa-user-links'&&req.method==='GET'){
+    if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
+    const actor=url.searchParams.get('actor');
+    if(!/^\d{2,22}$/.test(actor||''))return json(400,{error:'Telegram ID inválido.'});
+    return json(200,{items:this.store.db.prepare(
+      'SELECT code,created,enabled,(SELECT count(*) FROM wa_public_link_accounts p WHERE p.code=l.code) linked_accounts FROM wa_public_links l WHERE actor=? ORDER BY created DESC LIMIT 300'
+    ).all(actor)});
+   }
+   if(route==='/api/panel/public-wa-delete-user'&&mutate){
+    if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
+    const input=await readBody(req);
+    if(!/^\d{2,22}$/.test(input.actor||''))return json(400,{error:'Telegram ID inválido.'});
+    const removed=this.telegram.publicWa.links.adminDeleteActor(input.actor);
+    // Only public URLs and their associations are removed; sessions stay intact.
+    return json(200,{ok:true,removed,accounts_unchanged:true});
+   }
    if(route.startsWith('/api/panel/studio/'))return json(200,await this.studio.api(session,route.slice('/api/panel/studio/'.length),req,readBody,url));
    if(route.startsWith('/api/panel/editor/')){if(session.role!=='admin')return json(403,{error:'Solo los administradores pueden editar las webs.'});const action=route.slice('/api/panel/editor/'.length);if(action==='data'&&req.method==='GET')return json(200,this.editor.data(session.actor,url.searchParams.get('site')));if(action==='upload'&&mutate){this.limit('upload:'+session.actor,10);return json(200,await this.editor.upload(req));}if(action==='ocr'&&mutate){this.limit('popup-ocr:'+session.actor,12);const input=await readBody(req,1000);return json(200,await recognizePopupText(input.asset,this.editor.dir));}if(mutate){const input=await readBody(req,65536);if(action==='draft')return json(200,this.editor.save(session.actor,input));if(action==='rebase')return json(200,this.editor.rebase(session.actor,input));if(action==='publish')return json(200,this.editor.publish(session.actor,input));if(action==='discard')return json(200,this.editor.discard(session.actor,input.site,input.version));}return json(404,{error:'Opción no disponible.'});}
    const id=url.searchParams.get('account'),peer=toJid(url.searchParams.get('peer')||'');
