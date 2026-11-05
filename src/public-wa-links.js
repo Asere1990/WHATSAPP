@@ -64,7 +64,7 @@ export class PublicWhatsAppLinks {
     const value=String(code||'').normalize('NFKC').trim().toLowerCase();
     if(!value||value.length>maxCodeLength||/[\u0000-\u001f\u007f]/.test(value))
       throw Error('Escribe el código que quieras, incluso si contiene solo números.');
-    if(reserved.has(value))throw Error('Ese código corresponde a una página existente. Elige otro.');
+    if(value==='.'||value==='..'||reserved.has(value))throw Error('Ese código corresponde a una página existente. Elige otro.');
     return value;
   }
   url(code){return 'https://securitywhat.app/'+encodeURIComponent(this.normalize(code));}
@@ -86,7 +86,7 @@ export class PublicWhatsAppLinks {
       const existing=this.db.prepare('SELECT 1 FROM sqlite_master WHERE type=\'table\' AND name=\'wa_associated_links\'').get();
       if(existing&&this.db.prepare('SELECT 1 FROM wa_associated_links WHERE phone=?').get(code))throw Error('Ese código ya corresponde a un enlace existente. Elige otro.');
       const short=this.db.prepare('SELECT 1 FROM sqlite_master WHERE type=\'table\' AND name=\'panel_referral_short\'').get();
-      if(short&&this.db.prepare('SELECT 1 FROM panel_referral_short WHERE id=?').get(Number(code)))throw Error('Ese código ya corresponde a un enlace existente. Elige otro.');
+      if(short&&code.length<=15&&this.db.prepare('SELECT 1 FROM panel_referral_short WHERE id=?').get(Number(code)))throw Error('Ese código ya corresponde a un enlace existente. Elige otro.');
     }
     if(this.db.prepare('SELECT count(*) n FROM wa_public_links WHERE actor=? AND enabled=1').get(actor).n>=100)
       throw Error('Has alcanzado el máximo de 100 enlaces activos.');
