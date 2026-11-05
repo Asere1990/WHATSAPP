@@ -1,0 +1,11 @@
+#wa-public-admin{border:0;border-radius:18px;max-width:min(670px,94vw);width:100%;max-height:85vh;overflow:auto;background:#fff;color:#202c28;padding:22px;box-shadow:0 30px 80px #0005}
+#wa-public-admin::backdrop{background:#001911aa;backdrop-filter:blur(4px)}
+#wa-public-admin h2{margin:0 0 8px;font-size:20px}
+#wa-public-admin-status{margin:8px 0 14px;color:#55665c}
+.wa-public-user{padding:14px 0;border-top:1px solid #d9e5df}
+.wa-public-user p{margin:5px 0 10px}
+.wa-public-actions{display:flex;gap:10px;flex-wrap:wrap}
+.wa-public-actions button,#wa-public-admin-close,#wa-public-admin-open{cursor:pointer;border:1px solid #b5d1c3;border-radius:10px;padding:9px 12px;background:#eef8f2;color:#075e54;font-weight:600}
+.wa-public-actions .wa-public-danger{background:#fff0ef;border-color:#ec9992;color:#a32822}
+.wa-public-details{padding:10px 0;word-wrap:break-word}
+.wa-public-details p{border-bottom:1px dashed #d4ded9;padding:5px 0}
