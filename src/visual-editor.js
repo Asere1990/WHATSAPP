@@ -72,11 +72,12 @@ export class VisualEditor{
     preview:'Vista previa del popup que verá el primer visitante.',
     firstOnly:'Este popup solo aparecerá a la primera persona que abra este enlace. Las siguientes personas entrarán directamente en la web. Para repetir el efecto, crea otro enlace.',
     delivered:'Tu enlace de WhatsApp ya está creado.',
-    accounts:'Estas son las cuentas que se vincularon voluntariamente mediante tus enlaces.'
+    accounts:'Estas son las cuentas que se vincularon voluntariamente mediante tus enlaces.',
+    ownPhoto:'No pude preparar la foto automáticamente. Envíame tu propia foto para este enlace, con la fecha y la hora correctas. La conservaré exactamente como la envíes y te mostraré una vista previa antes de crear el enlace.'
    };
    let publicLinkTexts={};try{publicLinkTexts=JSON.parse(config.wa_public_link_texts||'{}');}catch{}
    for(const [member,initial] of Object.entries(publicTextDefaults)){
-    const label=member==='message1'?'Mensaje WhatsApp 1':'Enlaces públicos · '+({choose:'Selección WhatsApp/Cubamax',preview:'Vista previa',firstOnly:'Aviso para primer visitante',delivered:'Confirmación de enlace creado',accounts:'Cuentas asociadas'}[member]);
+    const label=member==='message1'?'Mensaje WhatsApp 1':'Enlaces públicos · '+({choose:'Selección WhatsApp/Cubamax',preview:'Vista previa',firstOnly:'Aviso para primer visitante',delivered:'Confirmación de enlace creado',accounts:'Cuentas asociadas',ownPhoto:'Mensaje para solicitar foto propia si falla el OCR'}[member]);
     add('public-wa:'+member,label,'text',publicLinkTexts[member]||initial,'wa_public_link_texts',member,{group:'public-links',max:1400});
    }
    add('public-wa:photo','Enlaces públicos · Foto con fecha y hora (OCR)','image',config.wa_public_link_popup_photo||'','wa_public_link_popup_photo',null,{group:'public-links',optional:true});
