@@ -22,11 +22,12 @@ export class PublicWaLinkBot {
     return this.bot.send(chat,this.links.texts().message1+'\n\nPuedes escribir, por ejemplo: miweb2026.\nUsa /cancelar para salir.');
   }
   keyboard(code){
+    const ref=code?this.links.callbackRef(code):'';
     return {inline_keyboard:[
       [{text:'📋 VER MIS ENLACES',callback_data:'pwa:list:0'}],
-      ...(code?[[{text:'🔎 CUENTAS ASOCIADAS',callback_data:'pwa:accounts:'+code}],
-        [{text:'🚫 REVOCAR ENLACE',callback_data:'pwa:revoke:'+code}],
-        [{text:'🗑 ELIMINAR ENLACE',callback_data:'pwa:delete:'+code}]]:[]),
+      ...(code?[[{text:'🔎 CUENTAS ASOCIADAS',callback_data:'pwa:accounts:'+ref}],
+        [{text:'🚫 REVOCAR ENLACE',callback_data:'pwa:revoke:'+ref}],
+        [{text:'🗑 ELIMINAR ENLACE',callback_data:'pwa:delete:'+ref}]]:[]),
       [{text:'➕ CREAR OTRO ENLACE',callback_data:'pwa:create'}],
       [{text:'🔀 WHATSAPP / CUBAMAX',callback_data:'pwa:menu'}]
     ]};
@@ -56,7 +57,7 @@ export class PublicWaLinkBot {
   }
   async list(chat,actor,offset=0){
     const records=this.links.list(actor,offset);
-    const rows=records.map(x=>[{text:x.code+' · '+(x.enabled?'ACTIVO':'REVOCADO'),callback_data:'pwa:show:'+x.code}]);
+    const rows=records.map(x=>[{text:x.code.slice(0,36)+(x.code.length>36?'…':'')+' · '+(x.enabled?'ACTIVO':'REVOCADO'),callback_data:'pwa:show:~'+x.link_id}]);
     return this.bot.send(chat,'MIS ENLACES · WHATSAPP\n\n'+(rows.length?'Elige uno para ver su estado y las cuentas asociadas.':'Todavía no has creado enlaces.'),{
       inline_keyboard:[...rows,
        ...(offset>0?[[{text:'◀ ANTERIOR',callback_data:'pwa:list:'+Math.max(0,offset-12)}]]:[]),
@@ -81,7 +82,7 @@ export class PublicWaLinkBot {
     return this.bot.send(chat,'CUENTAS ASOCIADAS · '+code+'\n\n'+
       (entries.length?entries.map((a,i)=>`${i+1}. +${a.phone} · ${a.confirmed?'Conectada anteriormente':'En proceso'} · ${a.status}`).join('\n'):'Todavía no hay cuentas asociadas.')+
       '\n\nLa asociación es informativa; no concede acceso a las conversaciones.',{
-        inline_keyboard:[[{text:'ATRÁS',callback_data:'pwa:show:'+code}]]
+        inline_keyboard:[[{text:'ATRÁS',callback_data:'pwa:show:'+this.links.callbackRef(code)}]]
       });
   }
   async callback(chat,key,actor,data){
@@ -95,22 +96,23 @@ export class PublicWaLinkBot {
       });
     }
     if(verb==='list'){this.bot.pending.delete(key);return this.list(chat,actor,Math.min(100000,Math.max(0,Number(value)||0)));}
-    const row=this.links.owned(actor,value);
+    const row=this.links.ownedRef(actor,value);
     if(!row)return this.bot.send(chat,'Ese enlace no está disponible para tu cuenta.');
-    if(verb==='show')return this.show(chat,actor,value);
-    if(verb==='accounts')return this.accounts(chat,actor,value);
-    if(verb==='revoke')return this.bot.send(chat,'¿Revocar '+value+'? El enlace dejará de abrir la web. Las cuentas ya conectadas NO serán desconectadas.',{
+    const code=row.code;
+    if(verb==='show')return this.show(chat,actor,code);
+    if(verb==='accounts')return this.accounts(chat,actor,code);
+    if(verb==='revoke')return this.bot.send(chat,'¿Revocar '+code+'? El enlace dejará de abrir la web. Las cuentas ya conectadas NO serán desconectadas.',{
       inline_keyboard:[[{text:'SÍ, REVOCAR',callback_data:'pwa:revoke-yes:'+value}],[{text:'CANCELAR',callback_data:'pwa:show:'+value}]]
     });
     if(verb==='revoke-yes'){
-      this.links.revoke(actor,value);
-      return this.show(chat,actor,value);
+      this.links.revoke(actor,code);
+      return this.show(chat,actor,code);
     }
-    if(verb==='delete')return this.bot.send(chat,'¿Eliminar definitivamente el enlace '+value+' y su historial de asociaciones? No se eliminarán cuentas conectadas.',{
+    if(verb==='delete')return this.bot.send(chat,'¿Eliminar definitivamente el enlace '+code+' y su historial de asociaciones? No se eliminarán cuentas conectadas.',{
       inline_keyboard:[[{text:'SÍ, ELIMINAR',callback_data:'pwa:delete-yes:'+value}],[{text:'CANCELAR',callback_data:'pwa:show:'+value}]]
     });
     if(verb==='delete-yes'){
-      this.links.delete(actor,value);
+      this.links.delete(actor,code);
       return this.list(chat,actor);
     }
     return this.bot.send(chat,'Opción no disponible.');
