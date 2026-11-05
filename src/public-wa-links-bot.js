@@ -5,7 +5,8 @@ import {sendEditorImage} from './editor-image.js';
 // Public code/link management is isolated from WhatsApp/Meta sessions.
 // The existing administrator and permisos.txt handlers remain unchanged.
 export class PublicWaLinkBot {
-  constructor(bot){this.bot=bot;this.links=new PublicWhatsAppLinks(bot.store);}
+  constructor(bot){this.bot=bot;this._links=null;}
+  get links(){return this._links||(this._links=new PublicWhatsAppLinks(this.bot.store));}
   key(chat,actor){return String(chat)+':'+String(actor);}
   async start(chat,key){
     this.bot.pending.delete(key);
