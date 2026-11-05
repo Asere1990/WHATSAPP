@@ -9,6 +9,7 @@ const defaults={
   firstOnly:'Este popup solo aparecerá a la primera persona que abra este enlace. Las siguientes personas entrarán directamente en la web. Si quieres el mismo efecto para otro visitante, crea un código diferente.',
   delivered:'Tu enlace de WhatsApp ya está creado.',
   accounts:'Estas son las cuentas que se vincularon voluntariamente mediante tus enlaces.',
+  ownPhoto:'No pude preparar la foto automáticamente. Envíame tu propia foto para este enlace, con la fecha y la hora correctas. La conservaré exactamente como la envíes y te mostraré una vista previa antes de crear el enlace.',
 };
 const maxCodeLength=256; // Límite técnico para URLs y cookies, no un formato obligatorio.
 const viewerRegex=/^[A-Za-z0-9_-]{43}$/;
