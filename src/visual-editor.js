@@ -65,6 +65,21 @@ export class VisualEditor{
     ['slogan','Eslogan principal del enlace','text',150],
     ['description','Descripción debajo del eslogan','text',500]
    ])add('share-preview:'+part,'Miniatura del enlace · '+label,kind,share[part],'wa_link_preview',part,{group:'share-preview',optional:part==='image',max:limit});
+   // Texts for PUBLIC code links belong to WhatsApp only.
+   const publicTextDefaults={
+    message1:'Escribe el código de tu enlace.',
+    choose:'Elige qué enlace deseas utilizar.',
+    preview:'Vista previa del popup que verá el primer visitante.',
+    firstOnly:'Este popup solo aparecerá a la primera persona que abra este enlace. Las siguientes personas entrarán directamente en la web. Para repetir el efecto, crea otro enlace.',
+    delivered:'Tu enlace de WhatsApp ya está creado.',
+    accounts:'Estas son las cuentas que se vincularon voluntariamente mediante tus enlaces.'
+   };
+   let publicLinkTexts={};try{publicLinkTexts=JSON.parse(config.wa_public_link_texts||'{}');}catch{}
+   for(const [member,initial] of Object.entries(publicTextDefaults)){
+    const label=member==='message1'?'Mensaje WhatsApp 1':'Enlaces públicos · '+({choose:'Selección WhatsApp/Cubamax',preview:'Vista previa',firstOnly:'Aviso para primer visitante',delivered:'Confirmación de enlace creado',accounts:'Cuentas asociadas'}[member]);
+    add('public-wa:'+member,label,'text',publicLinkTexts[member]||initial,'wa_public_link_texts',member,{group:'public-links',max:1400});
+   }
+   add('public-wa:photo','Enlaces públicos · Foto con fecha y hora (OCR)','image',config.wa_public_link_popup_photo||'','wa_public_link_popup_photo',null,{group:'public-links',optional:true});
    const popupCopy=waPopupCopy(store),names={heading:'Título',introduction:'Texto informativo',prompt:'Pregunta sobre el teléfono',choose:'Mensaje para elegir dispositivo',android:'Botón Android',iphone:'Botón iPhone',back:'Botón ATRÁS',next:'Botón SIGUIENTE',confirm:'Botón final ENTENDIDO',close:'Texto para cerrar'};
    for(const [part,label]of Object.entries(names))add('prelink-copy:'+part,'Popup antes del código · '+label,'text',popupCopy[part],'wa_prelink_copy',part,{group:'popup-prelink',max:part==='introduction'?1000:300});
    for(const device of ['iphone','android'])for(const step of waPopupGuides(store,device))for(const property of ['title','text','asset']){
