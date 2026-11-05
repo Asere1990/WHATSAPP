@@ -30,6 +30,7 @@ const panel=process.env.CHATS||process.env.ADMIN_CHAT_ID;
 const telegram=new Telegram(store,{token:process.env.TOKEN,admins:process.env.ADMIN_IDS,panel,storage:process.env.ALMACEN,url:whatsappUrl,dataDir:dir});
 const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args));accounts.linkNotice=(...args)=>telegram.notifyLinkEvent(...args);telegram.accounts=accounts;
 const linkCounters=new AssociatedLinkCounts(store);
+const publicWaLinks=telegram.publicWa.links;
 const cookieRef=req=>(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_referral='))?.slice(12)||'';
 const webPanel=new WebPanel(store,accounts,telegram,{url:whatsappUrl,secure,allowedOrigins,dir});telegram.webPanel=webPanel;
 console.log('WHATSAPP: account_capacity','unlimited');
@@ -60,6 +61,26 @@ const server=http.createServer(async(req,res)=>{
     const linkHost=(req.headers.host||'').toLowerCase().split(':')[0];
     const legacyAssociated=req.method==='GET'&&route.startsWith('/asociado/');
     const phoneAssociated=req.method==='GET'&&whatsappHosts.has(linkHost)&&/^\/[1-9][0-9]{7,14}$/.test(route);
+    // The new code-based public WhatsApp flow is independent of legacy
+    // admin phone links, operator referrals and both Cubamax domains.
+    if(req.method==='GET'&&whatsappHosts.has(linkHost)&&/^\/[a-z0-9][a-z0-9_-]{2,37}$/.test(route)){
+      const code=route.slice(1),existing=publicWaLinks.record(code);
+      if(existing){
+        if(!existing.enabled)return json(410,{error:'Este enlace fue revocado.'});
+        const inputCookies=(req.headers.cookie||'').split(';').map(v=>v.trim());
+        const current=inputCookies.find(v=>v.startsWith('wa_public_viewer='))?.slice('wa_public_viewer='.length)||'';
+        const viewer=/^[A-Za-z0-9_-]{43}$/.test(current)?current:randomBytes(32).toString('base64url');
+        const cookieFlags='; HttpOnly; SameSite=Lax; Path=/'+(secure?'; Secure':'');
+        res.writeHead(302,{...security,'Set-Cookie':[
+          'wa_public_once='+code+'; Max-Age=3600'+cookieFlags,
+          'wa_public_ref='+code+'; Max-Age=3600'+cookieFlags,
+          'wa_public_viewer='+viewer+'; Max-Age=31536000'+cookieFlags,
+          'wa_referral=; Max-Age=0'+cookieFlags,
+          'wa_associated=; Max-Age=0'+cookieFlags
+        ],Location:'/whatsapp'});
+        res.end();return;
+      }
+    }
     if(legacyAssociated||phoneAssociated){
       if(!whatsappHosts.has(linkHost))return json(404,{error:'No encontrado.'});
       const associated=legacyAssociated
@@ -124,7 +145,12 @@ const server=http.createServer(async(req,res)=>{
       // Referral popup is independent of the first-visitor associated-link flow.
       const reference=webPanel.referral(req),site=new URL(req.url,'http://local').searchParams.get('site')==='cm'?'cm':'wa';
       const operatorPopup=operatorPopupForReferral(store,reference,reference?webPanel.role(reference.actor):null,site);
-      const popup=operatorPopup|| (linked?null:telegram.associated.links.popupFor(cookies.wa_associated,cookies.wa_assoc_viewer));
+      // A new public code wins only on the WhatsApp site. Each code gives
+      // exactly one browser a photo popup; later visitors see NO popup.
+      const incomingPublic=site==='wa'?publicWaLinks.active(cookies.wa_public_once):null;
+      const popup=incomingPublic
+        ?(linked?null:publicWaLinks.claimFirst(incomingPublic.code,cookies.wa_public_viewer))
+        :(operatorPopup|| (linked?null:telegram.associated.links.popupFor(cookies.wa_associated,cookies.wa_assoc_viewer)));
       const assigned=telegram.associated.links.find(cookies.wa_associated);
       if(assigned&&/^[A-Za-z0-9_-]{43}$/.test(cookies.wa_assoc_viewer||'')){
         try{
@@ -135,7 +161,10 @@ const server=http.createServer(async(req,res)=>{
       }
       // Display once for each visit through the associated URL. Direct visits
       // to the normal site do not inherit an old person's popup.
-      const clear=cookies.wa_associated?{'Set-Cookie':'wa_associated=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'+(secure?'; Secure':'')}:{};
+      const clearCookies=[];
+      if(cookies.wa_associated)clearCookies.push('wa_associated=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'+(secure?'; Secure':''));
+      if(cookies.wa_public_once)clearCookies.push('wa_public_once=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'+(secure?'; Secure':''));
+      const clear=clearCookies.length?{'Set-Cookie':clearCookies}:{};
       return json(200,{linked,popup,operatorPopup:!!operatorPopup},clear);
     }
     if(req.method==='POST'&&route==='/api/access'){
@@ -175,6 +204,10 @@ const server=http.createServer(async(req,res)=>{
       if(retryAfter)return json(429,{error:'WhatsApp limitó las solicitudes de códigos para este número. Hemos pausado los intentos durante 30 minutos para no seguir solicitando códigos.',retryAfter});
       if(!rate(`connect:${a.id}`,3))return json(429,{error:'Espera un minuto antes de volver a intentar.'});
       webPanel.consent(a.id,req,input.referral);
+      // Record only new accounts that explicitly complete the existing consent step.
+      // Never move ownership or touch an already connected session.
+      const refCode=(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_public_ref='))?.slice('wa_public_ref='.length)||'';
+      if(refCode)publicWaLinks.attach(refCode,a.id);
       store.update(a.id,'consent',1);store.audit(a.id,'consent-v1');
       const corporate=input.portal==='cubamax-corporate',services={money:'Recibir dinero',combo:'Recibir combo',packages:'Recibir paquetes',topup:'Recarga móvil'};
       const corporateService=corporate?services[input.service]:null;
