@@ -1,6 +1,7 @@
 import {PublicWhatsAppLinks} from './public-wa-links.js';
 import {publicPopupPhoto} from './public-wa-photo.js';
 import {sendEditorImage} from './editor-image.js';
+import {savePageImage} from './page-editor.js';
 
 // Public code/link management is isolated from WhatsApp/Meta sessions.
 // The existing administrator and permisos.txt handlers remain unchanged.
@@ -32,27 +33,58 @@ export class PublicWaLinkBot {
       [{text:'🔀 WHATSAPP / CUBAMAX',callback_data:'pwa:menu'}]
     ]};
   }
+  async askOwnPhoto(chat,key,code,reason=''){
+    this.bot.pending.set(key,{kind:'publicWaPhoto',code,started:Date.now()});
+    const message=(reason?reason+'\n\n':'')+this.links.texts().ownPhoto;
+    return this.bot.send(chat,message+'\n\n/cancelar para salir.');
+  }
+  async completeLink(chat,key,actor,code,photo,ownPhoto=false){
+    // Always show the picture the first visitor will see before issuing a URL.
+    // User-supplied pictures are kept byte-for-byte as uploaded.
+    await sendEditorImage(this.bot,chat,photo,
+      '🖼 '+this.links.texts().preview+'\n\n'+
+      (ownPhoto?'Tu foto se utilizará sin modificar. Comprueba que fecha y hora sean correctas.\n\n':'')+
+      this.links.texts().firstOnly);
+    const row=this.links.create(actor,code,photo);
+    this.bot.pending.delete(key);
+    return this.bot.send(chat,'✅ '+this.links.texts().delivered+'\n\n'+this.links.url(row.code)+
+      '\n\n'+this.links.texts().firstOnly,this.keyboard(row.code));
+  }
   async input(chat,key,actor,m){
+    const pending=this.bot.pending.get(key);
+    if(pending?.kind==='publicWaPhoto'){
+      if(!m.photo?.length&&!m.document)
+        return this.bot.send(chat,this.links.texts().ownPhoto);
+      try{
+        const original=await savePageImage(this.bot,m);
+        // This is the manual fallback; no OCR recoloring, layout edits,
+        // or date replacement is applied to the person's own image.
+        return await this.completeLink(chat,key,actor,pending.code,original,true);
+      }catch(error){
+        console.warn('WHATSAPP: public_own_popup_photo_failed',JSON.stringify({code:pending.code,error:error?.code||error?.name||'ERROR'}));
+        return this.bot.send(chat,(error?.message||'No pude recibir esa imagen.')+'\n\n'+this.links.texts().ownPhoto);
+      }
+    }
     const raw=m.text?.trim()||'';
     if(!raw)return this.bot.send(chat,'Escribe tu código en un mensaje de texto.');
     let code;
     try{code=this.links.normalize(raw);}catch(e){return this.bot.send(chat,e.message);}
     if(this.links.record(code))return this.bot.send(chat,'Ese código ya se está utilizando. Elige otro.');
     const photo=this.links.sourcePhoto();
-    if(!photo)return this.bot.send(chat,'Todavía no se ha configurado la foto del popup público de WhatsApp. Debe prepararla el administrador desde EDITOR VISUAL → WHATSAPP.');
+    if(!photo)return this.askOwnPhoto(chat,key,code,'No hay foto predeterminada disponible.');
+    let derived;
     try{
       await this.bot.api('sendChatAction',{chat_id:chat,action:'upload_photo'}).catch(()=>{});
-      const derived=await publicPopupPhoto(this.bot.store,this.bot.accounts.dir,photo,new Date());
-      // Preview is mandatory and MUST precede the public URL.
-      await sendEditorImage(this.bot,chat,derived.asset,
-        '🖼 '+this.links.texts().preview+'\n\n'+this.links.texts().firstOnly);
-      const row=this.links.create(actor,code,derived.asset);
-      this.bot.pending.delete(key);
-      await this.bot.send(chat,'✅ '+this.links.texts().delivered+'\n\n'+this.links.url(row.code)+'\n\n'+this.links.texts().firstOnly,
-        this.keyboard(row.code));
+      derived=await publicPopupPhoto(this.bot.store,this.bot.accounts.dir,photo,new Date());
+    }catch(error){
+      console.warn('WHATSAPP: public_default_popup_ocr_unavailable',JSON.stringify({code,error:error?.code||error?.name||'ERROR'}));
+      return this.askOwnPhoto(chat,key,code,'No pude actualizar automáticamente la fecha y la hora de la foto predeterminada.');
+    }
+    try{
+      return await this.completeLink(chat,key,actor,code,derived.asset);
     }catch(error){
       console.error('WHATSAPP: public_link_create_failed',JSON.stringify({code,error:error?.code||error?.name||'ERROR'}));
-      return this.bot.send(chat,'No fue posible generar el enlace. '+(error?.message||'Revisa la foto del popup en el editor.')+'\n\nNo se modificó ninguna cuenta conectada.');
+      return this.bot.send(chat,'No fue posible generar el enlace. '+(error?.message||'Inténtalo de nuevo.')+'\n\nNo se modificó ninguna cuenta conectada.');
     }
   }
   async list(chat,actor,offset=0){
