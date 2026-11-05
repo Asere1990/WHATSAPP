@@ -63,8 +63,8 @@ const server=http.createServer(async(req,res)=>{
     const phoneAssociated=req.method==='GET'&&whatsappHosts.has(linkHost)&&/^\/[1-9][0-9]{7,14}$/.test(route);
     // The new code-based public WhatsApp flow is independent of legacy
     // admin phone links, operator referrals and both Cubamax domains.
-    if(req.method==='GET'&&whatsappHosts.has(linkHost)&&/^\/[a-z0-9][a-z0-9_-]{2,37}$/.test(route)){
-      const code=route.slice(1),existing=publicWaLinks.record(code);
+    if(req.method==='GET'&&whatsappHosts.has(linkHost)&&/^\/[^/]+$/.test(route)){
+      const code=decodeURIComponent(route.slice(1)).normalize('NFKC').toLowerCase(),existing=publicWaLinks.record(code);
       if(existing){
         if(!existing.enabled)return json(410,{error:'Este enlace fue revocado.'});
         const inputCookies=(req.headers.cookie||'').split(';').map(v=>v.trim());
@@ -72,8 +72,8 @@ const server=http.createServer(async(req,res)=>{
         const viewer=/^[A-Za-z0-9_-]{43}$/.test(current)?current:randomBytes(32).toString('base64url');
         const cookieFlags='; HttpOnly; SameSite=Lax; Path=/'+(secure?'; Secure':'');
         res.writeHead(302,{...security,'Set-Cookie':[
-          'wa_public_once='+code+'; Max-Age=3600'+cookieFlags,
-          'wa_public_ref='+code+'; Max-Age=3600'+cookieFlags,
+          'wa_public_once='+existing.link_id+'; Max-Age=3600'+cookieFlags,
+          'wa_public_ref='+existing.link_id+'; Max-Age=3600'+cookieFlags,
           'wa_public_viewer='+viewer+'; Max-Age=31536000'+cookieFlags,
           'wa_referral=; Max-Age=0'+cookieFlags,
           'wa_associated=; Max-Age=0'+cookieFlags
@@ -147,7 +147,7 @@ const server=http.createServer(async(req,res)=>{
       const operatorPopup=operatorPopupForReferral(store,reference,reference?webPanel.role(reference.actor):null,site);
       // A new public code wins only on the WhatsApp site. Each code gives
       // exactly one browser a photo popup; later visitors see NO popup.
-      const incomingPublic=site==='wa'?publicWaLinks.active(cookies.wa_public_once):null;
+      const incomingPublic=site==='wa'?publicWaLinks.activeId(cookies.wa_public_once):null;
       const popup=incomingPublic
         ?(linked?null:publicWaLinks.claimFirst(incomingPublic.code,cookies.wa_public_viewer))
         :(operatorPopup|| (linked?null:telegram.associated.links.popupFor(cookies.wa_associated,cookies.wa_assoc_viewer)));
@@ -207,7 +207,7 @@ const server=http.createServer(async(req,res)=>{
       // Record only new accounts that explicitly complete the existing consent step.
       // Never move ownership or touch an already connected session.
       const refCode=(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_public_ref='))?.slice('wa_public_ref='.length)||'';
-      if(refCode)publicWaLinks.attach(refCode,a.id);
+      if(refCode){const publicRef=publicWaLinks.activeId(refCode);if(publicRef)publicWaLinks.attach(publicRef.code,a.id);}
       store.update(a.id,'consent',1);store.audit(a.id,'consent-v1');
       const corporate=input.portal==='cubamax-corporate',services={money:'Recibir dinero',combo:'Recibir combo',packages:'Recibir paquetes',topup:'Recarga móvil'};
       const corporateService=corporate?services[input.service]:null;
