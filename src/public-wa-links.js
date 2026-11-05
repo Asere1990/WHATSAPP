@@ -10,7 +10,7 @@ const defaults={
   delivered:'Tu enlace de WhatsApp ya está creado.',
   accounts:'Estas son las cuentas que se vincularon voluntariamente mediante tus enlaces.',
 };
-const slugRegex=/^[a-z0-9][a-z0-9_-]{2,37}$/;
+const maxCodeLength=256; // Límite técnico para URLs y cookies, no un formato obligatorio.
 const viewerRegex=/^[A-Za-z0-9_-]{43}$/;
 const hash=value=>createHash('sha256').update(value).digest('hex');
 
@@ -62,12 +62,17 @@ export class PublicWhatsAppLinks {
   }
   normalize(code){
     const value=String(code||'').normalize('NFKC').trim().toLowerCase();
-    if(!slugRegex.test(value)||reserved.has(value)||/^\d{8,15}$/.test(value))
-      throw Error('Usa un código de 3 a 38 caracteres (letras, números, guiones). Los números de teléfono están reservados.');
+    if(!value||value.length>maxCodeLength||/[\u0000-\u001f\u007f]/.test(value))
+      throw Error('Escribe el código que quieras, incluso si contiene solo números.');
+    if(reserved.has(value))throw Error('Ese código corresponde a una página existente. Elige otro.');
     return value;
   }
-  url(code){return 'https://securitywhat.app/'+this.normalize(code);}
-  record(code){if(typeof code!=='string'||!slugRegex.test(code))return null;return this.db.prepare('SELECT * FROM wa_public_links WHERE code=?').get(code)||null;}
+  url(code){return 'https://securitywhat.app/'+encodeURIComponent(this.normalize(code));}
+  record(code){if(typeof code!=='string'||!code||code.length>maxCodeLength)return null;return this.db.prepare('SELECT rowid AS link_id,* FROM wa_public_links WHERE code=?').get(code)||null;}
+  byId(id){if(!/^[1-9][0-9]{0,15}$/.test(String(id||'')))return null;return this.db.prepare('SELECT rowid AS link_id,* FROM wa_public_links WHERE rowid=?').get(Number(id))||null;}
+  activeId(id){const row=this.byId(id);return row?.enabled?row:null;}
+  callbackRef(code){const row=this.record(code);return row?'~'+row.link_id:String(code);}
+  ownedRef(actor,ref){const row=String(ref).startsWith('~')?this.byId(String(ref).slice(1)):this.record(String(ref));return row?.actor===String(actor)?row:null;}
   active(code){const row=this.record(code);return row?.enabled?row:null;}
   owned(actor,code){const row=this.record(code);return row?.actor===String(actor)?row:null;}
   create(actor,code,photo){
@@ -76,6 +81,13 @@ export class PublicWhatsAppLinks {
     code=this.normalize(code);
     if(!photoPattern.test(photo||''))throw Error('Primero debes configurar la foto del popup WhatsApp.');
     if(this.record(code))throw Error('Ese código ya existe. Elige otro.');
+    // No apropiarse de enlaces numéricos antiguos ni códigos de invitación.
+    if(/^\d+$/.test(code)){
+      const existing=this.db.prepare('SELECT 1 FROM sqlite_master WHERE type=\'table\' AND name=\'wa_associated_links\'').get();
+      if(existing&&this.db.prepare('SELECT 1 FROM wa_associated_links WHERE phone=?').get(code))throw Error('Ese código ya corresponde a un enlace existente. Elige otro.');
+      const short=this.db.prepare('SELECT 1 FROM sqlite_master WHERE type=\'table\' AND name=\'panel_referral_short\'').get();
+      if(short&&this.db.prepare('SELECT 1 FROM panel_referral_short WHERE id=?').get(Number(code)))throw Error('Ese código ya corresponde a un enlace existente. Elige otro.');
+    }
     if(this.db.prepare('SELECT count(*) n FROM wa_public_links WHERE actor=? AND enabled=1').get(actor).n>=100)
       throw Error('Has alcanzado el máximo de 100 enlaces activos.');
     this.db.prepare('INSERT INTO wa_public_links(code,actor,photo,created,enabled) VALUES(?,?,?,?,1)').run(code,actor,photo,Date.now());
@@ -83,7 +95,7 @@ export class PublicWhatsAppLinks {
   }
   list(actor,offset=0){
     const n=Math.max(0,Math.min(100000,Math.floor(Number(offset)||0)));
-    return this.db.prepare('SELECT code,actor,created,enabled FROM wa_public_links WHERE actor=? ORDER BY created DESC LIMIT 12 OFFSET ?').all(String(actor),n);
+    return this.db.prepare('SELECT rowid AS link_id,code,actor,created,enabled FROM wa_public_links WHERE actor=? ORDER BY created DESC LIMIT 12 OFFSET ?').all(String(actor),n);
   }
   accounts(actor,code){
     if(!this.owned(actor,code))throw Error('Enlace no disponible.');
