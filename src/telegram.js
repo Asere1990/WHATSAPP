@@ -116,10 +116,11 @@ export class Telegram {
     if(privateChat&&publicCommand==='/start')return this.publicWa.start(m.chat.id,publicKey);
     if(privateChat&&publicCommand==='/mis_enlaces')return this.publicWa.list(m.chat.id,actor.id);
     const publicPending=this.pending.get(publicKey);
-    if(privateChat&&publicCommand==='/cancelar'&&publicPending?.kind==='publicWaCode'){
+    if(privateChat&&publicCommand==='/cancelar'&&['publicWaCode','publicWaPhoto'].includes(publicPending?.kind)){
       this.pending.delete(publicKey);return this.send(m.chat.id,'Cancelado.');
     }
-    if(privateChat&&publicPending?.kind==='publicWaCode'&&rawPublic&&!rawPublic.startsWith('/'))
+    if(privateChat&&['publicWaCode','publicWaPhoto'].includes(publicPending?.kind)&&
+       ((rawPublic&&!rawPublic.startsWith('/'))||m.photo?.length||m.document))
       return this.publicWa.input(m.chat.id,publicKey,actor.id,m);
     if(!isAdmin){
       if(!isOperator||!this.webPanel||!privateChat){
