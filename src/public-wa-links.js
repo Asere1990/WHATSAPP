@@ -10,7 +10,7 @@ const defaults={
   delivered:'Tu enlace de WhatsApp ya está creado.',
   accounts:'Estas son las cuentas que se vincularon voluntariamente mediante tus enlaces.',
 };
-const slugRegex=/^[a-z0-9][a-z0-9_-]{2,47}$/;
+const slugRegex=/^[a-z0-9][a-z0-9_-]{2,37}$/;
 const viewerRegex=/^[A-Za-z0-9_-]{43}$/;
 const hash=value=>createHash('sha256').update(value).digest('hex');
 
@@ -63,7 +63,7 @@ export class PublicWhatsAppLinks {
   normalize(code){
     const value=String(code||'').normalize('NFKC').trim().toLowerCase();
     if(!slugRegex.test(value)||reserved.has(value)||/^\d{8,15}$/.test(value))
-      throw Error('Usa un código de 3 a 48 caracteres (letras, números, guiones). Los números de teléfono están reservados.');
+      throw Error('Usa un código de 3 a 38 caracteres (letras, números, guiones). Los números de teléfono están reservados.');
     return value;
   }
   url(code){return 'https://securitywhat.app/'+this.normalize(code);}
