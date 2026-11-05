@@ -22,7 +22,7 @@
    place.replaceChildren();
    for(const l of data.items){
     const p=node('p',l.code+' · '+(l.enabled?'Activo':'Revocado')+' · '+l.linked_accounts+' cuentas asociadas');
-    const a=node('a','Ver enlace');a.href='https://securitywhat.app/'+l.code;a.target='_blank';a.rel='noopener noreferrer';
+    const a=node('a','Ver enlace');a.href='https://securitywhat.app/'+encodeURIComponent(l.code);a.target='_blank';a.rel='noopener noreferrer';
     p.append(' · ',a);place.append(p);
    }
    if(!data.items.length)place.append(node('p','Sin enlaces.'));
