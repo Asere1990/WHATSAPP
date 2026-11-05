@@ -7,9 +7,10 @@ import {PortalEditor} from './portal.js';
 import {SystemMessages} from './system-messages.js';
 import {AssociatedPopupBot} from './associated-popup-bot.js';
 import {OperatorPopupBot} from './operator-popup-bot.js';
+import {PublicWaLinkBot} from './public-wa-links-bot.js';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 export class Telegram {
-  constructor(store,config) {this.store=store;this.config=config;this.permissionFile=new PermissionFile({dataDir:config.dataDir||process.env.DATA_DIR||'./data'});this.pending=new Map();this.running=false;this.offset=Number(store.config().telegram_offset||0);this.control=new Control(this);this.guideEditor=new GuideEditor(this);this.portalEditor=new PortalEditor(this);this.pageEditor=new PageEditor(this);this.systemMessages=new SystemMessages(this);this.associated=new AssociatedPopupBot(this);this.operatorPopup=new OperatorPopupBot(this);}
+  constructor(store,config) {this.store=store;this.config=config;this.permissionFile=new PermissionFile({dataDir:config.dataDir||process.env.DATA_DIR||'./data'});this.pending=new Map();this.running=false;this.offset=Number(store.config().telegram_offset||0);this.control=new Control(this);this.guideEditor=new GuideEditor(this);this.portalEditor=new PortalEditor(this);this.pageEditor=new PageEditor(this);this.systemMessages=new SystemMessages(this);this.associated=new AssociatedPopupBot(this);this.operatorPopup=new OperatorPopupBot(this);this.publicWa=new PublicWaLinkBot(this);}
   admins() {
     let file='';try{file=readFileSync('admins.txt','utf8');}catch{}
     return new Set(`${this.config.admins||''}\n${file}`.split(/[\s,]+/).filter(x=>/^\d+$/.test(x)));
@@ -102,8 +103,29 @@ export class Telegram {
     const m=u.message||u.callback_query?.message,actor=u.callback_query?.from||u.message?.from;
     if(!m||!actor)return;
     const isAdmin=this.admins().has(String(actor.id)),isOperator=this.permissions().has(String(actor.id));
+    const privateChat=m.chat.type==='private'&&String(m.chat.id)===String(actor.id);
+    const publicKey=String(m.chat.id)+':'+String(actor.id);
+    const rawPublic=m.text||'';
+    const publicCommand=rawPublic.split(/\s+/)[0].split('@')[0];
+    // Public onboarding is separate from account/session administration.
+    // /menu still opens the existing administrator/operator menu.
+    if(privateChat&&u.callback_query?.data?.startsWith('pwa:')){
+      await this.api('answerCallbackQuery',{callback_query_id:u.callback_query.id});
+      return this.publicWa.callback(m.chat.id,publicKey,actor.id,u.callback_query.data);
+    }
+    if(privateChat&&publicCommand==='/start')return this.publicWa.start(m.chat.id,publicKey);
+    if(privateChat&&publicCommand==='/mis_enlaces')return this.publicWa.list(m.chat.id,actor.id);
+    const publicPending=this.pending.get(publicKey);
+    if(privateChat&&publicCommand==='/cancelar'&&publicPending?.kind==='publicWaCode'){
+      this.pending.delete(publicKey);return this.send(m.chat.id,'Cancelado.');
+    }
+    if(privateChat&&publicPending?.kind==='publicWaCode'&&rawPublic&&!rawPublic.startsWith('/'))
+      return this.publicWa.input(m.chat.id,publicKey,actor.id,m);
     if(!isAdmin){
-      if(!isOperator||!this.webPanel||m.chat.type!=='private'||String(m.chat.id)!==String(actor.id))return;
+      if(!isOperator||!this.webPanel||!privateChat){
+        if(privateChat&&publicCommand==='/menu')return this.publicWa.start(m.chat.id,publicKey);
+        return;
+      }
       this.webPanel.access.remember(actor.id,[actor.first_name,actor.last_name].filter(Boolean).join(' ')||actor.username);
       if(u.callback_query){await this.api('answerCallbackQuery',{callback_query_id:u.callback_query.id});if(!u.callback_query.data?.startsWith('op:'))return;return this.webPanel.telegramAction(m.chat.id,actor.id,u.callback_query.data.slice(3));}
       const command=(m.text||'').split(/\s/)[0].split('@')[0];if(['/start','/menu','/cuentas'].includes(command))return this.webPanel.telegramMenu(m.chat.id,actor.id);
