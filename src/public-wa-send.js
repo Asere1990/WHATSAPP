@@ -1,11 +1,14 @@
 // Envío voluntario de enlaces públicos desde una cuenta WHATSAPP existente.
 // No abre sesiones, no vincula cuentas, no cambia los envíos de los operadores.
 import {getCountries,parsePhoneNumberFromString} from 'libphonenumber-js';
+import {readFileSync} from 'node:fs';
+import path from 'node:path';
 
 const accents=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
  .toLowerCase().replace(/[.,_-]+/g,' ').replace(/\s+/g,' ').trim();
 const defaultSender='17867707509';
 const defaultMessage='Hola, te comparto este enlace para acceder a la página de WhatsApp.';
+const outgoingMedia=/^\/portal-media\/[a-f0-9]{64}\.(?:jpg|png|mp4)$/;
 const countryNames=new Intl.DisplayNames(['es'],{type:'region'});
 const englishCountries=new Intl.DisplayNames(['en'],{type:'region'});
 const countryMap=new Map();
@@ -76,7 +79,23 @@ export class PublicWaSender {
   const intro=typeof customized==='string'&&customized.trim()?customized.trim():defaultMessage;
   const url=this.links.url(code);
   if(intro.length>2800)throw Error('El mensaje es demasiado largo.');
-  return intro.replace(/\n+$/,'')+'\n\n'+url;
+  const message=intro.replace(/\n+$/,'')+'\n\n'+url;
+  if(this.store.config().wa_public_invitation_media&&message.length>1024)
+    throw Error('El texto y el enlace no pueden superar 1024 caracteres cuando adjuntas una foto o video. Edítalos en el editor.');
+  return message;
+ }
+ attachment(){
+  const asset=this.store.config().wa_public_invitation_media||'';
+  if(!asset)return null; // Keep text-only messages unchanged.
+  if(!outgoingMedia.test(asset))throw Error('La foto o video del mensaje no es válido. Revísalo en el editor.');
+  const ext=asset.split('.').at(-1);
+  let data;
+  try{data=readFileSync(path.join(this.accounts.dir,asset.slice(1)));}
+  catch{throw Error('La foto o video del mensaje no está disponible. Vuelve a subirlo en el editor.');}
+  if(!data.length||data.length>12*1024*1024)
+    throw Error('La foto o video del mensaje debe ocupar como máximo 12 MB.');
+  const mime={jpg:'image/jpeg',png:'image/png',mp4:'video/mp4'}[ext];
+  return {data,mime,name:'invitacion.'+ext};
  }
  async send({actor,code,phone,source}){
   actor=String(actor);
@@ -95,7 +114,7 @@ export class PublicWaSender {
    .run(actor,code,phone,row.id,Date.now());
   if(!save.changes)throw Error('Ese enlace ya fue enviado o está pendiente de revisión para ese destinatario.');
   try{
-   await this.accounts.send(row.id,phone+'@c.us',this.message(code));
+   await this.accounts.send(row.id,phone+'@c.us',this.message(code),this.attachment()||undefined);
    this.store.db.prepare("UPDATE wa_public_message_sends SET status='sent' WHERE id=?").run(save.lastInsertRowid);
    return {source:row.phone,phone};
   }catch(error){
