@@ -33,7 +33,7 @@ export class PublicWaAutomaticAccess {
   return list;
  }
  manual(ids){
-  for(const actor of String(ids||'').split(/[s,;]+/)){
+  for(const actor of String(ids||'').split(/[\s,;]+/)){
    if(validActor(actor))this.db.prepare(
     'DELETE FROM wa_public_auto_permissions WHERE actor=?').run(actor);
   }
