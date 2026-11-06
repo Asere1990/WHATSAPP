@@ -157,10 +157,28 @@
   const reloadNumbers=async()=>{
    const response=await json('public-wa-system-numbers');
    addList.replaceChildren();
-   for(const entry of response.numbers)
-    addList.append(node('p',entry.phone+
+   for(const entry of response.numbers){
+    const row=node('p',entry.phone+
      (entry.primary?' · PRINCIPAL':' · ADICIONAL')+
-     (entry.connected?' · Conectado':' · Sin conexión')));
+     (entry.connected?' · Conectado':' · Sin conexión'));
+    if(!entry.primary){
+     const remove=node('button','REMOVER NÚMERO');
+     remove.type='button';
+     remove.className='wa-system-number-remove';
+     remove.onclick=async()=>{
+      if(!confirm('¿Remover '+entry.phone+' de los números emisores del sistema? La cuenta de WhatsApp, sus chats y mensajes NO se borrarán ni se desconectarán.'))return;
+      remove.disabled=true;
+      addStatus.textContent='Actualizando lista de emisores…';
+      try{
+       await json('public-wa-system-number-remove',{phone:entry.phone});
+       await reloadNumbers();
+       addStatus.textContent='✅ '+entry.phone+' removido de los emisores. Su cuenta WhatsApp permanece conectada.';
+      }catch(error){addStatus.textContent=error.message;remove.disabled=false;}
+     };
+     row.append(' · ',remove);
+    }
+    addList.append(row);
+   }
   };
   addButton.onclick=async()=>{
    await check();if(!admin)return;
