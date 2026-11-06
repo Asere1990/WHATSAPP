@@ -175,14 +175,23 @@ export class PublicWaLinkBot {
   async popupForSend(source,at){return publicPopupPhoto(this.bot.store,this.bot.accounts.dir,source,at);}
   async previewPopup(chat,photo,caption){return sendEditorImage(this.bot,chat,photo,caption);}
   async previewNewSend(chat,key,actor,code,photo,{recipient,source},ownPhoto=false){
-    if(this.links.record(code))return this.send(chat,this.copy('codeTaken'));
-    // The preview is the actual image stored under this new code. No changes
-    // to the OCR editor, the popup content, or connected WhatsApp sessions.
+    let message;
+    try{message=this.sender.message(code);}
+    catch(error){return this.send(chat,this.copy('messageInvalid',{error:error.message}));}
+    // Reserve the exact code before sending the image. A collision with an old
+    // numeric link must never leave the flow stranded after its popup preview.
+    let row;
+    try{row=this.links.create(actor,code,photo);}
+    catch(error){
+      this.bot.pending.set(key,{kind:'publicWaCode',started:Date.now(),sendFirst:true});
+      return this.send(chat,this.copy('codeInvalid',{error:error.message})+'\n\n'+
+        this.copy('message1')+'\n\n'+this.copy('codeHelp'));
+    }
+    // Keep the OCR/photo untouched. Now a successful picture is always
+    // followed by the existing confirmation message and its send button.
     await this.previewPopup(chat,photo,
       this.copy('preview')+'\n\n'+
       (ownPhoto?this.copy('ownPhotoNotice')+'\n\n':'')+this.copy('firstOnly'));
-    const row=this.links.create(actor,code,photo);
-    const message=this.sender.message(row.code);
     this.bot.pending.set(key,{kind:'publicWaConfirm',code:row.code,
       actor:String(actor),recipient:recipient.phone,
       country:recipient.country,source});
@@ -198,6 +207,8 @@ export class PublicWaLinkBot {
       try{code=this.links.normalize(raw);}
       catch(error){return this.send(chat,this.copy('codeInvalid',{error:error.message}));}
       if(this.links.record(code))return this.send(chat,this.copy('codeTaken'));
+      try{this.links.validateNewCode(actor,code);}
+      catch(error){return this.send(chat,this.copy('codeInvalid',{error:error.message}));}
       this.bot.pending.set(key,{kind:'publicWaCountry',code,actor:String(actor),sendFirst:true});
       return this.send(chat,this.copy('countryPrompt'),{
         inline_keyboard:[[{text:this.button('buttonSkip'),callback_data:'pwa:send-skip'}]]
