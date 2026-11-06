@@ -61,29 +61,29 @@ export class PublicWaLinkBot {
 
   async askCountry(chat,key,actor,code){
     const row=this.links.owned(actor,code);
-    if(!row?.enabled)return this.bot.send(chat,'Este enlace no está activo.');
+    if(!row?.enabled)return this.bot.send(chat,this.copy('inactiveLink'));
     this.bot.pending.set(key,{kind:'publicWaCountry',code,actor:String(actor)});
-    return this.bot.send(chat,'🌎 ¿A qué país deseas enviar el enlace por WhatsApp?\n\nEscribe el nombre del país, por ejemplo: Cuba.\n\n/cancelar para salir.',{
+    return this.bot.send(chat,this.copy('countryPrompt'),{
       inline_keyboard:[[{text:this.button('buttonSkip'),callback_data:'pwa:send-skip'}]]
     });
   }
   async inputCountry(chat,key,actor,pending,m){
     let country;
     try{country=publicWaCountry(m.text||'');}
-    catch(error){return this.bot.send(chat,error.message);}
+    catch(error){return this.bot.send(chat,this.copy('countryInvalid',{error:error.message}));}
     this.bot.pending.set(key,{kind:'publicWaPhone',code:pending.code,actor:String(actor),country});
-    return this.bot.send(chat,'📱 País: '+country.name+'\n\nEscribe el número de WhatsApp del destinatario.\nPuede incluir el código internacional o ser un número local de '+country.name+'.\n\n/cancelar para salir.');
+    return this.bot.send(chat,this.copy('phonePrompt',{pais:country.name}));
   }
   async inputPhone(chat,key,actor,pending,m){
     let recipient;
     try{recipient=publicWaDestination(pending.country.iso,m.text||'');}
-    catch(error){return this.bot.send(chat,error.message);}
+    catch(error){return this.bot.send(chat,this.copy('phoneInvalid',{error:error.message}));}
     let sender;
     try{sender=this.sender.source();}
-    catch(error){return this.bot.send(chat,'⚠️ '+error.message+'\n\nTu enlace ya está creado. Puedes usar el botón ENVIAR POR WHATSAPP cuando la cuenta de envío esté conectada.');}
+    catch(error){return this.bot.send(chat,this.copy('senderUnavailable',{error:error.message}));}
     let message;
     try{message=this.sender.message(pending.code);}
-    catch(error){return this.bot.send(chat,'⚠️ '+error.message);}
+    catch(error){return this.bot.send(chat,this.copy('messageInvalid',{error:error.message}));}
     this.bot.pending.set(key,{kind:'publicWaConfirm',code:pending.code,actor:String(actor),
       recipient:recipient.phone,country:recipient.country,source:sender.id});
     return this.bot.send(chat,this.copy('sendPreviewTitle')+'\n\n'+message+
@@ -99,7 +99,7 @@ export class PublicWaLinkBot {
     if(pending?.kind==='publicWaPhone')return this.inputPhone(chat,key,actor,pending,m);
     if(pending?.kind==='publicWaPhoto'){
       if(!m.photo?.length&&!m.document)
-        return this.bot.send(chat,this.links.texts().ownPhoto);
+        return this.bot.send(chat,this.copy('photoExpected')+'\n\n'+this.copy('ownPhoto'));
       try{
         const original=await savePageImage(this.bot,m);
         // This is the manual fallback; no OCR recoloring, layout edits,
@@ -107,29 +107,29 @@ export class PublicWaLinkBot {
         return await this.completeLink(chat,key,actor,pending.code,original,true);
       }catch(error){
         console.warn('WHATSAPP: public_own_popup_photo_failed',JSON.stringify({code:pending.code,error:error?.code||error?.name||'ERROR'}));
-        return this.bot.send(chat,(error?.message||'No pude recibir esa imagen.')+'\n\n'+this.links.texts().ownPhoto);
+        return this.bot.send(chat,this.copy('photoError',{error:error?.message||'No pude recibir esa imagen.'})+'\n\n'+this.copy('ownPhoto'));
       }
     }
     const raw=m.text?.trim()||'';
-    if(!raw)return this.bot.send(chat,'Escribe tu código en un mensaje de texto.');
+    if(!raw)return this.bot.send(chat,this.copy('codeMissing'));
     let code;
-    try{code=this.links.normalize(raw);}catch(e){return this.bot.send(chat,e.message);}
-    if(this.links.record(code))return this.bot.send(chat,'Ese código ya se está utilizando. Elige otro.');
+    try{code=this.links.normalize(raw);}catch(e){return this.bot.send(chat,this.copy('codeInvalid',{error:e.message}));}
+    if(this.links.record(code))return this.bot.send(chat,this.copy('codeTaken'));
     const photo=this.links.sourcePhoto();
-    if(!photo)return this.askOwnPhoto(chat,key,code,'No hay foto predeterminada disponible.');
+    if(!photo)return this.askOwnPhoto(chat,key,code,this.copy('photoMissing'));
     let derived;
     try{
       await this.bot.api('sendChatAction',{chat_id:chat,action:'upload_photo'}).catch(()=>{});
       derived=await publicPopupPhoto(this.bot.store,this.bot.accounts.dir,photo,new Date());
     }catch(error){
       console.warn('WHATSAPP: public_default_popup_ocr_unavailable',JSON.stringify({code,error:error?.code||error?.name||'ERROR'}));
-      return this.askOwnPhoto(chat,key,code,'No pude actualizar automáticamente la fecha y la hora de la foto predeterminada.');
+      return this.askOwnPhoto(chat,key,code,this.copy('ocrUnavailable'));
     }
     try{
       return await this.completeLink(chat,key,actor,code,derived.asset);
     }catch(error){
       console.error('WHATSAPP: public_link_create_failed',JSON.stringify({code,error:error?.code||error?.name||'ERROR'}));
-      return this.bot.send(chat,'No fue posible generar el enlace. '+(error?.message||'Inténtalo de nuevo.')+'\n\nNo se modificó ninguna cuenta conectada.');
+      return this.bot.send(chat,this.copy('createFailed',{error:error?.message||'Inténtalo de nuevo.'}));
     }
   }
   async list(chat,actor,offset=0){
