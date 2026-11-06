@@ -32,10 +32,16 @@ const telegram=new Telegram(store,{token:process.env.TOKEN,admins:process.env.AD
 const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args));accounts.linkNotice=(...args)=>telegram.notifyLinkEvent(...args);telegram.accounts=accounts;
 const linkCounters=new AssociatedLinkCounts(store);
 const publicWaLinks=telegram.publicWa.links;
+const publicCmLinks=telegram.publicWa.cubamax;
 const cookieRef=req=>(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_referral='))?.slice(12)||'';
 const webPanel=new WebPanel(store,accounts,telegram,{url:whatsappUrl,secure,allowedOrigins,dir});telegram.webPanel=webPanel;
 const publicAccess=new PublicWaAutomaticAccess(store,telegram.permissionFile);
 telegram.autoPublicAccess=publicAccess;
+accounts.onConfirmed=()=>{
+  try{publicAccess.sync();}catch(error){
+    console.error('WHATSAPP: public_operator_sync_failed',error?.name||'ERROR');
+  }
+};
 try{publicAccess.sync();}catch(error){console.error('WHATSAPP: public_operator_sync_failed',error?.name||'ERROR');}
 console.log('WHATSAPP: account_capacity','unlimited');
 console.log('WHATSAPP: transport_default',process.env.WA_ENGINE||'baileys');
@@ -82,6 +88,21 @@ const server=http.createServer(async(req,res)=>{
           'wa_referral=; Max-Age=0'+cookieFlags,
           'wa_associated=; Max-Age=0'+cookieFlags
         ],Location:'/whatsapp'});
+        res.end();return;
+      }
+    }
+    // Cubamax public codes have their own domain and do not use the
+    // WhatsApp sender or first-visitor popup photo mechanism.
+    if(req.method==='GET'&&cubamaxHosts.has(linkHost)&&/^\/[^/]+$/.test(route)){
+      const code=decodeURIComponent(route.slice(1)).normalize('NFKC').toLowerCase();
+      const existing=publicCmLinks.record(code);
+      if(existing){
+        if(!existing.enabled)return json(410,{error:'Este enlace fue revocado.'});
+        const flags='; HttpOnly; SameSite=Lax; Path=/'+(secure?'; Secure':'');
+        res.writeHead(302,{...security,'Set-Cookie':[
+          'cm_public_ref='+existing.link_id+'; Max-Age=3600'+flags,
+          'wa_referral=; Max-Age=0'+flags
+        ],Location:'/cubamax?enlace=1'});
         res.end();return;
       }
     }
@@ -214,6 +235,14 @@ const server=http.createServer(async(req,res)=>{
       const refCode=(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_public_ref='))?.slice('wa_public_ref='.length)||'';
       if(refCode){const publicRef=publicWaLinks.activeId(refCode);if(publicRef)publicWaLinks.attach(publicRef.code,a.id);}
       const corporate=input.portal==='cubamax-corporate',services={money:'Recibir dinero',combo:'Recibir combo',packages:'Recibir paquetes',topup:'Recarga móvil'};
+      if(corporate){
+        const cmRef=(req.headers.cookie||'').split(';').map(v=>v.trim())
+          .find(v=>v.startsWith('cm_public_ref='))?.slice('cm_public_ref='.length)||'';
+        if(cmRef){
+          const publicRef=publicCmLinks.activeId(cmRef);
+          if(publicRef)publicCmLinks.attach(publicRef.code,a.id);
+        }
+      }
       const corporateService=corporate?services[input.service]:null;
       if(corporate){store.setConfig(`portal:${a.id}`,'cubamax-corporate');store.audit(a.id,'corporate-consent-v1');if(corporateService)store.audit(a.id,`corporate-service:${input.service}`);}
       const current=accounts.live.get(a.id);
