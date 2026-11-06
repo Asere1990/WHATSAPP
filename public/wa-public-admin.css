@@ -5,7 +5,17 @@
 .wa-public-user{padding:14px 0;border-top:1px solid #d9e5df}
 .wa-public-user p{margin:5px 0 10px}
 .wa-public-actions{display:flex;gap:10px;flex-wrap:wrap}
-.wa-public-actions button,#wa-public-admin-close,#wa-public-admin-open{cursor:pointer;border:1px solid #b5d1c3;border-radius:10px;padding:9px 12px;background:#eef8f2;color:#075e54;font-weight:600}
+.wa-public-actions button,#wa-public-admin-close,#wa-public-admin-open,#wa-system-number-open{cursor:pointer;border:1px solid #b5d1c3;border-radius:10px;padding:9px 12px;background:#eef8f2;color:#075e54;font-weight:600}
 .wa-public-actions .wa-public-danger{background:#fff0ef;border-color:#ec9992;color:#a32822}
 .wa-public-details{padding:10px 0;word-wrap:break-word}
 .wa-public-details p{border-bottom:1px dashed #d4ded9;padding:5px 0}
+
+#wa-system-number-open{max-width:100%;text-align:left}
+#wa-system-number-dialog{width:min(460px,calc(100vw - 28px));padding:22px;overflow:auto}
+#wa-system-number-dialog h2{margin:0 0 14px;font-size:20px}
+#wa-system-number-dialog p{line-height:1.5}
+#wa-system-number-form{display:grid;gap:12px}
+#wa-system-number-input{width:100%;font-size:16px;padding:12px;border:1px solid #b5d1c3;border-radius:10px}
+#wa-system-number-save,#wa-system-number-cancel{border:1px solid #b5d1c3;border-radius:10px;padding:11px 12px;background:#eef8f2;color:#075e54;font-weight:600}
+#wa-system-number-save{background:#075e54;color:#fff}
+#wa-system-number-status{min-height:1.5em;color:#075e54}

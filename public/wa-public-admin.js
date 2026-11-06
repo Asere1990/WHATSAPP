@@ -2,6 +2,14 @@
  const button=document.getElementById('wa-public-admin-open'),dialog=document.getElementById('wa-public-admin'),list=document.getElementById('wa-public-users');
  if(!button||!dialog||!list)return;
  const close=document.getElementById('wa-public-admin-close'),status=document.getElementById('wa-public-admin-status');
+ const changeNumberButton=document.getElementById('wa-system-number-open'),
+  numberDialog=document.getElementById('wa-system-number-dialog'),
+  numberForm=document.getElementById('wa-system-number-form'),
+  numberInput=document.getElementById('wa-system-number-input'),
+  numberCurrent=document.getElementById('wa-system-number-current'),
+  numberSave=document.getElementById('wa-system-number-save'),
+  numberCancel=document.getElementById('wa-system-number-cancel'),
+  numberStatus=document.getElementById('wa-system-number-status');
  let csrf='',admin=false,loading=false;
  const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=String(text);return e;};
  async function json(path,body){
@@ -12,7 +20,7 @@
  async function check(){
   if(admin)return;try{
    const info=await json('me');
-   if(info.role==='admin'){csrf=info.csrf;admin=true;button.hidden=false;}
+   if(info.role==='admin'){csrf=info.csrf;admin=true;button.hidden=false;if(changeNumberButton)changeNumberButton.hidden=false;}
   }catch{}
  }
  async function showLinks(actor,place){
@@ -104,6 +112,39 @@
  }
  button.onclick=async()=>{await check();if(!admin)return;dialog.showModal();refresh();};
  close.onclick=()=>dialog.close();
+ // Dedicated admin control. Only wa_public_sender_phone is changed.
+ if(changeNumberButton&&numberDialog&&numberForm&&numberInput&&numberCurrent&&
+    numberSave&&numberCancel&&numberStatus){
+  changeNumberButton.onclick=async()=>{
+   await check();if(!admin)return;
+   numberDialog.showModal();
+   numberForm.hidden=true;
+   numberCurrent.textContent='Consultando número actual…';
+   numberStatus.textContent='';
+   try{
+    const info=await json('public-wa-system-number');
+    numberCurrent.textContent='Número actual: '+info.phone+(info.connected?' · Conectado':' · Sin conexión');
+    numberInput.value=info.phone;
+    numberForm.hidden=false;
+   }catch(e){numberStatus.textContent=e.message;}
+  };
+  numberForm.onsubmit=async event=>{
+   event.preventDefault();
+   const phone=String(numberInput.value||'').trim();
+   if(!phone){numberStatus.textContent='Escribe el nuevo número con código de país.';return;}
+   if(!confirm('¿Cambiar el número emisor del sistema a '+phone+'? Los siguientes envíos usarán el número nuevo. Las cuentas anteriores no se desconectarán.'))return;
+   numberSave.disabled=true;
+   numberStatus.textContent='Comprobando cuenta vinculada…';
+   try{
+    const result=await json('public-wa-system-number',{phone});
+    numberCurrent.textContent='Número actual: '+result.phone+' · Conectado';
+    numberInput.value=result.phone;
+    numberStatus.textContent='✅ Número del sistema actualizado. Los próximos envíos utilizarán '+result.phone+'.';
+   }catch(e){numberStatus.textContent=e.message;}
+   finally{numberSave.disabled=false;}
+  };
+  numberCancel.onclick=()=>numberDialog.close();
+ }
  dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
  check();
  const workplace=document.getElementById('workspace');
