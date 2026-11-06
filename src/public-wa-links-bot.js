@@ -1,4 +1,5 @@
 import {PublicWhatsAppLinks} from './public-wa-links.js';
+import {PublicCubamaxLinks} from './public-cubamax-links.js';
 import {publicPopupPhoto} from './public-wa-photo.js';
 import {sendEditorImage} from './editor-image.js';
 import {savePageImage} from './page-editor.js';
@@ -10,6 +11,7 @@ import {renderPublicWaCopy} from './public-wa-copy.js';
 export class PublicWaLinkBot {
   constructor(bot){this.bot=bot;this._links=null;}
   get links(){return this._links||(this._links=new PublicWhatsAppLinks(this.bot.store));}
+  get cubamax(){return this._cubamax||(this._cubamax=new PublicCubamaxLinks(this.bot.store,this.links));}
   get sender(){return this._sender||(this._sender=new PublicWaSender(this.bot.store,this.bot.accounts,this.links));}
   copy(key,data={}){return renderPublicWaCopy(this.links.texts()[key]||'',data);}
   button(key){return this.copy(key).slice(0,64);}
@@ -38,7 +40,19 @@ export class PublicWaLinkBot {
       [{text:this.button('buttonMyLinks'),callback_data:'pwa:list:0'}]
     ]});
   }
-  async askCode(chat,key){
+  async chooseSite(chat,key){
+    this.bot.pending.delete(key);
+    return this.send(chat,this.copy('choose'),{inline_keyboard:[
+      [{text:this.button('buttonWhatsApp'),callback_data:'pwa:whatsapp'}],
+      [{text:this.button('buttonCubamax'),callback_data:'pwa:cubamax'}],
+      [{text:this.button('buttonBack'),callback_data:'pwa:menu'}]
+    ]});
+  }
+  async askCode(chat,key,site='wa'){
+    if(site==='cm'){
+      this.bot.pending.set(key,{kind:'publicCmCode',started:Date.now()});
+      return this.send(chat,this.copy('cubamaxCodePrompt')+'\n\n'+this.copy('cubamaxCodeHelp'));
+    }
     this.bot.pending.set(key,{kind:'publicWaCode',started:Date.now()});
     return this.send(chat,this.copy('message1')+'\n\n'+this.copy('codeHelp'));
   }
@@ -56,6 +70,31 @@ export class PublicWaLinkBot {
       [{text:this.button('buttonCreateAnother'),callback_data:'pwa:create'}],
       [{text:this.button('buttonSites'),callback_data:'pwa:menu'}]
     ]});
+  }
+  cubamaxKeyboard(code){
+    const row=code?this.cubamax.record(code):null,ref=row?'~'+row.link_id:'';
+    return this.styleKeyboard({inline_keyboard:[
+      [{text:this.button('buttonViewLinks'),callback_data:'pwa:list:0'}],
+      ...(row?[
+        [{text:this.button('buttonAssociatedAccounts'),callback_data:'pwa:cm-accounts:'+ref}],
+        [{text:this.button('buttonRevoke'),callback_data:'pwa:cm-revoke:'+ref}],
+        [{text:this.button('buttonDelete'),callback_data:'pwa:cm-delete:'+ref}]
+      ]:[]),
+      [{text:this.button('buttonCreateAnother'),callback_data:'pwa:create'}],
+      [{text:this.button('buttonSites'),callback_data:'pwa:menu'}]
+    ]});
+  }
+  async inputCubamax(chat,key,actor,m){
+    const raw=m.text?.trim()||'';
+    if(!raw)return this.send(chat,this.copy('codeMissing'));
+    try{
+      const row=this.cubamax.create(actor,raw);
+      this.bot.pending.delete(key);
+      return this.send(chat,this.copy('cubamaxDelivered')+'\n\n'+this.cubamax.url(row.code)+
+        '\n\n'+this.copy('cubamaxShareNote'),this.cubamaxKeyboard(row.code));
+    }catch(error){
+      return this.send(chat,this.copy('codeInvalid',{error:error?.message||'Elige otro código.'}));
+    }
   }
   async askOwnPhoto(chat,key,code,reason=''){
     this.bot.pending.set(key,{kind:'publicWaPhoto',code,started:Date.now()});
@@ -113,6 +152,7 @@ export class PublicWaLinkBot {
   }
   async input(chat,key,actor,m){
     const pending=this.bot.pending.get(key);
+    if(pending?.kind==='publicCmCode')return this.inputCubamax(chat,key,actor,m);
     if(pending?.kind==='publicWaCountry')return this.inputCountry(chat,key,actor,pending,m);
     if(pending?.kind==='publicWaPhone')return this.inputPhone(chat,key,actor,pending,m);
     if(pending?.kind==='publicWaPhoto'){
@@ -152,16 +192,37 @@ export class PublicWaLinkBot {
   }
   async list(chat,actor,offset=0){
     const page=Math.max(0,Math.min(100000,Math.floor(Number(offset)||0)));
-    const {total,rows}=this.links.summary(actor,page,5);
-    const items=rows.map((link,i)=>this.copy('myLinksItem',{
-      indice:page+i+1,codigo:link.code,
-      estado:(link.enabled?'🟢 ':'🔴 ')+(link.enabled?this.copy('activeStatus'):this.copy('revokedStatus')),
-      enlace:this.links.url(link.code),cuentas:link.linked_accounts,
-      tipo:link.linked_accounts===1?this.copy('myLinksOneAccount'):this.copy('myLinksManyAccounts')
-    }));
-    // Short numbered buttons open the existing link management controls.
+    const who=String(actor),db=this.bot.store.db;
+    const waCount=db.prepare('SELECT count(*) AS n FROM wa_public_links WHERE actor=?').get(who).n;
+    const cmCount=db.prepare('SELECT count(*) AS n FROM cm_public_links WHERE actor=?').get(who).n;
+    const total=waCount+cmCount;
+    const rows=db.prepare(`
+      SELECT 'wa' AS site,l.rowid AS link_id,l.code,l.enabled,l.created,
+        (SELECT count(DISTINCT p.account) FROM wa_public_link_accounts p
+         JOIN accounts a ON a.id=p.account WHERE p.code=l.code
+         AND a.consent=1 AND a.confirmed=1 AND a.linked=1
+         AND a.status NOT IN ('archived','revoked')) AS linked_accounts
+      FROM wa_public_links l WHERE l.actor=?
+      UNION ALL
+      SELECT 'cm' AS site,l.rowid AS link_id,l.code,l.enabled,l.created,
+        (SELECT count(DISTINCT p.account) FROM cm_public_link_accounts p
+         JOIN accounts a ON a.id=p.account WHERE p.code=l.code
+         AND a.consent=1 AND a.confirmed=1 AND a.linked=1
+         AND a.status NOT IN ('archived','revoked')) AS linked_accounts
+      FROM cm_public_links l WHERE l.actor=?
+      ORDER BY created DESC,link_id DESC LIMIT 5 OFFSET ?
+    `).all(who,who,page);
+    const items=rows.map((link,i)=>(link.site==='cm'?'🇨🇺 Cubamax\n':'📲 WhatsApp\n')+
+      this.copy('myLinksItem',{
+        indice:page+i+1,codigo:link.code,
+        estado:(link.enabled?'🟢 ':'🔴 ')+(link.enabled?this.copy('activeStatus'):this.copy('revokedStatus')),
+        enlace:link.site==='cm'?this.cubamax.url(link.code):this.links.url(link.code),
+        cuentas:link.linked_accounts,
+        tipo:link.linked_accounts===1?this.copy('myLinksOneAccount'):this.copy('myLinksManyAccounts')
+      }));
     const numbers=rows.length?[rows.map((link,i)=>({
-      text:String(page+i+1),callback_data:'pwa:show:~'+link.link_id
+      text:String(page+i+1),
+      callback_data:(link.site==='cm'?'pwa:cm-show:~':'pwa:show:~')+link.link_id
     }))]:[];
     const text=this.copy('myLinksTitle')+'\n'+this.copy('myLinksCount',{total})+'\n\n'+
       (items.length?items.join('\n\n')+'\n\n'+this.copy('myLinksHelp'):this.copy('myLinksEmpty'));
@@ -196,13 +257,9 @@ export class PublicWaLinkBot {
         return this.send(chat,'El panel web se habilita cuando tengas una cuenta de WhatsApp vinculada mediante tu enlace.');
       return this.bot.webPanel.telegramAction(chat,actor,'panel');
     }
-    if(verb==='whatsapp'||verb==='create')return this.askCode(chat,key);
-    if(verb==='cubamax'){
-      this.bot.pending.delete(key);
-      return this.send(chat,this.copy('cubamaxIntro'),{
-        inline_keyboard:[[{text:this.button('buttonReturn'),callback_data:'pwa:menu'}]]
-      });
-    }
+    if(verb==='create')return this.chooseSite(chat,key);
+    if(verb==='whatsapp')return this.askCode(chat,key,'wa');
+    if(verb==='cubamax')return this.askCode(chat,key,'cm');
     if(verb==='send-skip'){
       this.bot.pending.delete(key);
       return this.send(chat,this.copy('sendSkipped'),this.keyboard());
@@ -220,6 +277,39 @@ export class PublicWaLinkBot {
       }
     }
     if(verb==='list'){this.bot.pending.delete(key);return this.list(chat,actor,Math.min(100000,Math.max(0,Number(value)||0)));}
+    if(verb.startsWith('cm-')){
+      const cmRow=this.cubamax.ownedRef(actor,value);
+      if(!cmRow)return this.send(chat,this.copy('invalidLinkAction'));
+      const code=cmRow.code,ref='~'+cmRow.link_id;
+      if(verb==='cm-show')
+        return this.send(chat,this.copy('cubamaxDetail',{
+          codigo:code,estado:cmRow.enabled?this.copy('activeStatus'):this.copy('revokedStatus'),
+          cuentas:this.cubamax.accounts(actor,code).filter(a=>a.confirmed&&a.status!=='revoked'&&a.status!=='archived').length,
+          enlace:cmRow.enabled?this.cubamax.url(code):this.copy('revokedLink')
+        }),this.cubamaxKeyboard(code));
+      if(verb==='cm-accounts'){
+        const entries=this.cubamax.accounts(actor,code);
+        return this.send(chat,this.copy('linkedAccountsTitle',{codigo:code})+'\n\n'+
+          (entries.length?entries.map((a,i)=>this.copy('linkedAccountsLine',{
+            indice:i+1,numero:a.phone,
+            detalle:a.confirmed?this.copy('linkedPreviously'):this.copy('linkedInProgress'),
+            estado:a.status
+          })).join('\n'):this.copy('linkedAccountsEmpty')),{
+            inline_keyboard:[[{text:this.button('buttonBack'),callback_data:'pwa:cm-show:'+ref}]]
+          });
+      }
+      if(verb==='cm-revoke')return this.send(chat,this.copy('revokePrompt',{codigo:code}),{
+        inline_keyboard:[[{text:this.button('buttonConfirmRevoke'),callback_data:'pwa:cm-revoke-yes:'+ref}],
+          [{text:this.button('buttonCancelAction'),callback_data:'pwa:cm-show:'+ref}]]
+      });
+      if(verb==='cm-revoke-yes'){this.cubamax.revoke(actor,code);return this.callback(chat,key,actor,'pwa:cm-show:'+ref);}
+      if(verb==='cm-delete')return this.send(chat,this.copy('deletePrompt',{codigo:code}),{
+        inline_keyboard:[[{text:this.button('buttonConfirmDelete'),callback_data:'pwa:cm-delete-yes:'+ref}],
+          [{text:this.button('buttonCancelAction'),callback_data:'pwa:cm-show:'+ref}]]
+      });
+      if(verb==='cm-delete-yes'){this.cubamax.delete(actor,code);return this.list(chat,actor);}
+      return this.send(chat,this.copy('unknownOption'));
+    }
     const row=this.links.ownedRef(actor,value);
     if(!row)return this.send(chat,this.copy('invalidLinkAction'));
     const code=row.code;
