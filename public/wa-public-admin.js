@@ -160,8 +160,8 @@
    if(!response.numbers.length)
     addList.append(node('p','No hay números emisores configurados.'));
    for(const entry of response.numbers){
-    const row=node('p',entry.phone+
-     (entry.connected?' · Conectado':' · Sin conexión'));
+    const row=node('p',entry.phone+' · '+(entry.state||
+      (entry.connected?'Conectado':'Sin conexión')));
     const remove=node('button','REMOVER NÚMERO');
     remove.type='button';
     remove.className='wa-system-number-remove';
@@ -176,6 +176,23 @@
      }catch(error){addStatus.textContent=error.message;remove.disabled=false;}
     };
     row.append(' · ',remove);
+    if(entry.canReconnect){
+     const reconnect=node('button','RECONECTAR');
+     reconnect.type='button';
+     reconnect.className='wa-system-number-reconnect';
+     reconnect.onclick=async()=>{
+      reconnect.disabled=true;
+      addStatus.textContent='Solicitando recuperación de la sesión WhatsApp…';
+      try{
+       const result=await json('public-wa-system-number-reconnect',{phone:entry.phone});
+       await reloadNumbers();
+       addStatus.textContent=result.connected
+        ?'✅ La cuenta ya está conectada.'
+        :'Recuperación iniciada. WhatsApp debe confirmar la conexión antes de enviar.';
+      }catch(error){addStatus.textContent=error.message;reconnect.disabled=false;}
+     };
+     row.append(' · ',reconnect);
+    }
     addList.append(row);
    }
   };
