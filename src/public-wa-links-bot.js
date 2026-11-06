@@ -17,8 +17,8 @@ export class PublicWaLinkBot {
     if(!markup?.inline_keyboard)return markup;
     return {...markup,inline_keyboard:markup.inline_keyboard.map(row=>row.map(button=>{
       const action=String(button.callback_data||'');
-      const style=(action==='pwa:panel'||action==='op:panel')?'primary':
-        (action.startsWith('pwa:send:')||action==='pwa:send-confirm')?'success':'danger';
+      const style=(action==='pwa:panel'||action==='op:panel'||action==='pwa:cubamax')?'primary':
+        (action.startsWith('pwa:send:')||action==='pwa:send-confirm'||action==='pwa:whatsapp')?'success':'danger';
       return {...button,style};
     }))};
   }
