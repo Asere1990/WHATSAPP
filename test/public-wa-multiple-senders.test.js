@@ -176,8 +176,7 @@ test('admin removes only a secondary system sender; existing account, history an
  assert.equal((await remove('+12025550199',{Cookie:'wa_panel='+operator.secret,Origin:'https://securitywhat.app','X-Panel-CSRF':operator.csrf})).status,403);
  assert.equal((await remove('+12025550199',{...headers,'X-Panel-CSRF':'incorrecto'})).status,403);
  assert.equal((await remove('+12025550199',{...headers,Origin:'https://otro.example'})).status,403);
- assert.equal((await remove('+17867707509')).status,400,'the primary number is protected');
- assert.equal((await remove('+12025550999')).status,404,'unknown system numbers are rejected');
+  assert.equal((await remove('+12025550999')).status,404,'unknown system numbers are rejected');
  assert.equal(ctx.store.config().wa_public_sender_numbers,before,'invalid actions leave config unchanged');
  ctx.accounts.live.set(ctx.second.id,{ready:false});
  const removed=await remove('+1 (202) 555-0199');
@@ -208,7 +207,7 @@ test('removing an emitter after preview excludes it from the send choices',async
  assert.equal(ctx.sent[0][0],ctx.first.id);
 });
 
-test('web shows REMOVER only beside additional senders and requests confirmation',async()=>{
+test('web shows REMOVER beside every system sender and requests confirmation',async()=>{
  const source=readFileSync(new URL('../public/wa-public-admin.js',import.meta.url),'utf8');
  const elements=new Map(),requests=[],confirmations=[];
  class Node{
@@ -255,7 +254,7 @@ test('web shows REMOVER only beside additional senders and requests confirmation
  await node('wa-system-number-add-open').onclick();await settle();
  const before=node('wa-system-number-list').children;
  assert.equal(before.length,2);
- assert.equal(before[0].children.length,0,'primary number must have no remove button');
+ assert.equal(before[0].children[1].textContent,'REMOVER NÚMERO','the first number is removable too');
  assert.equal(before[1].children[1].textContent,'REMOVER NÚMERO');
  await before[1].children[1].onclick();await settle();
  assert.equal(confirmations.length,1,'user must explicitly confirm removal');
@@ -263,4 +262,69 @@ test('web shows REMOVER only beside additional senders and requests confirmation
  assert.equal(requests.filter(item=>item.url.endsWith('/public-wa-system-number-remove')).length,1);
  assert.equal(node('wa-system-number-list').children.length,1,'list refreshes immediately');
  assert.match(node('wa-system-number-add-status').textContent,/removido/);
+});
+
+
+test('removing the first sender preserves the second and does not restore the default',async t=>{
+ const ctx=setup(t);confExtra(ctx);
+ const panel=new WebPanel(ctx.store,ctx.accounts,ctx.bot,{
+  dir:ctx.dir,secure:false,url:'https://securitywhat.app',
+  allowedOrigins:new Set(['https://securitywhat.app'])
+ });
+ ctx.bot.webPanel=panel;
+ const server=createServer((req,res)=>panel.handle(
+  req,res,new URL(req.url,'http://local').pathname,{},async request=>{
+   let body='';for await(const chunk of request)body+=chunk;
+   return JSON.parse(body||'{}');
+  }
+ ));
+ server.listen(0,'127.0.0.1');await once(server,'listening');t.after(()=>server.close());
+ const base='http://127.0.0.1:'+server.address().port+'/api/panel/';
+ const admin=panel.access.login(panel.access.token('99999','login'));
+ const headers={Cookie:'wa_panel='+admin.secret,Origin:'https://securitywhat.app','X-Panel-CSRF':admin.csrf};
+ const remove=phone=>fetch(base+'public-wa-system-number-remove',{
+  method:'POST',headers,body:JSON.stringify({phone})
+ });
+ const add=phone=>fetch(base+'public-wa-system-numbers',{
+  method:'POST',headers,body:JSON.stringify({phone})
+ });
+ const beforeConfig=ctx.store.config();
+ const first=await remove('+17867707509');
+ assert.equal(first.status,200,'the first number must be removable');
+ assert.deepEqual(await first.json(),{ok:true,phone:'+17867707509'});
+ assert.deepEqual(publicWaSenderNumbers(ctx.store),['12025550199']);
+ assert.equal(ctx.store.config().wa_public_sender_phone,beforeConfig.wa_public_sender_phone,
+  'the existing sender preference must not be rewritten');
+ assert.equal(ctx.store.config().wa_public_sender_numbers,beforeConfig.wa_public_sender_numbers,
+  'legacy sender list remains unchanged');
+ assert.equal(ctx.store.account(ctx.first.id).status,'connected');
+ assert.equal(ctx.store.account(ctx.second.id).status,'connected');
+ const available=(await (await fetch(base+'public-wa-system-numbers',{headers})).json()).numbers;
+ assert.deepEqual(available.map(item=>item.phone),['+12025550199']);
+ const {actor,key}=await createPreview(ctx,'nuevo-tras-eliminar-primero');
+ await ctx.flow.callback(actor,key,actor,'pwa:send-confirm');
+ assert.equal(ctx.sent.length,1,'the remaining single sender must send without extra selection');
+ assert.equal(ctx.sent[0][0],ctx.second.id,'delivery comes from the remaining sender');
+ assert.equal(ctx.sent[0][1],'12025550147@c.us');
+ const last=await remove('+12025550199');
+ assert.equal(last.status,200,'the last sender must also be removable');
+ assert.deepEqual(publicWaSenderNumbers(ctx.store),[]);
+ assert.equal(ctx.store.config().wa_public_sender_list,'[]','empty selection must persist');
+ assert.deepEqual(publicWaSenderNumbers(ctx.store),[],
+  'the earlier default must never be recreated automatically');
+ assert.equal(ctx.store.account(ctx.first.id).consent,1);
+ assert.equal(ctx.store.account(ctx.second.id).consent,1);
+ const {actor:again,key:againKey}=await createPreview(ctx,'nuevo-sin-emisores');
+ const prior=ctx.sent.length;
+ await ctx.flow.callback(again,againKey,again,'pwa:send-confirm');
+ assert.equal(ctx.sent.length,prior,'nothing can be sent with an empty sender list');
+ assert.match(ctx.outputs.at(-1)[1],/No hay números emisores configurados/);
+ // An explicitly re-added sender must be available again, without restoring
+ // another removed number on its own.
+ const restored=await add('+17867707509');
+ assert.equal(restored.status,200);
+ assert.deepEqual(publicWaSenderNumbers(ctx.store),['17867707509']);
+ const repeat=await remove('+17867707509');
+ assert.equal(repeat.status,200);
+ assert.deepEqual(publicWaSenderNumbers(ctx.store),[]);
 });
