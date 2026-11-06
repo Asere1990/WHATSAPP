@@ -146,3 +146,62 @@ test('only new system-number UI elements are added to existing panel',()=>{
  assert.ok(html.includes('id="wa-system-number-open"'),'existing change-number button preserved');
  assert.ok(html.includes('id="wa-public-admin-open"'),'existing link-admin button preserved');
 });
+
+
+test('admin removes only a secondary system sender; existing account, history and primary remain untouched',async t=>{
+ const ctx=setup(t);confExtra(ctx);
+ ctx.bot.permissionFile.add('123456789');
+ const panel=new WebPanel(ctx.store,ctx.accounts,ctx.bot,{
+  dir:ctx.dir,secure:false,url:'https://securitywhat.app',
+  allowedOrigins:new Set(['https://securitywhat.app'])
+ });
+ ctx.bot.webPanel=panel;
+ const server=createServer((req,res)=>panel.handle(
+  req,res,new URL(req.url,'http://local').pathname,{},async request=>{
+   let body='';for await(const chunk of request)body+=chunk;
+   return JSON.parse(body||'{}');
+  }
+ ));
+ server.listen(0,'127.0.0.1');await once(server,'listening');t.after(()=>server.close());
+ const url='http://127.0.0.1:'+server.address().port+'/api/panel/public-wa-system-number-remove';
+ const admin=panel.access.login(panel.access.token('99999','login'));
+ const operator=panel.access.login(panel.access.token('123456789','login'));
+ const headers={Cookie:'wa_panel='+admin.secret,Origin:'https://securitywhat.app','X-Panel-CSRF':admin.csrf};
+ const remove=(phone,h=headers)=>fetch(url,{method:'POST',headers:h,body:JSON.stringify({phone})});
+ const before=ctx.store.config().wa_public_sender_numbers;
+ const old=ctx.store.db.prepare('INSERT INTO wa_public_message_sends(actor,code,phone,source,created,status) VALUES(?,?,?,?,?,?)')
+  .run('123456789','enlace-anterior','12025550188',ctx.second.id,Date.now()-86400000,'sent');
+ assert.equal((await remove('+12025550199',{Cookie:'wa_panel='+operator.secret,Origin:'https://securitywhat.app','X-Panel-CSRF':operator.csrf})).status,403);
+ assert.equal((await remove('+12025550199',{...headers,'X-Panel-CSRF':'incorrecto'})).status,403);
+ assert.equal((await remove('+12025550199',{...headers,Origin:'https://otro.example'})).status,403);
+ assert.equal((await remove('+17867707509')).status,400,'the primary number is protected');
+ assert.equal((await remove('+12025550999')).status,404,'unknown system numbers are rejected');
+ assert.equal(ctx.store.config().wa_public_sender_numbers,before,'invalid actions leave config unchanged');
+ ctx.accounts.live.set(ctx.second.id,{ready:false});
+ const removed=await remove('+1 (202) 555-0199');
+ assert.equal(removed.status,200,'offline secondary numbers can still be removed');
+ assert.deepEqual(await removed.json(),{ok:true,phone:'+12025550199'});
+ assert.deepEqual(publicWaSenderNumbers(ctx.store),['17867707509']);
+ assert.equal(ctx.store.config().wa_public_sender_phone,undefined,'primary configuration is unchanged');
+ assert.equal(ctx.store.account(ctx.second.id).status,'connected');
+ assert.equal(ctx.store.account(ctx.second.id).consent,1);
+ assert.equal(ctx.store.db.prepare('SELECT count(*) n FROM wa_public_message_sends WHERE source=?').get(ctx.second.id).n,1,
+  'removing an emitter must not erase previous message records');
+ assert.equal(ctx.store.db.prepare('SELECT status FROM wa_public_message_sends WHERE id=?').get(old.lastInsertRowid).status,'sent');
+ assert.equal((await remove('+12025550199')).status,404,'second removal does not affect anything');
+});
+
+test('removing an emitter after preview excludes it from the send choices',async t=>{
+ const ctx=setup(t);confExtra(ctx);
+ const {actor,key}=await createPreview(ctx,'trabajo-remover');
+ await ctx.flow.callback(actor,key,actor,'pwa:send-confirm');
+ ctx.store.setConfig('wa_public_sender_numbers',JSON.stringify([]));
+ await ctx.flow.callback(actor,key,actor,'pwa:send-from:1');
+ assert.equal(ctx.sent.length,0,'removed sender cannot send a pending message');
+ const choices=ctx.outputs.at(-1)[2].inline_keyboard.flat()
+  .filter(button=>button.callback_data?.startsWith('pwa:send-from:'));
+ assert.deepEqual(choices.map(x=>x.text),['📤 ENVIAR DESDE +17867707509']);
+ await ctx.flow.callback(actor,key,actor,'pwa:send-from:0');
+ assert.equal(ctx.sent.length,1);
+ assert.equal(ctx.sent[0][0],ctx.first.id);
+});
