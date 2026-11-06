@@ -137,14 +137,14 @@ export class PublicWaLinkBot {
     let recipient;
     try{recipient=publicWaDestination(pending.country.iso,m.text||'');}
     catch(error){return this.send(chat,this.copy('phoneInvalid',{error:error.message}));}
-    let sender;
-    try{sender=this.sender.source();}
-    catch(error){return this.send(chat,this.copy('senderUnavailable',{error:error.message}));}
+    // The phone entered here is the RECIPIENT. It does not need to have
+    // any account or authorization in this WhatsApp management database.
+    // Verify the configured SENDER only when the user confirms delivery.
     let message;
     try{message=this.sender.message(pending.code);}
     catch(error){return this.send(chat,this.copy('messageInvalid',{error:error.message}));}
     if(pending.sendFirst){
-      const sendContext={recipient,source:sender.id};
+      const sendContext={recipient};
       const photo=this.links.sourcePhoto();
       if(!photo)return this.askOwnPhoto(chat,key,pending.code,this.copy('photoMissing'),sendContext);
       let derived;
@@ -161,7 +161,7 @@ export class PublicWaLinkBot {
       return this.previewNewSend(chat,key,actor,pending.code,derived.asset,sendContext);
     }
     this.bot.pending.set(key,{kind:'publicWaConfirm',code:pending.code,actor:String(actor),
-      recipient:recipient.phone,country:recipient.country,source:sender.id});
+      recipient:recipient.phone,country:recipient.country});
     return this.showSendConfirmation(chat,message,recipient);
   }
   async showSendConfirmation(chat,message,recipient){
@@ -334,10 +334,16 @@ export class PublicWaLinkBot {
         return this.send(chat,this.copy('confirmExpired'));
       this.bot.pending.delete(key); // Un toque = un solo intento.
       try{
-        const sent=await this.sender.send({actor,code:pending.code,phone:pending.recipient,source:pending.source});
+        const source=pending.source||this.sender.source().id;
+        const sent=await this.sender.send({actor,code:pending.code,phone:pending.recipient,source});
         return this.send(chat,this.copy('sendSuccess',{numero:sent.phone}),this.keyboard(pending.code));
       }catch(error){
-        return this.send(chat,this.copy('sendFailed',{error:error?.message||'No se pudo confirmar el envío.'}),this.keyboard(pending.code));
+        const detail=error?.message||'No se pudo confirmar el envío.';
+        const unavailable=/todav[ií]a no est[aá] vinculado y autorizado|número de envío no est[aá] conectado/i.test(detail);
+        const explanation=unavailable
+          ?'El número REMITENTE de WhatsApp configurado no está disponible para enviar desde esta web. El número DESTINATARIO no necesita estar vinculado a este sistema. '
+          :'';
+        return this.send(chat,this.copy('sendFailed',{error:explanation+detail}),this.keyboard(pending.code));
       }
     }
     if(verb==='list'){this.bot.pending.delete(key);return this.list(chat,actor,Math.min(100000,Math.max(0,Number(value)||0)));}
