@@ -9,6 +9,7 @@ import {publicSnapshot,renderPublicContent} from './public-content.js';
 import {cmPopupContent} from './site-initial-popup.js';
 import {validatePopupLayers} from './popup-ocr.js';
 import {verifyPublicWaSender} from './public-wa-send.js';
+import {publicWaCopyCatalog} from './public-wa-copy.js';
 const error=(status,message)=>{throw Object.assign(Error(message),{status});};
 const asset=/^\/(?:portal|guide)-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/;
 const clone=v=>JSON.parse(JSON.stringify(v));
@@ -67,20 +68,11 @@ export class VisualEditor{
     ['description','Descripción debajo del eslogan','text',500]
    ])add('share-preview:'+part,'Miniatura del enlace · '+label,kind,share[part],'wa_link_preview',part,{group:'share-preview',optional:part==='image',max:limit});
    // Texts for PUBLIC code links belong to WhatsApp only.
-   const publicTextDefaults={
-    message1:'Escribe el código de tu enlace.',
-    choose:'Elige qué enlace deseas utilizar.',
-    preview:'Vista previa del popup que verá el primer visitante.',
-    firstOnly:'Este popup solo aparecerá a la primera persona que abra este enlace. Las siguientes personas entrarán directamente en la web. Para repetir el efecto, crea otro enlace.',
-    delivered:'Tu enlace de WhatsApp ya está creado.',
-    accounts:'Estas son las cuentas que se vincularon voluntariamente mediante tus enlaces.',
-    ownPhoto:'No pude preparar la foto automáticamente. Envíame tu propia foto para este enlace, con la fecha y la hora correctas. La conservaré exactamente como la envíes y te mostraré una vista previa antes de crear el enlace.'
-   };
    let publicLinkTexts={};try{publicLinkTexts=JSON.parse(config.wa_public_link_texts||'{}');}catch{}
-   for(const [member,initial] of Object.entries(publicTextDefaults)){
-    const label=member==='message1'?'Mensaje WhatsApp 1':'Enlaces públicos · '+({choose:'Selección WhatsApp/Cubamax',preview:'Vista previa',firstOnly:'Aviso para primer visitante',delivered:'Confirmación de enlace creado',accounts:'Cuentas asociadas',ownPhoto:'Mensaje para solicitar foto propia si falla el OCR'}[member]);
-    add('public-wa:'+member,label,'text',publicLinkTexts[member]||initial,'wa_public_link_texts',member,{group:'public-links',max:1400});
-   }
+   if(!publicLinkTexts||typeof publicLinkTexts!=='object'||Array.isArray(publicLinkTexts))publicLinkTexts={};
+   for(const [member,meta] of Object.entries(publicWaCopyCatalog))
+    add('public-wa:'+member,meta.label,'text',publicLinkTexts[member]||meta.value,
+     'wa_public_link_texts',member,{group:meta.group,max:meta.max});
    add('public-wa:photo','Enlaces públicos · Foto con fecha y hora (OCR)','image',config.wa_public_link_popup_photo||'','wa_public_link_popup_photo',null,{group:'public-links',optional:true});
    add('public-wa:sender','Número de envío · WhatsApp','text',
      config.wa_public_sender_phone||'+17867707509','wa_public_sender_phone',null,
