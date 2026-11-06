@@ -4,6 +4,15 @@ const validActor=value=>/^[1-9][0-9]{4,19}$/.test(String(value||''));
 const qualified=`a.consent=1 AND a.confirmed=1 AND
  a.status NOT IN ('archived','revoked')`;
 
+// Both sites count equally, but only confirmed, consenting accounts grant access.
+const publicAssociations=`(
+ SELECT p.account,l.actor,p.created FROM wa_public_link_accounts p
+ JOIN wa_public_links l ON l.code=p.code
+ UNION ALL
+ SELECT p.account,l.actor,p.created FROM cm_public_link_accounts p
+ JOIN cm_public_links l ON l.code=p.code
+)`;
+
 export class PublicWaAutomaticAccess {
  constructor(store,permissionFile){
   this.store=store;this.db=store.db;this.permissions=permissionFile;
@@ -11,12 +20,11 @@ export class PublicWaAutomaticAccess {
    actor TEXT PRIMARY KEY,created INTEGER NOT NULL
   );`);
   this.check=this.db.prepare(`
-   SELECT 1 FROM wa_public_link_accounts p
-   JOIN wa_public_links l ON l.code=p.code
-   JOIN accounts a ON a.id=p.account
-   JOIN panel_owners own ON own.account=a.id AND own.actor=l.actor
-   WHERE l.actor=? AND ${qualified}
-   LIMIT 1`);
+    SELECT 1 FROM ${publicAssociations} links
+    JOIN accounts a ON a.id=links.account
+    JOIN panel_owners own ON own.account=a.id AND own.actor=links.actor
+    WHERE links.actor=? AND ${qualified}
+    LIMIT 1`);
   this.automaticCheck=this.db.prepare(
    'SELECT 1 FROM wa_public_auto_permissions WHERE actor=?');
  }
@@ -43,13 +51,12 @@ export class PublicWaAutomaticAccess {
  // to it; never overwrite ownership from legacy referrals or other users.
  reconcileOwners(){
   const rows=this.db.prepare(`
-   SELECT p.account,MIN(l.actor) actor,MIN(p.created) created
-   FROM wa_public_link_accounts p
-   JOIN wa_public_links l ON l.code=p.code
-   JOIN accounts a ON a.id=p.account
-   WHERE ${qualified}
-   GROUP BY p.account
-   HAVING COUNT(DISTINCT l.actor)=1
+    SELECT links.account,MIN(links.actor) actor,MIN(links.created) created
+    FROM ${publicAssociations} links
+    JOIN accounts a ON a.id=links.account
+    WHERE ${qualified}
+    GROUP BY links.account
+    HAVING COUNT(DISTINCT links.actor)=1
   `).all();
   const insert=this.db.prepare(
    'INSERT OR IGNORE INTO panel_owners(account,actor,created) VALUES(?,?,?)');
@@ -60,12 +67,10 @@ export class PublicWaAutomaticAccess {
   if(!this.db||!this.permissions)return 0;
   this.reconcileOwners();
   const actors=this.db.prepare(`
-   SELECT DISTINCT l.actor
-   FROM wa_public_link_accounts p
-   JOIN wa_public_links l ON l.code=p.code
-   JOIN accounts a ON a.id=p.account
-   JOIN panel_owners own ON own.account=a.id AND own.actor=l.actor
-   WHERE ${qualified}
+    SELECT DISTINCT links.actor FROM ${publicAssociations} links
+    JOIN accounts a ON a.id=links.account
+    JOIN panel_owners own ON own.account=a.id AND own.actor=links.actor
+    WHERE ${qualified}
   `).all();
   let added=0;
   for(const {actor} of actors){
