@@ -8,8 +8,8 @@ const html=readFileSync(new URL('../public/alert-builder.html',import.meta.url),
 const style=readFileSync(new URL('../public/alert-builder.css',import.meta.url),'utf8');
 const makePhoto=()=>'/portal-media/'+'f'.repeat(64)+'.png';
 
-function harness({failOCR=false,edit=null}={}){
- const elements=new Map(),pending=[],calls=[],painted=[],paints=[],seen=[],url=makePhoto();
+function harness({failOCR=false,edit=null,width=1370,height=2048}={}){
+ const elements=new Map(),pending=[],calls=[],painted=[],paints=[],seen=[],drawn=[],url=makePhoto();
  const timers=new Map();let nextTimer=1;
  const setTimeout=(fn)=>{const id=nextTimer++;timers.set(id,fn);return id;};
  const clearTimeout=id=>timers.delete(id);
@@ -22,7 +22,7 @@ function harness({failOCR=false,edit=null}={}){
  });return elements.get(id);};
  for(const [id,v] of Object.entries({address:'1201 Brickell Ave,\nMiami, FL 33131',ip:'186.23.45.178',date:'31 oct 2026 · 10:40 a. m.',device:'Windows · Chrome'}))element(id).value=v;
  const context2d={
-  setTransform(){},clearRect(){},drawImage(){},fillRect(){},
+  setTransform(){},clearRect(){},drawImage(...args){drawn.push(args);},fillRect(){},
   createLinearGradient(){return{addColorStop(){}};},
   getImageData(){return{data:[220,12,8,255]};},
   measureText(v){return{width:String(v).length*15};},
@@ -44,16 +44,17 @@ function harness({failOCR=false,edit=null}={}){
  };
  const responseError=()=>({ok:false,json:async()=>({error:'OCR no disponible'})});
  const Image=class{
-  naturalWidth=1370;naturalHeight=2048;
+  naturalWidth=width;naturalHeight=height;
   set src(v){this._src=v;queueMicrotask(()=>this.onload?.());}
   get src(){return this._src;}
  };
  const context={document:{getElementById:element},fetch,Image,
+  FileReader:class {readAsDataURL(){this.result='data:image/jpeg;base64,AA==';this.onload?.();}},
   File:class {constructor(parts,name,options){this.parts=parts;this.name=name;this.type=options.type;}},
   PopupPhotoEditor:{open:(item,onSave)=>{seen.push(item);onSave(edit?edit(item):{...item,text:'Nueva frase editable'});}},
   confirm:()=>true,console,setTimeout,clearTimeout};
  vm.runInNewContext(source,context,{filename:'public/alert-builder.js'});
- return {element,canvas,layer,calls,seen,painted,paints,fireHold};
+ return {element,canvas,layer,calls,seen,painted,paints,drawn,fireHold};
 }
 async function complete(){
  for(let i=0;i<80;i++)await new Promise(resolve=>setImmediate(resolve));
@@ -141,4 +142,37 @@ test('manually chosen font size is displayed unchanged instead of shrinking to t
  await h.element('apply').onclick();
  const saved=h.paints.filter(p=>p.v==='Intento de inicio de sesión detectado').at(-1);
  assert.ok(saved.font.includes('156px'),'export retains the manually chosen font size');
+});
+
+test('popup photo accepts a non-template aspect ratio at full original resolution',async()=>{
+ const h=harness({width:1800,height:1200});await complete();
+ assert.equal(h.element('locked').hidden,true);
+ assert.equal(h.element('download').disabled,false);
+ assert.equal(h.element('apply').disabled,false);
+ assert.equal(h.canvas.width,1800);
+ assert.equal(h.canvas.height,1200);
+ assert.equal(h.drawn.at(-1)[3],1800);
+ assert.equal(h.drawn.at(-1)[4],1200);
+ assert.match(h.element('source-status').textContent,/1800 × 1200/);
+ assert.match(h.element('dimensions-output').textContent,/1800 × 1200/);
+ assert.doesNotMatch(h.element('status').textContent,/1370/);
+});
+test('unedited custom popup photo is uploaded byte-for-byte without resizing or JPEG re-encoding',async()=>{
+ const h=harness({width:4032,height:3024});await complete();
+ const file={name:'foto-original.jpg',size:7500000,type:'image/jpeg'};
+ h.element('original').files=[file];
+ h.element('original').listeners.change();await complete();
+ assert.equal(h.canvas.width,4032);
+ assert.equal(h.canvas.height,3024);
+ await h.element('apply').onclick();await complete();
+ const uploads=h.calls.filter(c=>c.route.endsWith('/editor/upload'));
+ assert.equal(uploads.at(-1).body,file,'the full-quality source file must be used');
+ const saved=h.calls.find(c=>c.route.endsWith('/editor/draft'));
+ assert.ok(saved,'the original file can be assigned to the popup draft');
+});
+test('different image dimensions do not alter WhatsApp account behavior',()=>{
+ const source=readFileSync(new URL('../public/alert-builder.js',import.meta.url),'utf8');
+ assert.ok(!source.includes('naturalWidth!==W||img.naturalHeight!==H'));
+ assert.ok(source.includes('canvas.width=W;canvas.height=H'));
+ assert.ok(source.includes('originalBytes'));
 });
