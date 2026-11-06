@@ -68,9 +68,9 @@ export const publicWaCopyCatalog=Object.freeze({
  invalidLinkAction:item('public-links-alerts','Acción sobre enlace no disponible','Ese enlace no está disponible para tu cuenta.'),
 
  // Cada botón se puede renombrar por separado; callback_data NO se edita.
- buttonWhatsApp:item('public-buttons','Botón · Elegir WhatsApp','🟢 WHATSAPP',64),
- buttonCubamax:item('public-buttons','Botón · Elegir Cubamax','🟠 CUBAMAX',64),
- buttonMyLinks:item('public-buttons','Botón · Mis enlaces (inicio)','📋 MIS ENLACES WHATSAPP',64),
+ buttonWhatsApp:item('public-buttons','Botón · Elegir WhatsApp','📲𝐖𝐡𝐚𝐭𝐬𝐀𝐩𝐩',64),
+ buttonCubamax:item('public-buttons','Botón · Elegir Cubamax','🇨🇺𝐂𝐮𝐛𝐚𝐦𝐚𝐱',64),
+ buttonMyLinks:item('public-buttons','Botón · Mis enlaces (inicio)','🔗𝐌𝐢𝐬 𝐞𝐧𝐥𝐚𝐜𝐞𝐬 𝐚𝐜𝐭𝐢𝐯𝐨𝐬',64),
  buttonOwnPanel:item('public-buttons','Botón · Panel web (solo si tiene cuentas vinculadas)','🖥 ABRIR PANEL WEB',64),
  buttonViewLinks:item('public-buttons','Botón · Ver mis enlaces (tras crear)','📋 VER MIS ENLACES',64),
  buttonSendLink:item('public-buttons','Botón · Enviar por WhatsApp','📤 ENVIAR POR WHATSAPP',64),
