@@ -112,7 +112,7 @@ export class PublicWaSender {
    "SELECT count(*) n FROM wa_public_message_sends WHERE actor=? AND created>?").get(actor,Date.now()-86400000).n;
   if(count>=10)throw Error('Límite de 10 mensajes por día para proteger la cuenta de WhatsApp.');
   const recent=this.store.db.prepare(
-   "SELECT 1 FROM wa_public_message_sends WHERE phone=? AND created>? LIMIT 1").get(phone,Date.now()-3*3600000);
+   "SELECT 1 FROM wa_public_message_sends WHERE phone=? AND created>? LIMIT 1").get(phone,Date.now()-1*3600000);
   if(recent)throw Error('Ese número ya recibió recientemente un enlace de este sistema. No se repetirá el envío.');
   const message=this.message(code),attachment=this.attachment();
   const save=this.store.db.prepare(
