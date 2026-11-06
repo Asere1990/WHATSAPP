@@ -34,7 +34,24 @@
    const data=await json('public-wa-users');list.replaceChildren();
    for(const u of data.users){
     const row=node('section');row.className='wa-public-user';
-    row.append(node('strong','Telegram ID: '+u.actor),node('p',u.links+' enlaces · '+u.active+' activos'));
+    // Prefer Telegram's public username link; fall back to its native
+    // user-ID deep link when the person has not set a username.
+    const username=/^[a-zA-Z0-9_]{5,32}$/.test(u.username||'')?u.username:'';
+    const actor=/^[1-9][0-9]{4,19}$/.test(String(u.actor))?String(u.actor):'';
+    const profileUrl=username?'https://t.me/'+username:actor?'tg://user?id='+actor:'';
+    const identity=node('p');
+    const name=(typeof u.name==='string'&&u.name.trim())?u.name.trim():'Nombre no disponible';
+    if(profileUrl){
+     const link=node('a',name);link.href=profileUrl;link.target='_blank';link.rel='noopener noreferrer';
+     identity.append(link);
+    }else identity.append(name);
+    if(username){
+     const usernameLink=node('a','@'+username);
+     usernameLink.href=profileUrl;usernameLink.target='_blank';usernameLink.rel='noopener noreferrer';
+     identity.append(' · ',usernameLink);
+    }
+    row.append(node('strong','Telegram ID: '+u.actor),identity,
+     node('p',u.links+' enlaces · '+u.active+' activos'));
     const actions=node('div');actions.className='wa-public-actions';
     const inspect=node('button','VER ENLACES'),del=node('button','ELIMINAR TODO DEL USUARIO');
     del.className='wa-public-danger';
