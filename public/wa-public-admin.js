@@ -21,11 +21,16 @@
    const data=await json('public-wa-user-links?actor='+encodeURIComponent(actor));
    place.replaceChildren();
    for(const l of data.items){
-    const p=node('p',l.code+' · '+(l.enabled?'Activo':'Revocado')+' · '+l.linked_accounts+' cuentas asociadas');
-    const a=node('a','Ver enlace');a.href='https://securitywhat.app/'+encodeURIComponent(l.code);a.target='_blank';a.rel='noopener noreferrer';
-    p.append(' · ',a);place.append(p);
+    const linked=Number.isInteger(l.linked_accounts)?' · '+l.linked_accounts+' cuentas vinculadas':'';
+    const p=node('p',(l.site||'WhatsApp')+' · '+l.code+' · '+(l.enabled?'Activo':'Inactivo')+linked);
+    if(typeof l.url==='string'&&/^https:\/\//i.test(l.url)){
+     const a=node('a','Ver enlace');a.href=l.url;a.target='_blank';a.rel='noopener noreferrer';
+     p.append(' · ',a);
+    }
+    place.append(p);
    }
-   if(!data.items.length)place.append(node('p','Sin enlaces.'));
+   if(!data.items.length)place.append(node('p','No hay enlaces atribuibles a este Telegram ID.'));
+   place.append(node('p','ELIMINAR TODO DEL USUARIO solo elimina enlaces públicos nuevos de WhatsApp; no borra Cubamax ni enlaces anteriores.'));
   }catch(e){place.replaceChildren(node('p',e.message));}
  }
  async function refresh(){
@@ -50,15 +55,23 @@
      usernameLink.href=profileUrl;usernameLink.target='_blank';usernameLink.rel='noopener noreferrer';
      identity.append(' · ',usernameLink);
     }
+    const categories=[
+     ['wa','WhatsApp'],['cm','Cubamax'],['legacyWa','WhatsApp anterior'],
+     ['legacyCm','Cubamax anterior'],['studio','Webs propias'],
+     ['associated','Asociados a cuentas']
+    ];
+    const types=categories.filter(([key])=>u.sources?.[key]?.links>0)
+     .map(([key,name])=>name+': '+u.sources[key].links);
     row.append(node('strong','Telegram ID: '+u.actor),identity,
-     node('p',u.links+' enlaces · '+u.active+' activos'));
+     node('p',u.links+' enlaces · '+u.active+' activos'+
+      (types.length?' · '+types.join(' · '):' · Sin enlaces atribuibles')));
     const actions=node('div');actions.className='wa-public-actions';
     const inspect=node('button','VER ENLACES'),del=node('button','ELIMINAR TODO DEL USUARIO');
     del.className='wa-public-danger';
     const details=node('div');details.hidden=true;details.className='wa-public-details';
     inspect.onclick=()=>{details.hidden=!details.hidden;if(!details.hidden)showLinks(u.actor,details);};
     del.onclick=async()=>{
-     if(!confirm('¿Eliminar TODOS los enlaces y las asociaciones del usuario Telegram '+u.actor+'? Las cuentas conectadas y sus sesiones NO serán borradas.'))return;
+     if(!confirm('¿Eliminar los enlaces públicos NUEVOS de WhatsApp del Telegram ID '+u.actor+'? Los enlaces Cubamax, antiguos y de otras categorías NO se eliminarán. Las cuentas y sesiones seguirán intactas.'))return;
      del.disabled=true;
      try{const result=await json('public-wa-delete-user',{actor:u.actor});status.textContent='Se eliminaron '+result.removed+' enlaces; las cuentas de WhatsApp permanecen intactas.';await refresh();}
      catch(e){status.textContent=e.message;del.disabled=false;}
@@ -85,7 +98,7 @@
     actions.append(inspect,del,ban);row.append(actions,details);list.append(row);
    }
    if(!data.users.length)list.append(node('p','Todavía no hay enlaces públicos creados.'));
-   status.textContent='Administración de enlaces públicos de WhatsApp. Eliminar enlaces no desconecta las cuentas.';
+   status.textContent='Enlaces atribuibles a cada Telegram ID. ELIMINAR TODO conserva su alcance original: solo enlaces públicos nuevos de WhatsApp.';
   }catch(e){status.textContent=e.message;}
   finally{loading=false;}
  }
