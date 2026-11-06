@@ -109,12 +109,13 @@ export class PublicWaSender {
   const recent=this.store.db.prepare(
    "SELECT 1 FROM wa_public_message_sends WHERE phone=? AND created>? LIMIT 1").get(phone,Date.now()-12*3600000);
   if(recent)throw Error('Ese número ya recibió recientemente un enlace de este sistema. No se repetirá el envío.');
+  const message=this.message(code),attachment=this.attachment();
   const save=this.store.db.prepare(
    "INSERT OR IGNORE INTO wa_public_message_sends(actor,code,phone,source,created,status) VALUES(?,?,?,?,?,'sending')")
    .run(actor,code,phone,row.id,Date.now());
   if(!save.changes)throw Error('Ese enlace ya fue enviado o está pendiente de revisión para ese destinatario.');
   try{
-   await this.accounts.send(row.id,phone+'@c.us',this.message(code),this.attachment()||undefined);
+   await this.accounts.send(row.id,phone+'@c.us',message,attachment||undefined);
    this.store.db.prepare("UPDATE wa_public_message_sends SET status='sent' WHERE id=?").run(save.lastInsertRowid);
    return {source:row.phone,phone};
   }catch(error){
