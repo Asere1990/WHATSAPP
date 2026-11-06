@@ -315,7 +315,8 @@ export class PublicWaLinkBot {
   }
   showSenderChoices(chat,numbers,error=''){
     return this.send(chat,(error?'⚠️ '+error+'\n\n':'')+
-      '📱 ELIGE EL NÚMERO DEL SISTEMA PARA ENVIAR ESTE MENSAJE',{
+      (numbers.length?'📱 ELIGE EL NÚMERO DEL SISTEMA PARA ENVIAR ESTE MENSAJE'
+        :'No hay números emisores configurados. Agrega uno desde el panel web.'),{
         inline_keyboard:[
           ...numbers.map((number,i)=>[{
             text:'📤 ENVIAR DESDE +'+number,callback_data:'pwa:send-from:'+i
@@ -327,7 +328,8 @@ export class PublicWaLinkBot {
   async deliverSelected(chat,key,actor,pending,selectedSource=null){
     this.bot.pending.delete(key); // Un toque = un solo intento.
     try{
-      const source=selectedSource||pending.source||this.sender.source().id;
+      const source=selectedSource||pending.source||
+        this.sender.source(this.sender.numberOptions()[0]).id;
       const sent=await this.sender.send({actor,code:pending.code,phone:pending.recipient,source});
       return this.send(chat,this.copy('sendSuccess',{numero:sent.phone}),this.keyboard(pending.code));
     }catch(error){
@@ -359,6 +361,7 @@ export class PublicWaLinkBot {
       if(pending?.kind!=='publicWaConfirm'||pending.actor!==String(actor))
         return this.send(chat,this.copy('confirmExpired'));
       const numbers=this.sender.numberOptions();
+      if(!numbers.length)return this.send(chat,'⚠️ No hay números emisores configurados. Agrega uno desde el panel web.');
       if(numbers.length>1){
         this.bot.pending.set(key,{...pending,senderNumbers:numbers});
         return this.showSenderChoices(chat,numbers);
