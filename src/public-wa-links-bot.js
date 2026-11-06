@@ -16,11 +16,14 @@ export class PublicWaLinkBot {
   key(chat,actor){return String(chat)+':'+String(actor);}
   async start(chat,key){
     this.bot.pending.delete(key);
-    const t=this.links.texts();
+    const t=this.links.texts(),actor=String(key).split(':').at(-1);
+    const panelEnabled=!!this.bot.autoPublicAccess?.eligible(actor)&&
+      !!this.bot.webPanel?.role(actor);
     return this.bot.send(chat,t.choose,{inline_keyboard:[
       [{text:this.button('buttonWhatsApp'),callback_data:'pwa:whatsapp'}],
       [{text:this.button('buttonCubamax'),callback_data:'pwa:cubamax'}],
-      [{text:this.button('buttonMyLinks'),callback_data:'pwa:list:0'}]
+      [{text:this.button('buttonMyLinks'),callback_data:'pwa:list:0'}],
+      ...(panelEnabled?[[{text:this.button('buttonOwnPanel'),callback_data:'pwa:panel'}]]:[])
     ]});
   }
   async askCode(chat,key){
@@ -162,6 +165,11 @@ export class PublicWaLinkBot {
   async callback(chat,key,actor,data){
     const action=data.slice(4),parts=action.split(':'),verb=parts[0],value=parts.slice(1).join(':');
     if(verb==='menu')return this.start(chat,key);
+    if(verb==='panel'){
+      if(!this.bot.autoPublicAccess?.eligible(actor)||!this.bot.webPanel?.role(actor))
+        return this.bot.send(chat,'El panel web se habilita cuando tengas una cuenta de WhatsApp vinculada mediante tu enlace.');
+      return this.bot.webPanel.telegramAction(chat,actor,'panel');
+    }
     if(verb==='whatsapp'||verb==='create')return this.askCode(chat,key);
     if(verb==='cubamax'){
       this.bot.pending.delete(key);
