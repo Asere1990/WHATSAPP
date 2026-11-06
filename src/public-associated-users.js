@@ -53,12 +53,14 @@ export class PublicAssociatedUsers {
   const accounts=this.db.prepare(`SELECT DISTINCT a.phone FROM ${sqlAccounts} linked
    JOIN accounts a ON a.id=linked.account WHERE linked.actor=? AND ${accountFilter}
    ORDER BY a.phone LIMIT 30`).all(actor).map(x=>x.phone);
+  const linkedTotal=this.db.prepare(`SELECT count(DISTINCT a.id) AS total FROM ${sqlAccounts} linked
+   JOIN accounts a ON a.id=linked.account WHERE linked.actor=? AND ${accountFilter}`).get(actor).total;
   const total=Number(wa?.total||0)+Number(cm?.total||0);
   return {actor,name:profile.name||'',username:profile.username||'',
    telegram_phone:profile.telegram_phone||'',banned:!!profile.banned,
    links:total,active:Number(wa?.active||0)+Number(cm?.active||0),
    wa:Number(wa?.total||0),cm:Number(cm?.total||0),
-   linked_accounts:accounts.length,phones:accounts};
+   linked_accounts:linkedTotal,phones:accounts};
  }
  page(offset=0,limit=8){
   const from=Math.max(0,Math.min(100000,Math.floor(Number(offset)||0)));
@@ -100,9 +102,10 @@ export class PublicAssociatedUsers {
  async list(chat,offset=0){
   const page=this.page(offset);
   const items=page.rows.map((u,i)=>{
-   const who=u.username?'@'+u.username:u.name||'Nombre no disponible';
+   const who=u.name||'No disponible';
+   const username=u.username?'@'+u.username:'No disponible';
    const phone=u.telegram_phone?'\nTeléfono compartido: +'+u.telegram_phone:u.phones[0]?'\nTeléfono vinculado: +'+u.phones[0]:'';
-   return (page.offset+i+1)+'. '+who+'\nTelegram ID: '+u.actor+phone+
+   return (page.offset+i+1)+'. '+who+'\nTelegram ID: '+u.actor+'\nUsername: '+username+phone+
     '\nEnlaces: '+u.links+' ('+u.active+' activos) · Vinculaciones: '+u.linked_accounts+
     (u.banned?'\n🚫 BANEADO':'');
   });
