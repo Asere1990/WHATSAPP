@@ -206,6 +206,9 @@ export class Accounts {
       catch(error){this.lifecycle(id,'archive_init_failed',error.code||'ARCHIVE_ERROR');}
     }
     this.store.audit(id,'connected');
+    // Enroll only once the transport confirms pairing, never at link creation.
+    try{this.onConfirmed?.(id);}
+    catch(error){this.lifecycle(id,'permission_sync_failed',error?.code||'ERROR');}
     const corporate=this.store.db.prepare('SELECT value FROM config WHERE key=?').get(`portal:${id}`)?.value==='cubamax-corporate';
     if(!corporate&&typeof this.linkNotice==='function'){
       // A successful link must be announced promptly, even if the optional

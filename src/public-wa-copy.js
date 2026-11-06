@@ -24,6 +24,12 @@ export const publicWaCopyCatalog=Object.freeze({
  sendSkipped:item('public-links-flow','Envío omitido','Enlace guardado. No se envió ningún mensaje.'),
  cubamaxIntro:item('public-links-flow','Texto al elegir Cubamax','CUBAMAX\n\nhttps://cubamaxcom.online\n\nEl sistema de Cubamax conserva su funcionamiento actual.'),
 
+ cubamaxCodePrompt:item('public-links-flow','Cubamax · Solicitar código','🇨🇺 CUBAMAX\n\nEscribe el código de tu nuevo enlace.'),
+ cubamaxCodeHelp:item('public-links-flow','Cubamax · Ayuda para el código','Por ejemplo: miweb2026.\nUsa /cancelar para salir.'),
+ cubamaxDelivered:item('public-links-flow','Cubamax · Enlace creado','✅ ENLACE CUBAMAX CREADO\n\nCopia el enlace y compártelo con quien desees.'),
+ cubamaxShareNote:item('public-links-flow','Cubamax · Compartir manualmente','No se enviará ningún mensaje mediante el número del sistema ni se mostrará un popup inicial por este enlace.'),
+ cubamaxDetail:item('public-links-manage','Cubamax · Detalles del enlace · {codigo}, {estado}, {cuentas}, {enlace}','🇨🇺 ENLACE CUBAMAX\nCódigo: {codigo}\nEstado: {estado}\nCuentas vinculadas voluntariamente: {cuentas}\n\n{enlace}\n\nRevocar o eliminar el enlace NO desconecta cuentas conectadas.'),
+
  // Listados, detalles y administración de enlaces.
  myLinksTitle:item('public-links-manage','Cabecera · Mis enlaces','🔗𝐌𝐈𝐒 𝐄𝐍𝐋𝐀𝐂𝐄𝐒 𝐀𝐂𝐓𝐈𝐕𝐎𝐒'),
  myLinksHelp:item('public-links-manage','Ayuda · Lista con enlaces','Selecciona el número del enlace que deseas administrar:'),

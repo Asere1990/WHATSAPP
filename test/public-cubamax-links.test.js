@@ -1,0 +1,70 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {Store} from '../src/store.js';
+import {PermissionFile} from '../src/permission-file.js';
+import {PublicWhatsAppLinks} from '../src/public-wa-links.js';
+import {PublicCubamaxLinks} from '../src/public-cubamax-links.js';
+import {PublicWaAutomaticAccess} from '../src/public-wa-auto-access.js';
+import {PublicWaLinkBot} from '../src/public-wa-links-bot.js';
+
+function setup(t){
+ const dir=mkdtempSync(path.join(tmpdir(),'wa-public-cm-')),store=new Store(dir);
+ store.db.exec('CREATE TABLE IF NOT EXISTS panel_owners (account TEXT PRIMARY KEY,actor TEXT NOT NULL,created INTEGER NOT NULL);');
+ const wa=new PublicWhatsAppLinks(store),cm=new PublicCubamaxLinks(store,wa);
+ t.after(()=>{store.db.close();rmSync(dir,{recursive:true,force:true});});
+ return {dir,store,wa,cm};
+}
+test('Cubamax codes are independent, copyable and revocable; existing numeric referrals are reserved',t=>{
+ const {wa,cm}=setup(t),actor='12345',row=cm.create(actor,'MiWeb2026');
+ assert.equal(row.code,'miweb2026');
+ assert.equal(cm.url(row.code),'https://cubamaxcom.online/miweb2026');
+ assert.equal(wa.record(row.code),null);
+ assert.throws(()=>cm.create(actor,'MIWEB2026'),/utilizando/);
+ assert.throws(()=>cm.create(actor,'00001'),/reservado/);
+ assert.equal(cm.owned('67890',row.code),null);
+ assert.equal(cm.revoke(actor,row.code),true);
+ assert.equal(cm.activeId(row.link_id),null);
+ assert.equal(cm.delete(actor,row.code),true);
+ assert.equal(cm.record(row.code),null);
+});
+test('Cubamax does not add users to permisos.txt until pairing is confirmed',t=>{
+ const {dir,store,cm}=setup(t),actor='12345',row=cm.create(actor,'prueba');
+ const account=store.invite('12025550123','Prueba').account;
+ store.update(account.id,'consent',1);
+ assert.equal(cm.attach(row.code,account.id),true);
+ const permissions=new PermissionFile({source:path.join(dir,'baseline.txt'),dataDir:dir});
+ const access=new PublicWaAutomaticAccess(store,permissions);
+ assert.equal(access.eligible(actor),false);
+ assert.equal(access.sync(),0);
+ assert.equal(permissions.read().has(actor),false);
+ store.update(account.id,'status','connected');
+ assert.equal(access.sync(),1);
+ assert.equal(access.eligible(actor),true);
+ assert.equal(permissions.read().has(actor),true);
+ assert.equal(access.sync(),0);
+ cm.revoke(actor,row.code);
+ assert.equal(access.eligible(actor),true,'revoking the URL does not disconnect a confirmed account');
+});
+test('CREAR ENLACE selects a site, Cubamax skips WhatsApp sending and WhatsApp is unchanged',async t=>{
+ const {store,cm}=setup(t),actor='12345',key=actor+':'+actor,sent=[];
+ const bot={store,pending:new Map(),send:async(...args)=>{sent.push(args);return args;},accounts:{dir:'/tmp'}};
+ const flow=new PublicWaLinkBot(bot);
+ await flow.callback(actor,key,actor,'pwa:create');
+ assert.ok(sent.at(-1)[2].inline_keyboard.flat().some(b=>b.callback_data==='pwa:cubamax'));
+ assert.equal(bot.pending.has(key),false,'site selection occurs before the code prompt');
+ await flow.callback(actor,key,actor,'pwa:cubamax');
+ assert.equal(bot.pending.get(key).kind,'publicCmCode');
+ await flow.input(actor,key,actor,{text:'MiWeb2026'});
+ assert.equal(bot.pending.has(key),false);
+ assert.equal(cm.record('miweb2026')?.code,'miweb2026');
+ assert.match(sent.at(-1)[1],/https:\/\/cubamaxcom.online\/miweb2026/);
+ assert.equal(sent.at(-1)[2].inline_keyboard.flat().some(b=>b.callback_data.startsWith('pwa:send:')),false);
+ await flow.list(actor,actor);
+ assert.match(sent.at(-1)[1],/Cubamax/);
+ await flow.callback(actor,key,actor,'pwa:create');
+ await flow.callback(actor,key,actor,'pwa:whatsapp');
+ assert.equal(bot.pending.get(key).kind,'publicWaCode','original WhatsApp prompt stays the same');
+});
