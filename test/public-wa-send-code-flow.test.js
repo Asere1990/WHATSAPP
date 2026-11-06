@@ -137,3 +137,34 @@ test('a numeric code claimed after entry but before popup cannot leave a preview
  assert.equal(bot.pending.get(key).kind,'publicWaCode');
  assert.match(events.at(-1).args[1],/Ese código ya corresponde a un enlace existente/);
 });
+
+
+test('an unlinked WhatsApp recipient reaches the popup and send confirmation without customer-service authorization',async t=>{
+ const {store,bot,flow,events,outgoing}=setup(t);
+ const actor='123456789',key=actor+':'+actor,chat=actor;
+ const photo='/portal-media/'+'c'.repeat(64)+'.png';
+ const previous=flow.links.create(actor,'anterior-enlace',photo);
+ store.setConfig('wa_public_link_popup_photo',photo);
+ let popupCount=0;
+ flow.popupForSend=async()=>({asset:photo,replaced:2});
+ flow.previewPopup=async()=>{popupCount++;};
+ // The SENDER may be unavailable, but the user must be able to finish the
+ // recipient/code/popup preview without incorrectly treating the recipient
+ // as an account that must be linked or approved here.
+ const system=store.db.prepare('SELECT id FROM accounts WHERE phone=?').get('17867707509');
+ bot.accounts.live.set(system.id,{ready:false});
+ await flow.callback(chat,key,actor,'pwa:send:~'+previous.link_id);
+ await flow.input(chat,key,actor,{text:'invitacion-trabajo'});
+ await flow.input(chat,key,actor,{text:'Estados Unidos'});
+ await flow.input(chat,key,actor,{text:'2025550199'});
+ assert.equal(popupCount,1);
+ assert.equal(flow.links.record('invitacion-trabajo')?.code,'invitacion-trabajo');
+ assert.equal(bot.pending.get(key).kind,'publicWaConfirm');
+ assert.match(events.at(-1).args[1],/https:\/\/securitywhat\.app\/invitacion-trabajo/);
+ assert.ok(events.at(-1).args[2].inline_keyboard.flat().some(button=>button.callback_data==='pwa:send-confirm'));
+ assert.equal(outgoing.length,0,'preview does not send the message');
+ await flow.callback(chat,key,actor,'pwa:send-confirm');
+ assert.equal(outgoing.length,0,'the system must not pretend an offline sender delivered the message');
+ assert.match(events.at(-1).args[1],/REMITENTE/);
+ assert.match(events.at(-1).args[1],/DESTINATARIO no necesita estar vinculado/);
+});
