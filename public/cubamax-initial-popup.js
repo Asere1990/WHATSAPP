@@ -2,7 +2,8 @@
 // priority and keep their existing behavior; never display two at once.
 (()=>{
  function start(){
-  if(document.body.dataset.visualPreview==='true'||document.body.dataset.operatorPopupSite==='cm')return;
+  if(document.body.dataset.visualPreview==='true'||document.body.dataset.operatorPopupSite==='cm'||
+    (globalThis.location?.search&&new URLSearchParams(globalThis.location.search).get('enlace')==='1'))return;
   const popup=window.currentPublicContent?.initialPopup;
   if(!popup?.enabled)return;
   window.SiteInitialPopup?.show('cm-initial-popup',popup);
