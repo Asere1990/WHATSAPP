@@ -152,7 +152,7 @@ export class PublicWaLinkBot {
         await this.bot.api('sendChatAction',{chat_id:chat,action:'upload_photo'}).catch(()=>{});
         // Keep the existing OCR untouched; timestamp the popup only after
         // the recipient has been chosen, immediately before preview.
-        derived=await publicPopupPhoto(this.bot.store,this.bot.accounts.dir,photo,new Date());
+        derived=await this.popupForSend(photo,new Date());
       }catch(error){
         console.warn('WHATSAPP: public_send_popup_ocr_unavailable',JSON.stringify({
           code:pending.code,error:error?.code||error?.name||'ERROR'}));
@@ -172,11 +172,13 @@ export class PublicWaLinkBot {
           [{text:this.button('buttonCancel'),callback_data:'pwa:send-skip'}]]
       });
   }
+  async popupForSend(source,at){return publicPopupPhoto(this.bot.store,this.bot.accounts.dir,source,at);}
+  async previewPopup(chat,photo,caption){return sendEditorImage(this.bot,chat,photo,caption);}
   async previewNewSend(chat,key,actor,code,photo,{recipient,source},ownPhoto=false){
     if(this.links.record(code))return this.send(chat,this.copy('codeTaken'));
     // The preview is the actual image stored under this new code. No changes
     // to the OCR editor, the popup content, or connected WhatsApp sessions.
-    await sendEditorImage(this.bot,chat,photo,
+    await this.previewPopup(chat,photo,
       this.copy('preview')+'\n\n'+
       (ownPhoto?this.copy('ownPhotoNotice')+'\n\n':'')+this.copy('firstOnly'));
     const row=this.links.create(actor,code,photo);
