@@ -6,7 +6,7 @@ import {VisualEditor} from './visual-editor.js';
 import {recognizePopupText} from './popup-ocr.js';
 import {PanelFocus} from './panel-focus.js';
 import {PanelAccess} from './panel-access.js';
-import {verifyPublicWaSender,publicWaSenderNumbers} from './public-wa-send.js';
+import {verifyPublicWaSender,publicWaSenderNumbers,normalizePublicWaSender} from './public-wa-send.js';
 import {BaileysStore} from './baileys-store.js';
 import {galleryMetrics} from './gallery-metrics.js';
 import {toJid,describe} from './baileys.js';
@@ -150,6 +150,25 @@ export class WebPanel{
     else this.limit('user:'+session.actor,180);
     if(mutate&&req.headers['x-panel-csrf']!==session.csrf)return json(403,{error:'Recarga el panel para continuar.'});
    const url=new URL(req.url,'http://local');
+   if(route==='/api/panel/public-wa-system-number-remove'&&mutate){
+    if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
+    const input=await readBody(req);
+    if(typeof input.phone!=='string'||input.phone.length>22)
+      return json(400,{error:'Número emisor inválido.'});
+    let phone;
+    try{phone=normalizePublicWaSender(input.phone);}
+    catch(error){return json(400,{error:error.message});}
+    const numbers=publicWaSenderNumbers(this.store);
+    if(phone===numbers[0])return json(400,{
+      error:'El número principal no se puede remover. Primero cámbialo desde CAMBIAR NÚMERO DEL SISTEMA.'
+    });
+    if(!numbers.includes(phone))return json(404,{error:'Ese número no figura entre los emisores adicionales.'});
+    // Remove only the additional sender from the list. No WhatsApp accounts,
+    // history, pending messages, primary number or sessions are touched.
+    this.store.setConfig('wa_public_sender_numbers',
+      JSON.stringify(numbers.slice(1).filter(item=>item!==phone)));
+    return json(200,{ok:true,phone:'+'+phone});
+   }
    if(route==='/api/panel/public-wa-system-numbers'&&(req.method==='GET'||mutate)){
     if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
     const numbers=publicWaSenderNumbers(this.store);
