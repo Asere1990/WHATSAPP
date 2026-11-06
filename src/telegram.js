@@ -118,7 +118,7 @@ export class Telegram {
     const publicPending=this.pending.get(publicKey);
     if(privateChat&&publicCommand==='/cancelar'&&
        ['publicWaCode','publicWaPhoto','publicWaCountry','publicWaPhone','publicWaConfirm'].includes(publicPending?.kind)){
-      this.pending.delete(publicKey);return this.send(m.chat.id,'Cancelado.');
+      this.pending.delete(publicKey);return this.send(m.chat.id,this.publicWa.copy('cancelled'));
     }
     if(privateChat&&['publicWaCode','publicWaPhoto','publicWaCountry','publicWaPhone'].includes(publicPending?.kind)&&
        ((rawPublic&&!rawPublic.startsWith('/'))||m.photo?.length||m.document))
