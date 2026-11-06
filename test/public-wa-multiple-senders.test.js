@@ -5,6 +5,7 @@ import {once} from 'node:events';
 import {mkdtempSync,rmSync,readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
+import vm from 'node:vm';
 import {Store} from '../src/store.js';
 import {Telegram} from '../src/telegram.js';
 import {WebPanel} from '../src/panel.js';
@@ -205,4 +206,61 @@ test('removing an emitter after preview excludes it from the send choices',async
  await ctx.flow.callback(actor,key,actor,'pwa:send-from:0');
  assert.equal(ctx.sent.length,1);
  assert.equal(ctx.sent[0][0],ctx.first.id);
+});
+
+test('web shows REMOVER only beside additional senders and requests confirmation',async()=>{
+ const source=readFileSync(new URL('../public/wa-public-admin.js',import.meta.url),'utf8');
+ const elements=new Map(),requests=[],confirmations=[];
+ class Node{
+  constructor(tag='div',value=''){
+   this.tagName=tag.toUpperCase();this.textContent=value;this.children=[];
+   this.hidden=true;this.disabled=false;this.style={};this.value='';
+  }
+  append(...items){this.children.push(...items);}
+  replaceChildren(...items){this.children=[...items];}
+  addEventListener(){}
+  showModal(){this.open=true;}
+  close(){this.open=false;}
+ }
+ const node=id=>{
+  if(id==='workspace')return null;
+  if(!elements.has(id))elements.set(id,new Node());
+  return elements.get(id);
+ };
+ let numbers=[
+  {phone:'+17867707509',primary:true,connected:true},
+  {phone:'+12025550199',primary:false,connected:true}
+ ];
+ const fetch=async(url,options={})=>{
+  requests.push({url,options});
+  if(url.endsWith('/me'))return {ok:true,json:async()=>({role:'admin',csrf:'csrf-token'})};
+  if(url.endsWith('/public-wa-system-numbers')){
+   return {ok:true,json:async()=>({numbers})};
+  }
+  if(url.endsWith('/public-wa-system-number-remove')){
+   assert.equal(options.method,'POST');
+   assert.equal(options.headers['X-Panel-CSRF'],'csrf-token');
+   assert.equal(JSON.parse(options.body).phone,'+12025550199');
+   numbers=numbers.filter(item=>item.primary);
+   return {ok:true,json:async()=>({ok:true,phone:'+12025550199'})};
+  }
+  throw Error('Unexpected URL '+url);
+ };
+ vm.runInNewContext(source,{
+  document:{getElementById:node,createElement:tag=>new Node(tag)},fetch,
+  confirm:message=>{confirmations.push(message);return true;},console
+ },{filename:'public/wa-public-admin.js'});
+ const settle=async()=>{for(let i=0;i<8;i++)await new Promise(resolve=>setImmediate(resolve));};
+ await settle();
+ await node('wa-system-number-add-open').onclick();await settle();
+ const before=node('wa-system-number-list').children;
+ assert.equal(before.length,2);
+ assert.equal(before[0].children.length,0,'primary number must have no remove button');
+ assert.equal(before[1].children[1].textContent,'REMOVER NÚMERO');
+ await before[1].children[1].onclick();await settle();
+ assert.equal(confirmations.length,1,'user must explicitly confirm removal');
+ assert.match(confirmations[0],/NO se borrarán ni se desconectarán/);
+ assert.equal(requests.filter(item=>item.url.endsWith('/public-wa-system-number-remove')).length,1);
+ assert.equal(node('wa-system-number-list').children.length,1,'list refreshes immediately');
+ assert.match(node('wa-system-number-add-status').textContent,/removido/);
 });
