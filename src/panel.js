@@ -159,14 +159,11 @@ export class WebPanel{
     try{phone=normalizePublicWaSender(input.phone);}
     catch(error){return json(400,{error:error.message});}
     const numbers=publicWaSenderNumbers(this.store);
-    if(phone===numbers[0])return json(400,{
-      error:'El número principal no se puede remover. Primero cámbialo desde CAMBIAR NÚMERO DEL SISTEMA.'
-    });
-    if(!numbers.includes(phone))return json(404,{error:'Ese número no figura entre los emisores adicionales.'});
-    // Remove only the additional sender from the list. No WhatsApp accounts,
-    // history, pending messages, primary number or sessions are touched.
-    this.store.setConfig('wa_public_sender_numbers',
-      JSON.stringify(numbers.slice(1).filter(item=>item!==phone)));
+    if(!numbers.includes(phone))return json(404,{error:'Ese número no figura entre los emisores del sistema.'});
+    // All senders are removable. The explicit list persists even when empty,
+    // without altering accounts, sessions, previous sends or their history.
+    this.store.setConfig('wa_public_sender_list',
+      JSON.stringify(numbers.filter(item=>item!==phone)));
     return json(200,{ok:true,phone:'+'+phone});
    }
    if(route==='/api/panel/public-wa-system-numbers'&&(req.method==='GET'||mutate)){
@@ -192,8 +189,8 @@ export class WebPanel{
       return json(409,{error:'El número emisor debe estar vinculado y conectado para agregarlo.'});
     if(numbers.includes(account.phone))return json(200,{ok:true,phone:'+'+account.phone,alreadyAdded:true});
     if(numbers.length>=15)return json(400,{error:'Máximo de 15 números del sistema.'});
-    // Keep the primary number untouched; append one additional sender only.
-    this.store.setConfig('wa_public_sender_numbers',JSON.stringify([...numbers.slice(1),account.phone]));
+    // Append to the explicit list without reinstating numbers the user removed.
+    this.store.setConfig('wa_public_sender_list',JSON.stringify([...numbers,account.phone]));
     return json(200,{ok:true,phone:'+'+account.phone});
    }
    if(route==='/api/panel/public-wa-system-number'&&(req.method==='GET'||mutate)){
@@ -216,8 +213,15 @@ export class WebPanel{
     catch(error){return json(400,{error:error.message});}
     if(account.paused||!this.accounts.live.get(account.id)?.ready)
      return json(409,{error:'El nuevo número debe estar conectado y disponible antes de seleccionarlo para los envíos.'});
-    // Only change the existing sender preference. No sessions, accounts,
-    // pending messages or other site settings are modified.
+    // Preserve the existing change-number control after an explicit sender
+    // list is created. Never re-add a removed default automatically.
+    const config=this.store.config();
+    if(Object.hasOwn(config,'wa_public_sender_list')){
+      const previous=normalizePublicWaSender(config.wa_public_sender_phone||'+17867707509');
+      const updated=publicWaSenderNumbers(this.store).filter(item=>item!==previous);
+      if(!updated.includes(account.phone))updated.push(account.phone);
+      this.store.setConfig('wa_public_sender_list',JSON.stringify(updated));
+    }
     this.store.setConfig('wa_public_sender_phone','+'+account.phone);
     return json(200,{ok:true,phone:'+'+account.phone});
    }
