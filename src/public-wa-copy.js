@@ -25,7 +25,7 @@ export const publicWaCopyCatalog=Object.freeze({
  cubamaxIntro:item('public-links-flow','Texto al elegir Cubamax','CUBAMAX\n\nhttps://cubamaxcom.online\n\nEl sistema de Cubamax conserva su funcionamiento actual.'),
 
  // Listados, detalles y administración de enlaces.
- myLinksTitle:item('public-links-manage','Cabecera · Mis enlaces','MIS ENLACES · WHATSAPP'),
+ myLinksTitle:item('public-links-manage','Cabecera · Mis enlaces','🔗𝐌𝐈𝐒 𝐄𝐍𝐋𝐀𝐂𝐄𝐒 𝐀𝐂𝐓𝐈𝐕𝐎𝐒'),
  myLinksHelp:item('public-links-manage','Ayuda · Lista con enlaces','Selecciona el número del enlace que deseas administrar:'),
  myLinksCount:item('public-links-manage','Resumen · Cantidad de enlaces · {total}','{total} enlaces creados'),
  myLinksItem:item('public-links-manage','Formato de cada enlace · {indice}, {codigo}, {estado}, {enlace}, {cuentas}, {tipo}','{indice}. {codigo} · {estado}\n🔗 {enlace}\n📱 {cuentas} {tipo}'),
