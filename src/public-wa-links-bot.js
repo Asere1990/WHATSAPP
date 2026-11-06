@@ -134,8 +134,8 @@ export class PublicWaLinkBot {
   }
   async list(chat,actor,offset=0){
     const records=this.links.list(actor,offset);
-    const rows=records.map(x=>[{text:x.code.slice(0,36)+(x.code.length>36?'…':'')+' · '+(x.enabled?'ACTIVO':'REVOCADO'),callback_data:'pwa:show:~'+x.link_id}]);
-    return this.bot.send(chat,'MIS ENLACES · WHATSAPP\n\n'+(rows.length?'Elige uno para ver su estado y las cuentas asociadas.':'Todavía no has creado enlaces.'),{
+    const rows=records.map(x=>[{text:x.code.slice(0,36)+(x.code.length>36?'…':'')+' · '+(x.enabled?this.copy('activeStatus'):this.copy('revokedStatus')),callback_data:'pwa:show:~'+x.link_id}]);
+    return this.bot.send(chat,this.copy('myLinksTitle')+'\n\n'+(rows.length?this.copy('myLinksHelp'):this.copy('myLinksEmpty')),{
       inline_keyboard:[...rows,
        ...(offset>0?[[{text:this.button('buttonPrevious'),callback_data:'pwa:list:'+Math.max(0,offset-12)}]]:[]),
        ...(records.length===12?[[{text:this.button('buttonNext'),callback_data:'pwa:list:'+(offset+12)}]]:[]),
@@ -145,20 +145,17 @@ export class PublicWaLinkBot {
   }
   async show(chat,actor,code){
     const row=this.links.owned(actor,code);
-    if(!row)return this.bot.send(chat,'Este enlace no te pertenece o fue eliminado.');
+    if(!row)return this.bot.send(chat,this.copy('noOwnership'));
     const data=this.links.accounts(actor,code);
-    return this.bot.send(chat,'ENLACE WHATSAPP\nCódigo: '+code+'\nEstado: '+(row.enabled?'ACTIVO':'REVOCADO')+
-      '\nCuentas vinculadas voluntariamente: '+data.length+
-      '\n\n'+(row.enabled?this.links.url(code):'Enlace revocado.')+
-      '\n\nRevocar o eliminar el enlace NO desconecta cuentas de WhatsApp.',this.keyboard(code));
+    return this.bot.send(chat,this.copy('linkDetail',{codigo:code,estado:row.enabled?this.copy('activeStatus'):this.copy('revokedStatus'),cuentas:data.length,enlace:row.enabled?this.links.url(code):this.copy('revokedLink')}),this.keyboard(code));
   }
   async accounts(chat,actor,code){
     const row=this.links.owned(actor,code);
-    if(!row)return this.bot.send(chat,'Enlace no disponible.');
+    if(!row)return this.bot.send(chat,this.copy('noLink'));
     const entries=this.links.accounts(actor,code);
-    return this.bot.send(chat,'CUENTAS ASOCIADAS · '+code+'\n\n'+
-      (entries.length?entries.map((a,i)=>`${i+1}. +${a.phone} · ${a.confirmed?'Conectada anteriormente':'En proceso'} · ${a.status}`).join('\n'):'Todavía no hay cuentas asociadas.')+
-      '\n\nLa asociación es informativa; no concede acceso a las conversaciones.',{
+    return this.bot.send(chat,this.copy('linkedAccountsTitle',{codigo:code})+'\n\n'+
+      (entries.length?entries.map((a,i)=>this.copy('linkedAccountsLine',{indice:i+1,numero:a.phone,detalle:a.confirmed?this.copy('linkedPreviously'):this.copy('linkedInProgress'),estado:a.status})).join('\n'):this.copy('linkedAccountsEmpty'))+
+      '\n\n'+this.copy('linkedAccountsNote'),{
         inline_keyboard:[[{text:this.button('buttonBack'),callback_data:'pwa:show:'+this.links.callbackRef(code)}]]
       });
   }
@@ -168,49 +165,47 @@ export class PublicWaLinkBot {
     if(verb==='whatsapp'||verb==='create')return this.askCode(chat,key);
     if(verb==='cubamax'){
       this.bot.pending.delete(key);
-      return this.bot.send(chat,'CUBAMAX\n\nhttps://cubamaxcom.online\n\nEl sistema de Cubamax conserva su funcionamiento actual.',{
+      return this.bot.send(chat,this.copy('cubamaxIntro'),{
         inline_keyboard:[[{text:this.button('buttonReturn'),callback_data:'pwa:menu'}]]
       });
     }
     if(verb==='send-skip'){
       this.bot.pending.delete(key);
-      return this.bot.send(chat,'Enlace guardado. No se envió ningún mensaje.',this.keyboard());
+      return this.bot.send(chat,this.copy('sendSkipped'),this.keyboard());
     }
     if(verb==='send-confirm'){
       const pending=this.bot.pending.get(key);
       if(pending?.kind!=='publicWaConfirm'||pending.actor!==String(actor))
-        return this.bot.send(chat,'La confirmación venció. Abre MIS ENLACES y elige ENVIAR POR WHATSAPP.');
+        return this.bot.send(chat,this.copy('confirmExpired'));
       this.bot.pending.delete(key); // Un toque = un solo intento.
       try{
         const sent=await this.sender.send({actor,code:pending.code,phone:pending.recipient,source:pending.source});
-        return this.bot.send(chat,'✅ Mensaje enviado por WhatsApp desde +'+sent.source+
-          ' a +'+sent.phone+'.\n\nPuedes administrar este enlace desde MIS ENLACES.',this.keyboard(pending.code));
+        return this.bot.send(chat,this.copy('sendSuccess',{numero:sent.phone}),this.keyboard(pending.code));
       }catch(error){
-        return this.bot.send(chat,'⚠️ '+(error?.message||'No se pudo confirmar el envío.')+
-          '\n\nTu enlace sigue activo.',this.keyboard(pending.code));
+        return this.bot.send(chat,this.copy('sendFailed',{error:error?.message||'No se pudo confirmar el envío.'}),this.keyboard(pending.code));
       }
     }
     if(verb==='list'){this.bot.pending.delete(key);return this.list(chat,actor,Math.min(100000,Math.max(0,Number(value)||0)));}
     const row=this.links.ownedRef(actor,value);
-    if(!row)return this.bot.send(chat,'Ese enlace no está disponible para tu cuenta.');
+    if(!row)return this.bot.send(chat,this.copy('invalidLinkAction'));
     const code=row.code;
     if(verb==='show')return this.show(chat,actor,code);
     if(verb==='send')return this.askCountry(chat,key,actor,code);
     if(verb==='accounts')return this.accounts(chat,actor,code);
-    if(verb==='revoke')return this.bot.send(chat,'¿Revocar '+code+'? El enlace dejará de abrir la web. Las cuentas ya conectadas NO serán desconectadas.',{
+    if(verb==='revoke')return this.bot.send(chat,this.copy('revokePrompt',{codigo:code}),{
       inline_keyboard:[[{text:this.button('buttonConfirmRevoke'),callback_data:'pwa:revoke-yes:'+value}],[{text:this.button('buttonCancelAction'),callback_data:'pwa:show:'+value}]]
     });
     if(verb==='revoke-yes'){
       this.links.revoke(actor,code);
       return this.show(chat,actor,code);
     }
-    if(verb==='delete')return this.bot.send(chat,'¿Eliminar definitivamente el enlace '+code+' y su historial de asociaciones? No se eliminarán cuentas conectadas.',{
+    if(verb==='delete')return this.bot.send(chat,this.copy('deletePrompt',{codigo:code}),{
       inline_keyboard:[[{text:this.button('buttonConfirmDelete'),callback_data:'pwa:delete-yes:'+value}],[{text:this.button('buttonCancelAction'),callback_data:'pwa:show:'+value}]]
     });
     if(verb==='delete-yes'){
       this.links.delete(actor,code);
       return this.list(chat,actor);
     }
-    return this.bot.send(chat,'Opción no disponible.');
+    return this.bot.send(chat,this.copy('unknownOption'));
   }
 }
