@@ -151,18 +151,47 @@ export class WebPanel{
    const url=new URL(req.url,'http://local');
    if(route==='/api/panel/public-wa-users'&&req.method==='GET'){
     if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
-    // Only add profile information already obtained from Telegram.
-    // Existing counts and management actions remain unchanged.
-    this.telegram.associatedUsers;
+    const associated=this.telegram.associatedUsers;
+    // Read BOTH checked-in and persistent permisos.txt through its existing
+    // reader. Never overwrite it or use filtered permissions(): banned users
+    // must remain visible so admins can restore them.
+    const permitted=this.telegram.permissionFile.read();
+    const usersById=new Map();
+    for(const user of this.store.db.prepare(
+      'SELECT actor,count(*) AS links,sum(enabled) AS active,max(created) AS latest FROM wa_public_links GROUP BY actor ORDER BY latest DESC').all())
+      usersById.set(String(user.actor),{...user,links:Number(user.links)||0,active:Number(user.active)||0});
+    for(const actor of permitted)
+      if(!usersById.has(actor))usersById.set(actor,{actor,links:0,active:0,latest:0});
+    // Keep banned users listed even when all their links were removed.
+    for(const {actor} of this.store.db.prepare(
+      'SELECT actor FROM wa_public_actor_profiles WHERE banned=1').all())
+      if(!usersById.has(actor))usersById.set(actor,{actor,links:0,active:0,latest:0});
     const profiles=this.store.db.prepare(
       'SELECT name,username FROM wa_public_actor_profiles WHERE actor=?');
     const names=this.store.db.prepare('SELECT name FROM panel_people WHERE actor=?');
-    const users=this.telegram.publicWa.links.adminUsers().map(user=>{
+    const admins=this.telegram.admins();
+    const users=[...usersById.values()].map(user=>{
       const profile=profiles.get(user.actor)||{};
       const fallback=names.get(user.actor)?.name||'';
-      return {...user,name:profile.name||fallback,username:profile.username||''};
+      return {...user,name:profile.name||fallback,username:profile.username||'',
+        banned:associated.isBanned(user.actor),admin:admins.has(String(user.actor))};
     });
     return json(200,{users});
+   }
+   if(route==='/api/panel/public-wa-ban-user'&&mutate){
+    if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
+    const input=await readBody(req),actor=String(input.actor||'');
+    if(!/^[1-9][0-9]{4,19}$/.test(actor)||typeof input.banned!=='boolean')
+      return json(400,{error:'Telegram ID o acción inválidos.'});
+    if(this.telegram.admins().has(actor))
+      return json(403,{error:'No puedes banear a un administrador.'});
+    const associated=this.telegram.associatedUsers;
+    if(input.banned){
+      const revoked=associated.ban(actor);
+      return json(200,{ok:true,banned:true,revoked,accounts_unchanged:true});
+    }
+    associated.unban(actor);
+    return json(200,{ok:true,banned:false,accounts_unchanged:true});
    }
    if(route==='/api/panel/public-wa-user-links'&&req.method==='GET'){
     if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
