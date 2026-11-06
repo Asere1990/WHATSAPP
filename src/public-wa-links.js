@@ -1,16 +1,9 @@
 import {createHash} from 'node:crypto';
+import {publicWaCopyCatalog,publicWaCopyDefaults} from './public-wa-copy.js';
 
 const reserved=new Set(['whatsapp','cubamax','panel','editor','studio','api','start','menu','login','acceso','web','health','favicon','asociado','vincular','portal-media','reset']);
 const photoPattern=/^\/portal-media\/[a-f0-9]{64}\.(?:png|jpg|gif|webp)$/;
-const defaults={
-  message1:'Escribe el código de tu enlace.',
-  choose:'Elige qué enlace deseas utilizar.',
-  preview:'Vista previa del popup que verá el primer visitante.',
-  firstOnly:'Este popup solo aparecerá a la primera persona que abra este enlace. Las siguientes personas entrarán directamente en la web. Si quieres el mismo efecto para otro visitante, crea un código diferente.',
-  delivered:'Tu enlace de WhatsApp ya está creado.',
-  accounts:'Estas son las cuentas que se vincularon voluntariamente mediante tus enlaces.',
-  ownPhoto:'No pude preparar la foto automáticamente. Envíame tu propia foto para este enlace, con la fecha y la hora correctas. La conservaré exactamente como la envíes y te mostraré una vista previa antes de crear el enlace.',
-};
+const defaults=publicWaCopyDefaults;
 const maxCodeLength=256; // Límite técnico para URLs y cookies, no un formato obligatorio.
 const viewerRegex=/^[A-Za-z0-9_-]{43}$/;
 const hash=value=>createHash('sha256').update(value).digest('hex');
@@ -39,13 +32,15 @@ export class PublicWhatsAppLinks {
     let saved={};try{saved=JSON.parse(this.store.config().wa_public_link_texts||'{}');}catch{}
     if(!saved||typeof saved!=='object'||Array.isArray(saved))saved={};
     const values={...defaults};
-    for(const [name,defaultValue] of Object.entries(defaults)){
-      if(typeof saved[name]==='string'&&saved[name].trim()&&saved[name].length<=1400)values[name]=saved[name].trim();
+    for(const [name,meta] of Object.entries(publicWaCopyCatalog)){
+      if(typeof saved[name]==='string'&&saved[name].trim()&&saved[name].length<=meta.max)
+       values[name]=saved[name].trim();
     }
     return values;
   }
   updateText(field,value){
-    if(!Object.hasOwn(defaults,field)||typeof value!=='string'||!value.trim()||value.length>1400)throw Error('Texto no válido.');
+    if(!Object.hasOwn(publicWaCopyCatalog,field)||typeof value!=='string'||!value.trim()||
+       value.length>publicWaCopyCatalog[field].max)throw Error('Texto no válido.');
     const data={...this.texts(),[field]:value.trim()};
     this.store.setConfig('wa_public_link_texts',JSON.stringify(data));return data;
   }
