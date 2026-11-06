@@ -91,10 +91,10 @@ async function sampleColor(sharp,png,region){
 }
 async function overlay(sharp,png,region,label){
  const colors=await sampleColor(sharp,png,region);
- const fontSize=Math.max(7,Math.round(region.height*.77));
+ const fontSize=Math.max(7,Math.round(region.height*1.0));
  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+region.width+'" height="'+region.height+'">'+
   '<rect width="100%" height="100%" fill="'+colors.background+'"/>'+
-  '<text x="1" y="'+Math.round(region.height*.77)+'" '+
+  '<text x="1" y="'+Math.round(region.height*.90)+'" '+
   'font-family="Arial,Helvetica,sans-serif" font-weight="600" '+
   'font-size="'+fontSize+'" fill="'+colors.foreground+'" textLength="'+Math.max(2,region.width-2)+
   '" lengthAdjust="spacingAndGlyphs">'+escapeXml(label)+'</text></svg>';
