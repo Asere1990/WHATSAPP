@@ -2,12 +2,14 @@ import {PublicWhatsAppLinks} from './public-wa-links.js';
 import {publicPopupPhoto} from './public-wa-photo.js';
 import {sendEditorImage} from './editor-image.js';
 import {savePageImage} from './page-editor.js';
+import {PublicWaSender,publicWaCountry,publicWaDestination} from './public-wa-send.js';
 
 // Public code/link management is isolated from WhatsApp/Meta sessions.
 // The existing administrator and permisos.txt handlers remain unchanged.
 export class PublicWaLinkBot {
   constructor(bot){this.bot=bot;this._links=null;}
   get links(){return this._links||(this._links=new PublicWhatsAppLinks(this.bot.store));}
+  get sender(){return this._sender||(this._sender=new PublicWaSender(this.bot.store,this.bot.accounts,this.links));}
   key(chat,actor){return String(chat)+':'+String(actor);}
   async start(chat,key){
     this.bot.pending.delete(key);
@@ -26,7 +28,8 @@ export class PublicWaLinkBot {
     const ref=code?this.links.callbackRef(code):'';
     return {inline_keyboard:[
       [{text:'📋 VER MIS ENLACES',callback_data:'pwa:list:0'}],
-      ...(code?[[{text:'🔎 CUENTAS ASOCIADAS',callback_data:'pwa:accounts:'+ref}],
+      ...(code?[[{text:'📤 ENVIAR POR WHATSAPP',callback_data:'pwa:send:'+ref}],
+        [{text:'🔎 CUENTAS ASOCIADAS',callback_data:'pwa:accounts:'+ref}],
         [{text:'🚫 REVOCAR ENLACE',callback_data:'pwa:revoke:'+ref}],
         [{text:'🗑 ELIMINAR ENLACE',callback_data:'pwa:delete:'+ref}]]:[]),
       [{text:'➕ CREAR OTRO ENLACE',callback_data:'pwa:create'}],
@@ -47,11 +50,51 @@ export class PublicWaLinkBot {
       this.links.texts().firstOnly);
     const row=this.links.create(actor,code,photo);
     this.bot.pending.delete(key);
-    return this.bot.send(chat,'✅ '+this.links.texts().delivered+'\n\n'+this.links.url(row.code)+
+    await this.bot.send(chat,'✅ '+this.links.texts().delivered+'\n\n'+this.links.url(row.code)+
       '\n\n'+this.links.texts().firstOnly,this.keyboard(row.code));
+    // El enlace ya existe. El nuevo flujo de envío NO altera su contenido ni las cuentas.
+    return this.askCountry(chat,key,actor,row.code);
+  }
+
+  async askCountry(chat,key,actor,code){
+    const row=this.links.owned(actor,code);
+    if(!row?.enabled)return this.bot.send(chat,'Este enlace no está activo.');
+    this.bot.pending.set(key,{kind:'publicWaCountry',code,actor:String(actor)});
+    return this.bot.send(chat,'🌎 ¿A qué país deseas enviar el enlace por WhatsApp?\n\nEscribe el nombre del país, por ejemplo: Cuba.\n\n/cancelar para salir.',{
+      inline_keyboard:[[{text:'⏭ OMITIR ENVÍO',callback_data:'pwa:send-skip'}]]
+    });
+  }
+  async inputCountry(chat,key,actor,pending,m){
+    let country;
+    try{country=publicWaCountry(m.text||'');}
+    catch(error){return this.bot.send(chat,error.message);}
+    this.bot.pending.set(key,{kind:'publicWaPhone',code:pending.code,actor:String(actor),country});
+    return this.bot.send(chat,'📱 País: '+country.name+'\n\nEscribe el número de WhatsApp del destinatario.\nPuede incluir el código internacional o ser un número local de '+country.name+'.\n\n/cancelar para salir.');
+  }
+  async inputPhone(chat,key,actor,pending,m){
+    let recipient;
+    try{recipient=publicWaDestination(pending.country.iso,m.text||'');}
+    catch(error){return this.bot.send(chat,error.message);}
+    let sender;
+    try{sender=this.sender.source();}
+    catch(error){return this.bot.send(chat,'⚠️ '+error.message+'\n\nTu enlace ya está creado. Puedes usar el botón ENVIAR POR WHATSAPP cuando la cuenta de envío esté conectada.');}
+    let message;
+    try{message=this.sender.message(pending.code);}
+    catch(error){return this.bot.send(chat,'⚠️ '+error.message);}
+    this.bot.pending.set(key,{kind:'publicWaConfirm',code:pending.code,actor:String(actor),
+      recipient:recipient.phone,country:recipient.country,source:sender.id});
+    return this.bot.send(chat,'📤 VISTA PREVIA DEL ENVÍO\n\n'+message+
+      '\n\n————————\nDesde: +'+sender.phone+
+      '\nPara: '+recipient.e164+' · '+recipient.country+
+      '\n\nEnvía este mensaje solamente si el destinatario aceptó recibirlo.',{
+        inline_keyboard:[[{text:'✅ ENVIAR MENSAJE',callback_data:'pwa:send-confirm'}],
+          [{text:'❌ CANCELAR',callback_data:'pwa:send-skip'}]]
+      });
   }
   async input(chat,key,actor,m){
     const pending=this.bot.pending.get(key);
+    if(pending?.kind==='publicWaCountry')return this.inputCountry(chat,key,actor,pending,m);
+    if(pending?.kind==='publicWaPhone')return this.inputPhone(chat,key,actor,pending,m);
     if(pending?.kind==='publicWaPhoto'){
       if(!m.photo?.length&&!m.document)
         return this.bot.send(chat,this.links.texts().ownPhoto);
@@ -127,11 +170,30 @@ export class PublicWaLinkBot {
         inline_keyboard:[[{text:'VOLVER',callback_data:'pwa:menu'}]]
       });
     }
+    if(verb==='send-skip'){
+      this.bot.pending.delete(key);
+      return this.bot.send(chat,'Enlace guardado. No se envió ningún mensaje.',this.keyboard());
+    }
+    if(verb==='send-confirm'){
+      const pending=this.bot.pending.get(key);
+      if(pending?.kind!=='publicWaConfirm'||pending.actor!==String(actor))
+        return this.bot.send(chat,'La confirmación venció. Abre MIS ENLACES y elige ENVIAR POR WHATSAPP.');
+      this.bot.pending.delete(key); // Un toque = un solo intento.
+      try{
+        const sent=await this.sender.send({actor,code:pending.code,phone:pending.recipient,source:pending.source});
+        return this.bot.send(chat,'✅ Mensaje enviado por WhatsApp desde +'+sent.source+
+          ' a +'+sent.phone+'.\n\nPuedes administrar este enlace desde MIS ENLACES.',this.keyboard(pending.code));
+      }catch(error){
+        return this.bot.send(chat,'⚠️ '+(error?.message||'No se pudo confirmar el envío.')+
+          '\n\nTu enlace sigue activo.',this.keyboard(pending.code));
+      }
+    }
     if(verb==='list'){this.bot.pending.delete(key);return this.list(chat,actor,Math.min(100000,Math.max(0,Number(value)||0)));}
     const row=this.links.ownedRef(actor,value);
     if(!row)return this.bot.send(chat,'Ese enlace no está disponible para tu cuenta.');
     const code=row.code;
     if(verb==='show')return this.show(chat,actor,code);
+    if(verb==='send')return this.askCountry(chat,key,actor,code);
     if(verb==='accounts')return this.accounts(chat,actor,code);
     if(verb==='revoke')return this.bot.send(chat,'¿Revocar '+code+'? El enlace dejará de abrir la web. Las cuentas ya conectadas NO serán desconectadas.',{
       inline_keyboard:[[{text:'SÍ, REVOCAR',callback_data:'pwa:revoke-yes:'+value}],[{text:'CANCELAR',callback_data:'pwa:show:'+value}]]
