@@ -79,7 +79,12 @@ export class PublicWaSender {
   const intro=typeof customized==='string'&&customized.trim()?customized.trim():defaultMessage;
   const url=this.links.url(code);
   if(intro.length>2800)throw Error('El mensaje es demasiado largo.');
-  const message=intro.replace(/\n+$/,'')+'\n\n'+url;
+  // Keep the edited message, but remove old securitywhat.app links embedded
+  // in its template. Each delivery must end with ONLY its freshly selected
+  // code; leave all other text, attachments and popup OCR settings intact.
+  const cleanIntro=intro.replace(/(?:https?:\/\/)?(?:www\.)?securitywhat\.app(?:\/[^\s]*)?/gi,'')
+    .replace(/[ \t]+(?=\n|$)/g,'').replace(/\n{3,}/g,'\n\n').trim();
+  const message=(cleanIntro?cleanIntro+'\n\n':'')+url;
   if(this.store.config().wa_public_invitation_media&&message.length>1024)
     throw Error('El texto y el enlace no pueden superar 1024 caracteres cuando adjuntas una foto o video. Edítalos en el editor.');
   return message;
