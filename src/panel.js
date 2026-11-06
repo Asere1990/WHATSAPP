@@ -151,7 +151,18 @@ export class WebPanel{
    const url=new URL(req.url,'http://local');
    if(route==='/api/panel/public-wa-users'&&req.method==='GET'){
     if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
-    return json(200,{users:this.telegram.publicWa.links.adminUsers()});
+    // Only add profile information already obtained from Telegram.
+    // Existing counts and management actions remain unchanged.
+    this.telegram.associatedUsers;
+    const profiles=this.store.db.prepare(
+      'SELECT name,username FROM wa_public_actor_profiles WHERE actor=?');
+    const names=this.store.db.prepare('SELECT name FROM panel_people WHERE actor=?');
+    const users=this.telegram.publicWa.links.adminUsers().map(user=>{
+      const profile=profiles.get(user.actor)||{};
+      const fallback=names.get(user.actor)?.name||'';
+      return {...user,name:profile.name||fallback,username:profile.username||''};
+    });
+    return json(200,{users});
    }
    if(route==='/api/panel/public-wa-user-links'&&req.method==='GET'){
     if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
