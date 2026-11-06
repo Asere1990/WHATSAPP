@@ -136,6 +136,13 @@ export class PublicWhatsAppLinks {
   attach(code,account){
     const link=this.active(code),wa=this.store.account(account);
     if(!link||!wa||!wa.consent||wa.created<link.created||wa.status==='archived'||wa.status==='revoked')return false;
+    // A public link may assign only a new, previously unowned account.
+    // Preserve all legacy referral owners; never transfer access silently.
+    const owner=this.db.prepare('SELECT actor FROM panel_owners WHERE account=?').get(account);
+    if(owner&&owner.actor!==link.actor)return false;
+    const existing=this.db.prepare('SELECT l.actor FROM wa_public_link_accounts p JOIN wa_public_links l ON l.code=p.code WHERE p.account=? AND l.actor<>? LIMIT 1').get(account,link.actor);
+    if(existing)return false;
+    this.db.prepare('INSERT OR IGNORE INTO panel_owners(account,actor,created) VALUES(?,?,?)').run(account,link.actor,Date.now());
     this.db.prepare('INSERT OR IGNORE INTO wa_public_link_accounts(code,account,created) VALUES(?,?,?)').run(code,account,Date.now());
     return true;
   }
