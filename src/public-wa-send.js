@@ -54,14 +54,22 @@ export function verifyPublicWaSender(store,phone){
   throw Error('Ese número todavía no está vinculado y autorizado en el sistema.');
  return row;
 }
-// Additional system senders are opt-in. The existing configured number stays
-// the primary sender and the current send limits remain shared by all senders.
+// Existing configurations retain their original senders until the user edits
+// the list. Once edited, the explicit list is authoritative (even when empty):
+// removed numbers must not reappear through the legacy default after restart.
 export function publicWaSenderNumbers(store){
- const config=store.config(),primary=config.wa_public_sender_phone||defaultSender;
- let extra=[];
- try{const saved=JSON.parse(config.wa_public_sender_numbers||'[]');if(Array.isArray(saved))extra=saved;}catch{}
+ const config=store.config();
+ let values=[];
+ if(Object.hasOwn(config,'wa_public_sender_list')){
+  try{const saved=JSON.parse(config.wa_public_sender_list);if(Array.isArray(saved))values=saved;}catch{}
+ }else{
+  const primary=config.wa_public_sender_phone||defaultSender;
+  let extra=[];
+  try{const saved=JSON.parse(config.wa_public_sender_numbers||'[]');if(Array.isArray(saved))extra=saved;}catch{}
+  values=[primary,...extra];
+ }
  const phones=[];
- for(const value of [primary,...extra]){
+ for(const value of values){
   try{
    const phone=normalizePublicWaSender(value);
    if(!phones.includes(phone))phones.push(phone);
