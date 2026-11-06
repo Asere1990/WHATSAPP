@@ -20,19 +20,22 @@ export class PublicWaLinkBot {
     const panelEnabled=!!this.bot.autoPublicAccess?.eligible(actor)&&
       !!this.bot.webPanel?.role(actor);
     return this.bot.send(chat,t.choose,{inline_keyboard:[
+      ...(panelEnabled?[[{text:this.button('buttonOwnPanel'),callback_data:'pwa:panel'}]]:[]),
       [{text:this.button('buttonWhatsApp'),callback_data:'pwa:whatsapp'}],
       [{text:this.button('buttonCubamax'),callback_data:'pwa:cubamax'}],
-      [{text:this.button('buttonMyLinks'),callback_data:'pwa:list:0'}],
-      ...(panelEnabled?[[{text:this.button('buttonOwnPanel'),callback_data:'pwa:panel'}]]:[])
+      [{text:this.button('buttonMyLinks'),callback_data:'pwa:list:0'}]
     ]});
   }
   async askCode(chat,key){
     this.bot.pending.set(key,{kind:'publicWaCode',started:Date.now()});
     return this.bot.send(chat,this.copy('message1')+'\n\n'+this.copy('codeHelp'));
   }
-  keyboard(code){
+  keyboard(code,actor=code?this.links.record(code)?.actor:''){
     const ref=code?this.links.callbackRef(code):'';
+    const panelEnabled=!!this.bot.autoPublicAccess?.eligible(actor)&&
+      !!this.bot.webPanel?.role(actor);
     return {inline_keyboard:[
+      ...(panelEnabled?[[{text:this.button('buttonOwnPanel'),callback_data:'pwa:panel'}]]:[]),
       [{text:this.button('buttonViewLinks'),callback_data:'pwa:list:0'}],
       ...(code?[[{text:this.button('buttonSendLink'),callback_data:'pwa:send:'+ref}],
         [{text:this.button('buttonAssociatedAccounts'),callback_data:'pwa:accounts:'+ref}],
