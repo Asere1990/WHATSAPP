@@ -3,6 +3,7 @@ import {publicPopupPhoto} from './public-wa-photo.js';
 import {sendEditorImage} from './editor-image.js';
 import {savePageImage} from './page-editor.js';
 import {PublicWaSender,publicWaCountry,publicWaDestination} from './public-wa-send.js';
+import {renderPublicWaCopy} from './public-wa-copy.js';
 
 // Public code/link management is isolated from WhatsApp/Meta sessions.
 // The existing administrator and permisos.txt handlers remain unchanged.
@@ -10,48 +11,50 @@ export class PublicWaLinkBot {
   constructor(bot){this.bot=bot;this._links=null;}
   get links(){return this._links||(this._links=new PublicWhatsAppLinks(this.bot.store));}
   get sender(){return this._sender||(this._sender=new PublicWaSender(this.bot.store,this.bot.accounts,this.links));}
+  copy(key,data={}){return renderPublicWaCopy(this.links.texts()[key]||'',data);}
+  button(key){return this.copy(key).slice(0,64);}
   key(chat,actor){return String(chat)+':'+String(actor);}
   async start(chat,key){
     this.bot.pending.delete(key);
     const t=this.links.texts();
     return this.bot.send(chat,t.choose,{inline_keyboard:[
-      [{text:'🟢 WHATSAPP',callback_data:'pwa:whatsapp'}],
-      [{text:'🟠 CUBAMAX',callback_data:'pwa:cubamax'}],
-      [{text:'📋 MIS ENLACES WHATSAPP',callback_data:'pwa:list:0'}]
+      [{text:this.button('buttonWhatsApp'),callback_data:'pwa:whatsapp'}],
+      [{text:this.button('buttonCubamax'),callback_data:'pwa:cubamax'}],
+      [{text:this.button('buttonMyLinks'),callback_data:'pwa:list:0'}]
     ]});
   }
   async askCode(chat,key){
     this.bot.pending.set(key,{kind:'publicWaCode',started:Date.now()});
-    return this.bot.send(chat,this.links.texts().message1+'\n\nPuedes escribir, por ejemplo: miweb2026.\nUsa /cancelar para salir.');
+    return this.bot.send(chat,this.copy('message1')+'\n\n'+this.copy('codeHelp'));
   }
   keyboard(code){
     const ref=code?this.links.callbackRef(code):'';
     return {inline_keyboard:[
-      [{text:'📋 VER MIS ENLACES',callback_data:'pwa:list:0'}],
-      ...(code?[[{text:'📤 ENVIAR POR WHATSAPP',callback_data:'pwa:send:'+ref}],
-        [{text:'🔎 CUENTAS ASOCIADAS',callback_data:'pwa:accounts:'+ref}],
-        [{text:'🚫 REVOCAR ENLACE',callback_data:'pwa:revoke:'+ref}],
-        [{text:'🗑 ELIMINAR ENLACE',callback_data:'pwa:delete:'+ref}]]:[]),
-      [{text:'➕ CREAR OTRO ENLACE',callback_data:'pwa:create'}],
-      [{text:'🔀 WHATSAPP / CUBAMAX',callback_data:'pwa:menu'}]
+      [{text:this.button('buttonViewLinks'),callback_data:'pwa:list:0'}],
+      ...(code?[[{text:this.button('buttonSendLink'),callback_data:'pwa:send:'+ref}],
+        [{text:this.button('buttonAssociatedAccounts'),callback_data:'pwa:accounts:'+ref}],
+        [{text:this.button('buttonRevoke'),callback_data:'pwa:revoke:'+ref}],
+        [{text:this.button('buttonDelete'),callback_data:'pwa:delete:'+ref}]]:[]),
+      [{text:this.button('buttonCreateAnother'),callback_data:'pwa:create'}],
+      [{text:this.button('buttonSites'),callback_data:'pwa:menu'}]
     ]};
   }
   async askOwnPhoto(chat,key,code,reason=''){
     this.bot.pending.set(key,{kind:'publicWaPhoto',code,started:Date.now()});
-    const message=(reason?reason+'\n\n':'')+this.links.texts().ownPhoto;
-    return this.bot.send(chat,message+'\n\n/cancelar para salir.');
+    const message=(reason?reason+'\n\n':'')+this.copy('ownPhoto');
+    return this.bot.send(chat,message+'\n\n'+this.copy('cancelHelp'));
   }
   async completeLink(chat,key,actor,code,photo,ownPhoto=false){
     // Always show the picture the first visitor will see before issuing a URL.
     // User-supplied pictures are kept byte-for-byte as uploaded.
     await sendEditorImage(this.bot,chat,photo,
-      '🖼 '+this.links.texts().preview+'\n\n'+
-      (ownPhoto?'Tu foto se utilizará sin modificar. Comprueba que fecha y hora sean correctas.\n\n':'')+
-      this.links.texts().firstOnly);
+      '🖼 '+this.copy('preview')+'\n\n'+
+      (ownPhoto?this.copy('ownPhotoNotice')+'\n\n':'')+
+      this.copy('firstOnly'));
     const row=this.links.create(actor,code,photo);
     this.bot.pending.delete(key);
-    await this.bot.send(chat,'✅ '+this.links.texts().delivered+'\n\n'+this.links.url(row.code)+
-      '\n\n'+this.links.texts().firstOnly,this.keyboard(row.code));
+    await this.bot.send(chat,'✅ '+this.copy('delivered')+'\n\n'+this.links.url(row.code)+
+      '\n\n'+this.copy('firstOnly'),this.keyboard(row.code));
     // El enlace ya existe. El nuevo flujo de envío NO altera su contenido ni las cuentas.
     return this.askCountry(chat,key,actor,row.code);
   }
@@ -61,7 +64,7 @@ export class PublicWaLinkBot {
     if(!row?.enabled)return this.bot.send(chat,'Este enlace no está activo.');
     this.bot.pending.set(key,{kind:'publicWaCountry',code,actor:String(actor)});
     return this.bot.send(chat,'🌎 ¿A qué país deseas enviar el enlace por WhatsApp?\n\nEscribe el nombre del país, por ejemplo: Cuba.\n\n/cancelar para salir.',{
-      inline_keyboard:[[{text:'⏭ OMITIR ENVÍO',callback_data:'pwa:send-skip'}]]
+      inline_keyboard:[[{text:this.button('buttonSkip'),callback_data:'pwa:send-skip'}]]
     });
   }
   async inputCountry(chat,key,actor,pending,m){
@@ -83,12 +86,11 @@ export class PublicWaLinkBot {
     catch(error){return this.bot.send(chat,'⚠️ '+error.message);}
     this.bot.pending.set(key,{kind:'publicWaConfirm',code:pending.code,actor:String(actor),
       recipient:recipient.phone,country:recipient.country,source:sender.id});
-    return this.bot.send(chat,'📤 VISTA PREVIA DEL ENVÍO\n\n'+message+
-      '\n\n————————\nDesde: +'+sender.phone+
-      '\nPara: '+recipient.e164+' · '+recipient.country+
-      '\n\nEnvía este mensaje solamente si el destinatario aceptó recibirlo.',{
-        inline_keyboard:[[{text:'✅ ENVIAR MENSAJE',callback_data:'pwa:send-confirm'}],
-          [{text:'❌ CANCELAR',callback_data:'pwa:send-skip'}]]
+    return this.bot.send(chat,this.copy('sendPreviewTitle')+'\n\n'+message+
+      '\n\n————————\n'+this.copy('sendPreviewDestination',{numero:recipient.e164,pais:recipient.country})+
+      '\n\n'+this.copy('sendPreviewConsent'),{
+        inline_keyboard:[[{text:this.button('buttonConfirmSend'),callback_data:'pwa:send-confirm'}],
+          [{text:this.button('buttonCancel'),callback_data:'pwa:send-skip'}]]
       });
   }
   async input(chat,key,actor,m){
@@ -135,10 +137,10 @@ export class PublicWaLinkBot {
     const rows=records.map(x=>[{text:x.code.slice(0,36)+(x.code.length>36?'…':'')+' · '+(x.enabled?'ACTIVO':'REVOCADO'),callback_data:'pwa:show:~'+x.link_id}]);
     return this.bot.send(chat,'MIS ENLACES · WHATSAPP\n\n'+(rows.length?'Elige uno para ver su estado y las cuentas asociadas.':'Todavía no has creado enlaces.'),{
       inline_keyboard:[...rows,
-       ...(offset>0?[[{text:'◀ ANTERIOR',callback_data:'pwa:list:'+Math.max(0,offset-12)}]]:[]),
-       ...(records.length===12?[[{text:'SIGUIENTE ▶',callback_data:'pwa:list:'+(offset+12)}]]:[]),
-       [{text:'➕ CREAR ENLACE',callback_data:'pwa:create'}],
-       [{text:'ATRÁS',callback_data:'pwa:menu'}]
+       ...(offset>0?[[{text:this.button('buttonPrevious'),callback_data:'pwa:list:'+Math.max(0,offset-12)}]]:[]),
+       ...(records.length===12?[[{text:this.button('buttonNext'),callback_data:'pwa:list:'+(offset+12)}]]:[]),
+       [{text:this.button('buttonCreate'),callback_data:'pwa:create'}],
+       [{text:this.button('buttonBack'),callback_data:'pwa:menu'}]
       ]});
   }
   async show(chat,actor,code){
@@ -157,7 +159,7 @@ export class PublicWaLinkBot {
     return this.bot.send(chat,'CUENTAS ASOCIADAS · '+code+'\n\n'+
       (entries.length?entries.map((a,i)=>`${i+1}. +${a.phone} · ${a.confirmed?'Conectada anteriormente':'En proceso'} · ${a.status}`).join('\n'):'Todavía no hay cuentas asociadas.')+
       '\n\nLa asociación es informativa; no concede acceso a las conversaciones.',{
-        inline_keyboard:[[{text:'ATRÁS',callback_data:'pwa:show:'+this.links.callbackRef(code)}]]
+        inline_keyboard:[[{text:this.button('buttonBack'),callback_data:'pwa:show:'+this.links.callbackRef(code)}]]
       });
   }
   async callback(chat,key,actor,data){
@@ -167,7 +169,7 @@ export class PublicWaLinkBot {
     if(verb==='cubamax'){
       this.bot.pending.delete(key);
       return this.bot.send(chat,'CUBAMAX\n\nhttps://cubamaxcom.online\n\nEl sistema de Cubamax conserva su funcionamiento actual.',{
-        inline_keyboard:[[{text:'VOLVER',callback_data:'pwa:menu'}]]
+        inline_keyboard:[[{text:this.button('buttonReturn'),callback_data:'pwa:menu'}]]
       });
     }
     if(verb==='send-skip'){
@@ -196,14 +198,14 @@ export class PublicWaLinkBot {
     if(verb==='send')return this.askCountry(chat,key,actor,code);
     if(verb==='accounts')return this.accounts(chat,actor,code);
     if(verb==='revoke')return this.bot.send(chat,'¿Revocar '+code+'? El enlace dejará de abrir la web. Las cuentas ya conectadas NO serán desconectadas.',{
-      inline_keyboard:[[{text:'SÍ, REVOCAR',callback_data:'pwa:revoke-yes:'+value}],[{text:'CANCELAR',callback_data:'pwa:show:'+value}]]
+      inline_keyboard:[[{text:this.button('buttonConfirmRevoke'),callback_data:'pwa:revoke-yes:'+value}],[{text:this.button('buttonCancelAction'),callback_data:'pwa:show:'+value}]]
     });
     if(verb==='revoke-yes'){
       this.links.revoke(actor,code);
       return this.show(chat,actor,code);
     }
     if(verb==='delete')return this.bot.send(chat,'¿Eliminar definitivamente el enlace '+code+' y su historial de asociaciones? No se eliminarán cuentas conectadas.',{
-      inline_keyboard:[[{text:'SÍ, ELIMINAR',callback_data:'pwa:delete-yes:'+value}],[{text:'CANCELAR',callback_data:'pwa:show:'+value}]]
+      inline_keyboard:[[{text:this.button('buttonConfirmDelete'),callback_data:'pwa:delete-yes:'+value}],[{text:this.button('buttonCancelAction'),callback_data:'pwa:show:'+value}]]
     });
     if(verb==='delete-yes'){
       this.links.delete(actor,code);
