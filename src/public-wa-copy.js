@@ -67,7 +67,7 @@ export const publicWaCopyCatalog=Object.freeze({
  buttonWhatsApp:item('public-buttons','Botón · Elegir WhatsApp','🟢 WHATSAPP',64),
  buttonCubamax:item('public-buttons','Botón · Elegir Cubamax','🟠 CUBAMAX',64),
  buttonMyLinks:item('public-buttons','Botón · Mis enlaces (inicio)','📋 MIS ENLACES WHATSAPP',64),
- buttonOwnPanel:item('public-buttons','Botón · Panel web (solo si tiene cuentas vinculadas)','🖥 MI PANEL WEB',64),
+ buttonOwnPanel:item('public-buttons','Botón · Panel web (solo si tiene cuentas vinculadas)','🖥 ABRIR PANEL WEB',64),
  buttonViewLinks:item('public-buttons','Botón · Ver mis enlaces (tras crear)','📋 VER MIS ENLACES',64),
  buttonSendLink:item('public-buttons','Botón · Enviar por WhatsApp','📤 ENVIAR POR WHATSAPP',64),
  buttonAssociatedAccounts:item('public-buttons','Botón · Cuentas asociadas','🔎 CUENTAS ASOCIADAS',64),
