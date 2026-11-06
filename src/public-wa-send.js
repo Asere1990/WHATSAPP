@@ -54,6 +54,21 @@ export function verifyPublicWaSender(store,phone){
   throw Error('Ese número todavía no está vinculado y autorizado en el sistema.');
  return row;
 }
+// Additional system senders are opt-in. The existing configured number stays
+// the primary sender and the current send limits remain shared by all senders.
+export function publicWaSenderNumbers(store){
+ const config=store.config(),primary=config.wa_public_sender_phone||defaultSender;
+ let extra=[];
+ try{const saved=JSON.parse(config.wa_public_sender_numbers||'[]');if(Array.isArray(saved))extra=saved;}catch{}
+ const phones=[];
+ for(const value of [primary,...extra]){
+  try{
+   const phone=normalizePublicWaSender(value);
+   if(!phones.includes(phone))phones.push(phone);
+  }catch{}
+ }
+ return phones.slice(0,15);
+}
 export class PublicWaSender {
  constructor(store,accounts,links){
   this.store=store;this.accounts=accounts;this.links=links;
@@ -67,8 +82,8 @@ export class PublicWaSender {
    CREATE INDEX IF NOT EXISTS wa_public_message_sends_phone_time
     ON wa_public_message_sends(phone,created);`);
  }
- source(){
-  const phone=this.store.config().wa_public_sender_phone||defaultSender;
+ numberOptions(){return publicWaSenderNumbers(this.store);}
+ source(phone=this.store.config().wa_public_sender_phone||defaultSender){
   const row=verifyPublicWaSender(this.store,phone);
   if(row.paused||!this.accounts.live.get(row.id)?.ready)
    throw Error('El número de envío no está conectado en este momento. Inténtalo después.');
@@ -106,7 +121,12 @@ export class PublicWaSender {
   actor=String(actor);
   const link=this.links.owned(actor,code);
   if(!link?.enabled)throw Error('El enlace fue revocado o eliminado. No se envió ningún mensaje.');
-  const row=this.source();
+  // The selected sender must still belong to the system's configured list.
+  // This prevents a Telegram callback from selecting an arbitrary account.
+  const chosen=this.numberOptions().find(phone=>
+   this.store.db.prepare('SELECT id FROM accounts WHERE phone=?').get(phone)?.id===source);
+  if(!chosen)throw Error('El número de envío seleccionado ya no está configurado.');
+  const row=this.source(chosen);
   if(row.id!==source)throw Error('El número de envío cambió. Revisa el mensaje nuevamente.');
   const count=this.store.db.prepare(
    "SELECT count(*) n FROM wa_public_message_sends WHERE actor=? AND created>?").get(actor,Date.now()-86400000).n;

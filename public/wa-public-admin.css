@@ -11,6 +11,7 @@
 .wa-public-details p{border-bottom:1px dashed #d4ded9;padding:5px 0}
 
 #wa-system-number-open{max-width:100%;text-align:left}
+#wa-system-number-add-open{max-width:100%;text-align:left;border:1px solid #b5d1c3;border-radius:10px;padding:9px 12px;background:#eef8f2;color:#075e54;font-weight:600}
 #wa-system-number-dialog{width:min(460px,calc(100vw - 28px));padding:22px;overflow:auto}
 #wa-system-number-dialog h2{margin:0 0 14px;font-size:20px}
 #wa-system-number-dialog p{line-height:1.5}
@@ -19,3 +20,12 @@
 #wa-system-number-save,#wa-system-number-cancel{border:1px solid #b5d1c3;border-radius:10px;padding:11px 12px;background:#eef8f2;color:#075e54;font-weight:600}
 #wa-system-number-save{background:#075e54;color:#fff}
 #wa-system-number-status{min-height:1.5em;color:#075e54}
+
+#wa-system-number-add-dialog{width:min(460px,calc(100vw - 28px));padding:22px;overflow:auto}
+#wa-system-number-add-dialog h2{margin:0 0 14px;font-size:20px}
+#wa-system-number-add-dialog p{line-height:1.5}
+#wa-system-number-add-form{display:grid;gap:12px}
+#wa-system-number-add-input{width:100%;font-size:16px;padding:12px;border:1px solid #b5d1c3;border-radius:10px}
+#wa-system-number-add-save,#wa-system-number-add-cancel{border:1px solid #b5d1c3;border-radius:10px;padding:11px 12px;background:#eef8f2;color:#075e54;font-weight:600}
+#wa-system-number-add-save{background:#075e54;color:#fff}
+#wa-system-number-add-status{min-height:1.5em;color:#075e54}

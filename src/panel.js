@@ -6,7 +6,7 @@ import {VisualEditor} from './visual-editor.js';
 import {recognizePopupText} from './popup-ocr.js';
 import {PanelFocus} from './panel-focus.js';
 import {PanelAccess} from './panel-access.js';
-import {verifyPublicWaSender} from './public-wa-send.js';
+import {verifyPublicWaSender,publicWaSenderNumbers} from './public-wa-send.js';
 import {BaileysStore} from './baileys-store.js';
 import {galleryMetrics} from './gallery-metrics.js';
 import {toJid,describe} from './baileys.js';
@@ -150,6 +150,33 @@ export class WebPanel{
     else this.limit('user:'+session.actor,180);
     if(mutate&&req.headers['x-panel-csrf']!==session.csrf)return json(403,{error:'Recarga el panel para continuar.'});
    const url=new URL(req.url,'http://local');
+   if(route==='/api/panel/public-wa-system-numbers'&&(req.method==='GET'||mutate)){
+    if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
+    const numbers=publicWaSenderNumbers(this.store);
+    if(req.method==='GET'){
+      const primary=numbers[0]||'';
+      return json(200,{numbers:numbers.map(phone=>{
+        const account=this.store.db.prepare(
+          'SELECT id,consent,confirmed,paused,status FROM accounts WHERE phone=?').get(phone);
+        return {phone:'+'+phone,primary:phone===primary,
+          connected:!!account?.consent&&!!account?.confirmed&&!account.paused&&
+            !['revoked','archived'].includes(account.status)&&!!this.accounts.live.get(account.id)?.ready};
+      })});
+    }
+    const input=await readBody(req);
+    if(typeof input.phone!=='string'||input.phone.length>22)
+      return json(400,{error:'Escribe el nuevo número con código internacional.'});
+    let account;
+    try{account=verifyPublicWaSender(this.store,input.phone);}
+    catch(error){return json(400,{error:error.message});}
+    if(account.paused||!this.accounts.live.get(account.id)?.ready)
+      return json(409,{error:'El número emisor debe estar vinculado y conectado para agregarlo.'});
+    if(numbers.includes(account.phone))return json(200,{ok:true,phone:'+'+account.phone,alreadyAdded:true});
+    if(numbers.length>=15)return json(400,{error:'Máximo de 15 números del sistema.'});
+    // Keep the primary number untouched; append one additional sender only.
+    this.store.setConfig('wa_public_sender_numbers',JSON.stringify([...numbers.slice(1),account.phone]));
+    return json(200,{ok:true,phone:'+'+account.phone});
+   }
    if(route==='/api/panel/public-wa-system-number'&&(req.method==='GET'||mutate)){
     if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
     if(req.method==='GET'){

@@ -313,6 +313,32 @@ export class PublicWaLinkBot {
         inline_keyboard:[[{text:this.button('buttonBack'),callback_data:'pwa:show:'+this.links.callbackRef(code)}]]
       });
   }
+  showSenderChoices(chat,numbers,error=''){
+    return this.send(chat,(error?'⚠️ '+error+'\n\n':'')+
+      '📱 ELIGE EL NÚMERO DEL SISTEMA PARA ENVIAR ESTE MENSAJE',{
+        inline_keyboard:[
+          ...numbers.map((number,i)=>[{
+            text:'📤 ENVIAR DESDE +'+number,callback_data:'pwa:send-from:'+i
+          }]),
+          [{text:this.button('buttonCancel'),callback_data:'pwa:send-skip'}]
+        ]
+      });
+  }
+  async deliverSelected(chat,key,actor,pending,selectedSource=null){
+    this.bot.pending.delete(key); // Un toque = un solo intento.
+    try{
+      const source=selectedSource||pending.source||this.sender.source().id;
+      const sent=await this.sender.send({actor,code:pending.code,phone:pending.recipient,source});
+      return this.send(chat,this.copy('sendSuccess',{numero:sent.phone}),this.keyboard(pending.code));
+    }catch(error){
+      const detail=error?.message||'No se pudo confirmar el envío.';
+      const unavailable=/todav[ií]a no est[aá] vinculado y autorizado|número de envío no est[aá] conectado/i.test(detail);
+      const explanation=unavailable
+        ?'El número REMITENTE de WhatsApp configurado no está disponible para enviar desde esta web. El número DESTINATARIO no necesita estar vinculado a este sistema. '
+        :'';
+      return this.send(chat,this.copy('sendFailed',{error:explanation+detail}),this.keyboard(pending.code));
+    }
+  }
   async callback(chat,key,actor,data){
     const action=data.slice(4),parts=action.split(':'),verb=parts[0],value=parts.slice(1).join(':');
     if(verb==='menu')return this.start(chat,key);
@@ -332,19 +358,29 @@ export class PublicWaLinkBot {
       const pending=this.bot.pending.get(key);
       if(pending?.kind!=='publicWaConfirm'||pending.actor!==String(actor))
         return this.send(chat,this.copy('confirmExpired'));
-      this.bot.pending.delete(key); // Un toque = un solo intento.
-      try{
-        const source=pending.source||this.sender.source().id;
-        const sent=await this.sender.send({actor,code:pending.code,phone:pending.recipient,source});
-        return this.send(chat,this.copy('sendSuccess',{numero:sent.phone}),this.keyboard(pending.code));
-      }catch(error){
-        const detail=error?.message||'No se pudo confirmar el envío.';
-        const unavailable=/todav[ií]a no est[aá] vinculado y autorizado|número de envío no est[aá] conectado/i.test(detail);
-        const explanation=unavailable
-          ?'El número REMITENTE de WhatsApp configurado no está disponible para enviar desde esta web. El número DESTINATARIO no necesita estar vinculado a este sistema. '
-          :'';
-        return this.send(chat,this.copy('sendFailed',{error:explanation+detail}),this.keyboard(pending.code));
+      const numbers=this.sender.numberOptions();
+      if(numbers.length>1){
+        this.bot.pending.set(key,{...pending,senderNumbers:numbers});
+        return this.showSenderChoices(chat,numbers);
       }
+      return this.deliverSelected(chat,key,actor,pending);
+    }
+    if(verb==='send-from'){
+      const pending=this.bot.pending.get(key);
+      if(pending?.kind!=='publicWaConfirm'||!pending.senderNumbers||pending.actor!==String(actor))
+        return this.send(chat,this.copy('confirmExpired'));
+      if(!/^\d{1,2}$/.test(value)||!pending.senderNumbers?.[Number(value)])
+        return this.showSenderChoices(chat,pending.senderNumbers||[]);
+      const selected=pending.senderNumbers[Number(value)];
+      if(!this.sender.numberOptions().includes(selected)){
+        const latest=this.sender.numberOptions();
+        this.bot.pending.set(key,{...pending,senderNumbers:latest});
+        return this.showSenderChoices(chat,latest,'Ese número dejó de estar configurado.');
+      }
+      let source;
+      try{source=this.sender.source(selected).id;}
+      catch(error){return this.showSenderChoices(chat,pending.senderNumbers,error.message);}
+      return this.deliverSelected(chat,key,actor,pending,source);
     }
     if(verb==='list'){this.bot.pending.delete(key);return this.list(chat,actor,Math.min(100000,Math.max(0,Number(value)||0)));}
     if(verb.startsWith('cm-')){
