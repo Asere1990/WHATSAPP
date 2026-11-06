@@ -26,7 +26,11 @@ export const publicWaCopyCatalog=Object.freeze({
 
  // Listados, detalles y administración de enlaces.
  myLinksTitle:item('public-links-manage','Cabecera · Mis enlaces','MIS ENLACES · WHATSAPP'),
- myLinksHelp:item('public-links-manage','Ayuda · Lista con enlaces','Elige uno para ver su estado y las cuentas asociadas.'),
+ myLinksHelp:item('public-links-manage','Ayuda · Lista con enlaces','Selecciona el número del enlace que deseas administrar:'),
+ myLinksCount:item('public-links-manage','Resumen · Cantidad de enlaces · {total}','{total} enlaces creados'),
+ myLinksItem:item('public-links-manage','Formato de cada enlace · {indice}, {codigo}, {estado}, {enlace}, {cuentas}, {tipo}','{indice}. {codigo} · {estado}\n🔗 {enlace}\n📱 {cuentas} {tipo}'),
+ myLinksOneAccount:item('public-links-manage','Etiqueta · Una cuenta vinculada','cuenta vinculada',80),
+ myLinksManyAccounts:item('public-links-manage','Etiqueta · Varias cuentas vinculadas','cuentas vinculadas',80),
  myLinksEmpty:item('public-links-manage','Lista de enlaces vacía','Todavía no has creado enlaces.'),
  linkDetail:item('public-links-manage','Detalles del enlace · {codigo}, {estado}, {cuentas}, {enlace}','ENLACE WHATSAPP\nCódigo: {codigo}\nEstado: {estado}\nCuentas vinculadas voluntariamente: {cuentas}\n\n{enlace}\n\nRevocar o eliminar el enlace NO desconecta cuentas de WhatsApp.'),
  linkedAccountsTitle:item('public-links-manage','Cabecera · Cuentas asociadas · {codigo}','CUENTAS ASOCIADAS · {codigo}'),
