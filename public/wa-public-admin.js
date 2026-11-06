@@ -10,6 +10,14 @@
   numberSave=document.getElementById('wa-system-number-save'),
   numberCancel=document.getElementById('wa-system-number-cancel'),
   numberStatus=document.getElementById('wa-system-number-status');
+ const addButton=document.getElementById('wa-system-number-add-open'),
+  addDialog=document.getElementById('wa-system-number-add-dialog'),
+  addList=document.getElementById('wa-system-number-list'),
+  addForm=document.getElementById('wa-system-number-add-form'),
+  addInput=document.getElementById('wa-system-number-add-input'),
+  addSave=document.getElementById('wa-system-number-add-save'),
+  addCancel=document.getElementById('wa-system-number-add-cancel'),
+  addStatus=document.getElementById('wa-system-number-add-status');
  let csrf='',admin=false,loading=false;
  const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=String(text);return e;};
  async function json(path,body){
@@ -20,7 +28,7 @@
  async function check(){
   if(admin)return;try{
    const info=await json('me');
-   if(info.role==='admin'){csrf=info.csrf;admin=true;button.hidden=false;if(changeNumberButton)changeNumberButton.hidden=false;}
+   if(info.role==='admin'){csrf=info.csrf;admin=true;button.hidden=false;if(changeNumberButton)changeNumberButton.hidden=false;if(addButton)addButton.hidden=false;}
   }catch{}
  }
  async function showLinks(actor,place){
@@ -144,6 +152,41 @@
    finally{numberSave.disabled=false;}
   };
   numberCancel.onclick=()=>numberDialog.close();
+ }
+ if(addButton&&addDialog&&addList&&addForm&&addInput&&addSave&&addCancel&&addStatus){
+  const reloadNumbers=async()=>{
+   const response=await json('public-wa-system-numbers');
+   addList.replaceChildren();
+   for(const entry of response.numbers)
+    addList.append(node('p',entry.phone+
+     (entry.primary?' · PRINCIPAL':' · ADICIONAL')+
+     (entry.connected?' · Conectado':' · Sin conexión')));
+  };
+  addButton.onclick=async()=>{
+   await check();if(!admin)return;
+   addDialog.showModal();
+   addStatus.textContent='';
+   addInput.value='';
+   try{await reloadNumbers();}
+   catch(error){addStatus.textContent=error.message;}
+  };
+  addForm.onsubmit=async event=>{
+   event.preventDefault();
+   const phone=String(addInput.value||'').trim();
+   if(!phone){addStatus.textContent='Escribe un número con código de país.';return;}
+   addSave.disabled=true;
+   addStatus.textContent='Comprobando el nuevo emisor…';
+   try{
+    const result=await json('public-wa-system-numbers',{phone});
+    addStatus.textContent=result.alreadyAdded
+     ?'Este número ya figura entre los emisores del sistema.'
+     :'✅ Número agregado. Podrás elegirlo cuando envíes un mensaje.';
+    addInput.value='';
+    await reloadNumbers();
+   }catch(error){addStatus.textContent=error.message;}
+   finally{addSave.disabled=false;}
+  };
+  addCancel.onclick=()=>addDialog.close();
  }
  dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
  check();
