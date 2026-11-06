@@ -48,12 +48,12 @@ export class PublicWaLinkBot {
     // Always show the picture the first visitor will see before issuing a URL.
     // User-supplied pictures are kept byte-for-byte as uploaded.
     await sendEditorImage(this.bot,chat,photo,
-      '🖼 '+this.copy('preview')+'\n\n'+
+      this.copy('preview')+'\n\n'+
       (ownPhoto?this.copy('ownPhotoNotice')+'\n\n':'')+
       this.copy('firstOnly'));
     const row=this.links.create(actor,code,photo);
     this.bot.pending.delete(key);
-    await this.bot.send(chat,'✅ '+this.copy('delivered')+'\n\n'+this.links.url(row.code)+
+    await this.bot.send(chat,this.copy('delivered')+'\n\n'+this.links.url(row.code)+
       '\n\n'+this.copy('firstOnly'),this.keyboard(row.code));
     // El enlace ya existe. El nuevo flujo de envío NO altera su contenido ni las cuentas.
     return this.askCountry(chat,key,actor,row.code);
