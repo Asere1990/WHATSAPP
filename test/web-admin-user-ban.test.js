@@ -12,11 +12,10 @@ import {WebPanel} from '../src/panel.js';
 
 test('admin web list includes old permisos.txt operators with zero links, public-link owners and banned users',async t=>{
  const dir=mkdtempSync(path.join(tmpdir(),'wa-web-user-directory-'));
- t.after(()=>rmSync(dir,{recursive:true,force:true}));
  const source=path.join(dir,'original-permisos.txt'),baseline='123456789 # operador antiguo\n223344556\n99999\n';
  writeFileSync(source,baseline);
  const store=new Store(dir);
- t.after(()=>store.db.close());
+ t.after(()=>{store.db.close();rmSync(dir,{recursive:true,force:true});});
  const bot=new Telegram(store,{admins:'99999',dataDir:dir});
  bot.permissionFile.source=source;
  bot.permissionFile.add('334455667');
@@ -50,9 +49,14 @@ test('admin web list includes old permisos.txt operators with zero links, public
  const unauthorized=await post('223344556',true,{...headers,'X-Panel-CSRF':'wrong'});
  assert.equal(unauthorized.status,403);
  const adminBan=await post('99999',true);assert.equal(adminBan.status,403);
+ const operatorLogin=panel.access.login(panel.access.token('123456789','login'));
+ const operatorCookie={Cookie:'wa_panel='+operatorLogin.secret};
+ assert.equal((await fetch(base+'/api/panel/public-wa-users',{headers:operatorCookie})).status,403);
  const banned=await post('123456789',true);assert.equal(banned.status,200);
  assert.equal((await banned.json()).banned,true);
  assert.equal(bot.permissions().has('123456789'),false,'banned legacy user loses operator role');
+ assert.equal((await fetch(base+'/api/panel/accounts',{headers:operatorCookie})).status,401,
+  'existing operator web session must immediately lose access');
  assert.equal(readFileSync(source,'utf8'),baseline,'the original permisos.txt must not be edited');
  assert.equal(byActor.get('123456789').banned,false);
  assert.equal((await get()).find(u=>u.actor==='123456789').banned,true,'banned user remains listed');
