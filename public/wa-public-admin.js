@@ -64,7 +64,7 @@
      .map(([key,name])=>name+': '+u.sources[key].links);
     row.append(node('strong','Telegram ID: '+u.actor),identity,
      node('p',u.links+' enlaces · '+u.active+' activos'+
-      (types.length?' · '+types.join(' · '):' · Sin enlaces atribuibles')));
+      (types.length?' · '+types.join(' · '):'')));
     const actions=node('div');actions.className='wa-public-actions';
     const inspect=node('button','VER ENLACES'),del=node('button','ELIMINAR TODO DEL USUARIO');
     del.className='wa-public-danger';
