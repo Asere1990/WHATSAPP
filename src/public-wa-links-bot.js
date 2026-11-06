@@ -48,12 +48,12 @@ export class PublicWaLinkBot {
       [{text:this.button('buttonBack'),callback_data:'pwa:menu'}]
     ]});
   }
-  async askCode(chat,key,site='wa'){
+  async askCode(chat,key,site='wa',sendFirst=false){
     if(site==='cm'){
       this.bot.pending.set(key,{kind:'publicCmCode',started:Date.now()});
       return this.send(chat,this.copy('cubamaxCodePrompt')+'\n\n'+this.copy('cubamaxCodeHelp'));
     }
-    this.bot.pending.set(key,{kind:'publicWaCode',started:Date.now()});
+    this.bot.pending.set(key,{kind:'publicWaCode',started:Date.now(),sendFirst});
     return this.send(chat,this.copy('message1')+'\n\n'+this.copy('codeHelp'));
   }
   keyboard(code,actor=code?this.links.record(code)?.actor:''){
@@ -96,8 +96,9 @@ export class PublicWaLinkBot {
       return this.send(chat,this.copy('codeInvalid',{error:error?.message||'Elige otro código.'}));
     }
   }
-  async askOwnPhoto(chat,key,code,reason=''){
-    this.bot.pending.set(key,{kind:'publicWaPhoto',code,started:Date.now()});
+  async askOwnPhoto(chat,key,code,reason='',sendContext=null){
+    this.bot.pending.set(key,{kind:'publicWaPhoto',code,started:Date.now(),
+      ...(sendContext?{sendContext}: {})});
     const message=(reason?reason+'\n\n':'')+this.copy('ownPhoto');
     return this.send(chat,message+'\n\n'+this.copy('cancelHelp'));
   }
@@ -128,7 +129,8 @@ export class PublicWaLinkBot {
     let country;
     try{country=publicWaCountry(m.text||'');}
     catch(error){return this.send(chat,this.copy('countryInvalid',{error:error.message}));}
-    this.bot.pending.set(key,{kind:'publicWaPhone',code:pending.code,actor:String(actor),country});
+    this.bot.pending.set(key,{kind:'publicWaPhone',code:pending.code,actor:String(actor),
+      country,sendFirst:!!pending.sendFirst});
     return this.send(chat,this.copy('phonePrompt',{pais:country.name}));
   }
   async inputPhone(chat,key,actor,pending,m){
@@ -141,8 +143,28 @@ export class PublicWaLinkBot {
     let message;
     try{message=this.sender.message(pending.code);}
     catch(error){return this.send(chat,this.copy('messageInvalid',{error:error.message}));}
+    if(pending.sendFirst){
+      const sendContext={recipient,source:sender.id};
+      const photo=this.links.sourcePhoto();
+      if(!photo)return this.askOwnPhoto(chat,key,pending.code,this.copy('photoMissing'),sendContext);
+      let derived;
+      try{
+        await this.bot.api('sendChatAction',{chat_id:chat,action:'upload_photo'}).catch(()=>{});
+        // Keep the existing OCR untouched; timestamp the popup only after
+        // the recipient has been chosen, immediately before preview.
+        derived=await this.popupForSend(photo,new Date());
+      }catch(error){
+        console.warn('WHATSAPP: public_send_popup_ocr_unavailable',JSON.stringify({
+          code:pending.code,error:error?.code||error?.name||'ERROR'}));
+        return this.askOwnPhoto(chat,key,pending.code,this.copy('ocrUnavailable'),sendContext);
+      }
+      return this.previewNewSend(chat,key,actor,pending.code,derived.asset,sendContext);
+    }
     this.bot.pending.set(key,{kind:'publicWaConfirm',code:pending.code,actor:String(actor),
       recipient:recipient.phone,country:recipient.country,source:sender.id});
+    return this.showSendConfirmation(chat,message,recipient);
+  }
+  async showSendConfirmation(chat,message,recipient){
     return this.send(chat,this.copy('sendPreviewTitle')+'\n\n'+message+
       '\n\n————————\n'+this.copy('sendPreviewDestination',{numero:recipient.e164,pais:recipient.country})+
       '\n\n'+this.copy('sendPreviewConsent'),{
@@ -150,9 +172,37 @@ export class PublicWaLinkBot {
           [{text:this.button('buttonCancel'),callback_data:'pwa:send-skip'}]]
       });
   }
+  async popupForSend(source,at){return publicPopupPhoto(this.bot.store,this.bot.accounts.dir,source,at);}
+  async previewPopup(chat,photo,caption){return sendEditorImage(this.bot,chat,photo,caption);}
+  async previewNewSend(chat,key,actor,code,photo,{recipient,source},ownPhoto=false){
+    if(this.links.record(code))return this.send(chat,this.copy('codeTaken'));
+    // The preview is the actual image stored under this new code. No changes
+    // to the OCR editor, the popup content, or connected WhatsApp sessions.
+    await this.previewPopup(chat,photo,
+      this.copy('preview')+'\n\n'+
+      (ownPhoto?this.copy('ownPhotoNotice')+'\n\n':'')+this.copy('firstOnly'));
+    const row=this.links.create(actor,code,photo);
+    const message=this.sender.message(row.code);
+    this.bot.pending.set(key,{kind:'publicWaConfirm',code:row.code,
+      actor:String(actor),recipient:recipient.phone,
+      country:recipient.country,source});
+    return this.showSendConfirmation(chat,message,recipient);
+  }
   async input(chat,key,actor,m){
     const pending=this.bot.pending.get(key);
     if(pending?.kind==='publicCmCode')return this.inputCubamax(chat,key,actor,m);
+    if(pending?.kind==='publicWaCode'&&pending.sendFirst){
+      const raw=m.text?.trim()||'';
+      if(!raw)return this.send(chat,this.copy('codeMissing'));
+      let code;
+      try{code=this.links.normalize(raw);}
+      catch(error){return this.send(chat,this.copy('codeInvalid',{error:error.message}));}
+      if(this.links.record(code))return this.send(chat,this.copy('codeTaken'));
+      this.bot.pending.set(key,{kind:'publicWaCountry',code,actor:String(actor),sendFirst:true});
+      return this.send(chat,this.copy('countryPrompt'),{
+        inline_keyboard:[[{text:this.button('buttonSkip'),callback_data:'pwa:send-skip'}]]
+      });
+    }
     if(pending?.kind==='publicWaCountry')return this.inputCountry(chat,key,actor,pending,m);
     if(pending?.kind==='publicWaPhone')return this.inputPhone(chat,key,actor,pending,m);
     if(pending?.kind==='publicWaPhoto'){
@@ -162,6 +212,8 @@ export class PublicWaLinkBot {
         const original=await savePageImage(this.bot,m);
         // This is the manual fallback; no OCR recoloring, layout edits,
         // or date replacement is applied to the person's own image.
+        if(pending.sendContext)
+          return this.previewNewSend(chat,key,actor,pending.code,original,pending.sendContext,true);
         return await this.completeLink(chat,key,actor,pending.code,original,true);
       }catch(error){
         console.warn('WHATSAPP: public_own_popup_photo_failed',JSON.stringify({code:pending.code,error:error?.code||error?.name||'ERROR'}));
@@ -315,7 +367,7 @@ export class PublicWaLinkBot {
     if(!row)return this.send(chat,this.copy('invalidLinkAction'));
     const code=row.code;
     if(verb==='show')return this.show(chat,actor,code);
-    if(verb==='send')return this.askCountry(chat,key,actor,code);
+    if(verb==='send')return this.askCode(chat,key,'wa',true);
     if(verb==='accounts')return this.accounts(chat,actor,code);
     if(verb==='revoke')return this.send(chat,this.copy('revokePrompt',{codigo:code}),{
       inline_keyboard:[[{text:this.button('buttonConfirmRevoke'),callback_data:'pwa:revoke-yes:'+value}],[{text:this.button('buttonCancelAction'),callback_data:'pwa:show:'+value}]]
