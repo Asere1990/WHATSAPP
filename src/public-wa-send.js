@@ -54,7 +54,7 @@ export function verifyPublicWaSender(store,phone){
 export class PublicWaSender {
  constructor(store,accounts,links){
   this.store=store;this.accounts=accounts;this.links=links;
-  store.db.exec(\`CREATE TABLE IF NOT EXISTS wa_public_message_sends(
+  store.db.exec(`CREATE TABLE IF NOT EXISTS wa_public_message_sends(
    id INTEGER PRIMARY KEY AUTOINCREMENT,actor TEXT NOT NULL,code TEXT NOT NULL,
    phone TEXT NOT NULL,source TEXT NOT NULL,created INTEGER NOT NULL,
    status TEXT NOT NULL CHECK(status IN ('sending','sent','review')),
@@ -62,7 +62,7 @@ export class PublicWaSender {
    CREATE INDEX IF NOT EXISTS wa_public_message_sends_actor_time
     ON wa_public_message_sends(actor,created);
    CREATE INDEX IF NOT EXISTS wa_public_message_sends_phone_time
-    ON wa_public_message_sends(phone,created);\`);
+    ON wa_public_message_sends(phone,created);`);
  }
  source(){
   const phone=this.store.config().wa_public_sender_phone||defaultSender;
