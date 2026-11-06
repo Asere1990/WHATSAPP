@@ -92,3 +92,48 @@ test('the sender drops only an embedded old WhatsApp URL; all other editor text 
  assert.doesNotMatch(value,/old-123/);
  assert.equal((value.match(/securitywhat\.app/g)||[]).length,1);
 });
+
+
+test('a numeric code already used by a legacy WhatsApp link is rejected before country, phone or popup',async t=>{
+ const {store,bot,flow,events}=setup(t);
+ const actor='123456789',key=actor+':'+actor;
+ const photo='/portal-media/'+'c'.repeat(64)+'.png';
+ const previous=flow.links.create(actor,'anterior',photo);
+ store.db.exec('CREATE TABLE IF NOT EXISTS wa_associated_links(phone TEXT PRIMARY KEY)');
+ store.db.prepare('INSERT INTO wa_associated_links(phone) VALUES (?)').run('12025550123');
+ let ocrCalls=0,popupCalls=0;
+ flow.popupForSend=async()=>{ocrCalls++;return {asset:photo};};
+ flow.previewPopup=async()=>{popupCalls++;};
+ await flow.callback(actor,key,actor,'pwa:send:~'+previous.link_id);
+ await flow.input(actor,key,actor,{text:'12025550123'});
+ assert.equal(bot.pending.get(key).kind,'publicWaCode','keep asking for a valid code');
+ assert.match(events.at(-1).args[1],/Ese código ya corresponde a un enlace existente/);
+ assert.equal(ocrCalls,0);
+ assert.equal(popupCalls,0);
+ assert.equal(flow.links.record('12025550123'),null);
+ await flow.input(actor,key,actor,{text:'nuevo-aviso-laboral'});
+ assert.equal(bot.pending.get(key).kind,'publicWaCountry','another code should continue the same sequence');
+});
+
+test('a numeric code claimed after entry but before popup cannot leave a preview without continuation',async t=>{
+ const {store,bot,flow,events}=setup(t);
+ const actor='123456789',key=actor+':'+actor;
+ const photo='/portal-media/'+'d'.repeat(64)+'.png';
+ const previous=flow.links.create(actor,'anterior',photo);
+ store.setConfig('wa_public_link_popup_photo',photo);
+ store.db.exec('CREATE TABLE IF NOT EXISTS wa_associated_links(phone TEXT PRIMARY KEY)');
+ let popupCalls=0;
+ flow.previewPopup=async()=>{popupCalls++;};
+ flow.popupForSend=async()=>{
+   store.db.prepare('INSERT INTO wa_associated_links(phone) VALUES (?)').run('12025550124');
+   return {asset:photo,replaced:2};
+ };
+ await flow.callback(actor,key,actor,'pwa:send:~'+previous.link_id);
+ await flow.input(actor,key,actor,{text:'12025550124'});
+ await flow.input(actor,key,actor,{text:'Cuba'});
+ await flow.input(actor,key,actor,{text:'51234567'});
+ assert.equal(popupCalls,0,'reject a now-reserved code before sending photo');
+ assert.equal(flow.links.record('12025550124'),null);
+ assert.equal(bot.pending.get(key).kind,'publicWaCode');
+ assert.match(events.at(-1).args[1],/Ese código ya corresponde a un enlace existente/);
+});
