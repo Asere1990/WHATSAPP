@@ -5,9 +5,9 @@ export const publicWaCopyCatalog=Object.freeze({
  // Configuración y textos existentes: se conservan las claves publicadas.
  message1:item('public-links','Mensaje WhatsApp 1 · Solicitar código','Escribe el código de tu enlace.'),
  choose:item('public-links','Mensaje inicial · Elegir WhatsApp / Cubamax','Elige qué enlace deseas utilizar.'),
- preview:item('public-links','Vista previa · Foto del popup','Vista previa del popup que verá el primer visitante.'),
+ preview:item('public-links','Vista previa · Foto del popup','🖼 Vista previa del popup que verá el primer visitante.'),
  firstOnly:item('public-links','Aviso · Popup solo para el primer visitante','Este popup solo aparecerá a la primera persona que abra este enlace. Las siguientes personas entrarán directamente en la web. Si quieres el mismo efecto para otro visitante, crea un código diferente.'),
- delivered:item('public-links','Confirmación · Enlace creado','Tu enlace de WhatsApp ya está creado.'),
+ delivered:item('public-links','Confirmación · Enlace creado','✅ Tu enlace de WhatsApp ya está creado.'),
  accounts:item('public-links','Mensaje de cuentas asociadas','Estas son las cuentas que se vincularon voluntariamente mediante tus enlaces.'),
  ownPhoto:item('public-links','Solicitar foto propia si falla OCR','No pude preparar la foto automáticamente. Envíame tu propia foto para este enlace, con la fecha y la hora correctas. La conservaré exactamente como la envíes y te mostraré una vista previa antes de crear el enlace.'),
 
