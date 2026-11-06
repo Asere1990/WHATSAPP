@@ -6,6 +6,7 @@ import {VisualEditor} from './visual-editor.js';
 import {recognizePopupText} from './popup-ocr.js';
 import {PanelFocus} from './panel-focus.js';
 import {PanelAccess} from './panel-access.js';
+import {verifyPublicWaSender} from './public-wa-send.js';
 import {BaileysStore} from './baileys-store.js';
 import {galleryMetrics} from './gallery-metrics.js';
 import {toJid,describe} from './baileys.js';
@@ -149,6 +150,31 @@ export class WebPanel{
     else this.limit('user:'+session.actor,180);
     if(mutate&&req.headers['x-panel-csrf']!==session.csrf)return json(403,{error:'Recarga el panel para continuar.'});
    const url=new URL(req.url,'http://local');
+   if(route==='/api/panel/public-wa-system-number'&&(req.method==='GET'||mutate)){
+    if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
+    if(req.method==='GET'){
+     const configured=this.store.config().wa_public_sender_phone||'+17867707509';
+     const digits=String(configured).replace(/[\s()+-]/g,'');
+     const account=this.store.db.prepare(
+      'SELECT id,consent,confirmed,paused,status FROM accounts WHERE phone=?'
+     ).get(digits);
+     const connected=!!account?.consent&&!!account?.confirmed&&!account.paused&&
+      !['archived','revoked'].includes(account.status)&&!!this.accounts.live.get(account.id)?.ready;
+     return json(200,{phone:'+'+digits,connected});
+    }
+    const input=await readBody(req);
+    if(typeof input.phone!=='string'||input.phone.length>22)
+     return json(400,{error:'Escribe el nuevo número con el código internacional.'});
+    let account;
+    try{account=verifyPublicWaSender(this.store,input.phone);}
+    catch(error){return json(400,{error:error.message});}
+    if(account.paused||!this.accounts.live.get(account.id)?.ready)
+     return json(409,{error:'El nuevo número debe estar conectado y disponible antes de seleccionarlo para los envíos.'});
+    // Only change the existing sender preference. No sessions, accounts,
+    // pending messages or other site settings are modified.
+    this.store.setConfig('wa_public_sender_phone','+'+account.phone);
+    return json(200,{ok:true,phone:'+'+account.phone});
+   }
    if(route==='/api/panel/public-wa-users'&&req.method==='GET'){
     if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
     const db=this.store.db,associated=this.telegram.associatedUsers;
