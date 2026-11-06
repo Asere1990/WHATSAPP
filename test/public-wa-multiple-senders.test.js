@@ -169,6 +169,7 @@ test('admin removes only a secondary system sender; existing account, history an
  const headers={Cookie:'wa_panel='+admin.secret,Origin:'https://securitywhat.app','X-Panel-CSRF':admin.csrf};
  const remove=(phone,h=headers)=>fetch(url,{method:'POST',headers:h,body:JSON.stringify({phone})});
  const before=ctx.store.config().wa_public_sender_numbers;
+ ctx.flow.sender; // Initialize the existing send-history table without sending a message.
  const old=ctx.store.db.prepare('INSERT INTO wa_public_message_sends(actor,code,phone,source,created,status) VALUES(?,?,?,?,?,?)')
   .run('123456789','enlace-anterior','12025550188',ctx.second.id,Date.now()-86400000,'sent');
  assert.equal((await remove('+12025550199',{Cookie:'wa_panel='+operator.secret,Origin:'https://securitywhat.app','X-Panel-CSRF':operator.csrf})).status,403);
