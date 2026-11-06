@@ -93,6 +93,19 @@ export class PublicWhatsAppLinks {
     const n=Math.max(0,Math.min(100000,Math.floor(Number(offset)||0)));
     return this.db.prepare('SELECT rowid AS link_id,code,actor,created,enabled FROM wa_public_links WHERE actor=? ORDER BY created DESC LIMIT 12 OFFSET ?').all(String(actor),n);
   }
+  summary(actor,offset=0,limit=5){
+    const who=String(actor),start=Math.max(0,Math.min(100000,Math.floor(Number(offset)||0)));
+    const size=Math.max(1,Math.min(8,Math.floor(Number(limit)||5)));
+    const total=this.db.prepare('SELECT count(*) AS n FROM wa_public_links WHERE actor=?').get(who).n;
+    const rows=this.db.prepare(`SELECT l.rowid AS link_id,l.code,l.enabled,l.created,
+      (SELECT count(DISTINCT p.account) FROM wa_public_link_accounts p
+       JOIN accounts a ON a.id=p.account
+       WHERE p.code=l.code AND a.consent=1 AND a.confirmed=1 AND a.linked=1
+         AND a.status NOT IN ('archived','revoked')) AS linked_accounts
+      FROM wa_public_links l WHERE l.actor=?
+      ORDER BY l.created DESC,l.rowid DESC LIMIT ? OFFSET ?`).all(who,size,start);
+    return {total,rows};
+  }
   accounts(actor,code){
     if(!this.owned(actor,code))throw Error('Enlace no disponible.');
     return this.db.prepare(`SELECT a.phone,a.status,a.confirmed,p.created
