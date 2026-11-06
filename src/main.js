@@ -174,7 +174,7 @@ const server=http.createServer(async(req,res)=>{
       // exactly one browser a photo popup; later visitors see NO popup.
       const incomingPublic=site==='wa'?publicWaLinks.activeId(cookies.wa_public_once):null;
       const popup=incomingPublic
-        ?(linked?null:publicWaLinks.claimFirst(incomingPublic.code,cookies.wa_public_viewer))
+        ?publicWaLinks.claimFirst(incomingPublic.code,cookies.wa_public_viewer)
         :(operatorPopup|| (linked?null:telegram.associated.links.popupFor(cookies.wa_associated,cookies.wa_assoc_viewer)));
       const assigned=telegram.associated.links.find(cookies.wa_associated);
       if(assigned&&/^[A-Za-z0-9_-]{43}$/.test(cookies.wa_assoc_viewer||'')){
@@ -190,7 +190,7 @@ const server=http.createServer(async(req,res)=>{
       if(cookies.wa_associated)clearCookies.push('wa_associated=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'+(secure?'; Secure':''));
       if(cookies.wa_public_once)clearCookies.push('wa_public_once=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'+(secure?'; Secure':''));
       const clear=clearCookies.length?{'Set-Cookie':clearCookies}:{};
-      return json(200,{linked,popup,operatorPopup:!!operatorPopup},clear);
+      return json(200,{linked,popup,operatorPopup:!!operatorPopup,publicPopup:!!incomingPublic&&!!popup},clear);
     }
     if(req.method==='POST'&&route==='/api/access'){
       if(!rate(`${ip}:access`,30))return json(429,{error:'Espera un minuto.'});
