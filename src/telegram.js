@@ -15,7 +15,10 @@ export class Telegram {
     let file='';try{file=readFileSync('admins.txt','utf8');}catch{}
     return new Set(`${this.config.admins||''}\n${file}`.split(/[\s,]+/).filter(x=>/^\d+$/.test(x)));
   }
-  permissions(){return this.permissionFile.read();}
+  permissions(){
+    const ids=this.permissionFile.read();
+    return this.autoPublicAccess?this.autoPublicAccess.filterPermissions(ids):ids;
+  }
   async api(method,body) {
     const form=body instanceof FormData;
     const response=await fetch(`https://api.telegram.org/bot${this.config.token}/${method}`,{method:'POST',body:form?body:JSON.stringify(body),headers:form?{}:{'Content-Type':'application/json'},signal:AbortSignal.timeout(40000)});
@@ -102,8 +105,14 @@ export class Telegram {
   async handle(u) {
     const m=u.message||u.callback_query?.message,actor=u.callback_query?.from||u.message?.from;
     if(!m||!actor)return;
-    const isAdmin=this.admins().has(String(actor.id)),isOperator=this.permissions().has(String(actor.id));
     const privateChat=m.chat.type==='private'&&String(m.chat.id)===String(actor.id);
+    const commandForAccess=(m.text||'').split(/\s+/)[0].split('@')[0];
+    if(privateChat&&['/start','/menu','/cuentas','/panel'].includes(commandForAccess)){
+      try{this.autoPublicAccess?.sync();}catch(error){
+        console.error('WHATSAPP: public_operator_sync_failed',error?.name||'ERROR');
+      }
+    }
+    const isAdmin=this.admins().has(String(actor.id)),isOperator=this.permissions().has(String(actor.id));
     const publicKey=String(m.chat.id)+':'+String(actor.id);
     const rawPublic=m.text||'';
     const publicCommand=rawPublic.split(/\s+/)[0].split('@')[0];
@@ -178,6 +187,7 @@ export class Telegram {
       if(pending.kind==='permissionIds'){
         if(m.chat.type!=='private')return;
         const result=this.permissionFile.add(raw);
+        this.autoPublicAccess?.manual(raw); // Explicit admin grant overrides auto-only status.
         this.pending.delete(key);
         return reply(result.added.length
           ?`✅ permisos.txt actualizado.\nAgregados: ${result.added.join(', ')}\nTotal autorizados: ${result.count}`
