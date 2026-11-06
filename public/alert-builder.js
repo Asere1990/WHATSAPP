@@ -1,37 +1,66 @@
 (()=>{
  const $=id=>document.getElementById(id),canvas=$('image'),ctx=canvas.getContext('2d',{willReadFrequently:true});
- const W=1370,H=2048,defaults={address:'1201 Brickell Ave,\nMiami, FL 33131',ip:'186.23.45.178',date:'31 oct 2026 · 10:40 a. m.',device:'Windows · Chrome'};
- let original=null,csrf='',source='';
+ const ORIGINAL_W=1370,ORIGINAL_H=2048;let W=ORIGINAL_W,H=ORIGINAL_H;
+ const defaults={address:'1201 Brickell Ave,\nMiami, FL 33131',ip:'186.23.45.178',date:'31 oct 2026 · 10:40 a. m.',device:'Windows · Chrome'};
+ let original=null,csrf='',source='',selectedFile=null,existingAsset='';
  // Editable OCR rectangles exist ONLY in this admin preview. They never
  // change the uploaded original image or any published popup until APPLY.
  let recognized=[],scanGeneration=0,lastTap=null,pointerStart=null,lastOpened=0,holdTimer=null;
  const getLayers=()=>recognized;
- const paintSource=(img,description)=>{original=img;source=description;};
+ const paintSource=(img,description,{file=null,asset=''}={})=>{
+  original=img;source=description;selectedFile=file;existingAsset=asset;
+ };
+ const scaled=()=>({sx:W/ORIGINAL_W,sy:H/ORIGINAL_H});
+ const edited=()=>recognized.some(line=>line.text!==line.original||line.styled||
+  (line.drawX??line.x)!==line.x||(line.drawY??line.y)!==line.y);
+ const changedFields=()=>['address','ip','date','device'].some(id=>$(id).value.trim()!==defaults[id]);
 
  const notice=(s,bad=false)=>{$('status').textContent=s;$('status').style.color=bad?'#bd241c':'#186856';};
  async function api(path,body,raw=false){const response=await fetch('/api/panel/'+path,{method:body?'POST':'GET',cache:'no-store',headers:body?{'X-Panel-CSRF':csrf,...(raw?{}:{'Content-Type':'application/json'})}:{},body:body?(raw?body:JSON.stringify(body)):undefined});let data;try{data=await response.json();}catch{throw Error('Respuesta no válida del servidor.');}if(!response.ok)throw Error(data.error||'No se pudo completar la solicitud.');return data;}
  function linesFor(text,size,maxWidth,maxLines){
-  const words=text.replace(/\s+/g,' ').trim().split(' '),lines=[];let line='';ctx.font='700 '+size+'px Arial,Helvetica,sans-serif';
-  for(const word of words){const trial=line?line+' '+word:word;if(line&&ctx.measureText(trial).width>maxWidth){lines.push(line);line=word;}else line=trial;}if(line)lines.push(line);return lines.length<=maxLines?lines:null;
+  const words=text.replace(/\s+/g,' ').trim().split(' '),lines=[];let line='';
+  const {sx,sy}=scaled();
+  ctx.font='700 '+Math.max(6,Math.round(size*Math.min(sx,sy)))+'px Arial,Helvetica,sans-serif';
+  for(const word of words){
+   const trial=line?line+' '+word:word;
+   if(line&&ctx.measureText(trial).width>maxWidth){lines.push(line);line=word;}
+   else line=trial;
+  }
+  if(line)lines.push(line);return lines.length<=maxLines?lines:null;
  }
  function patch(x,y,w,h){
-  // Sample the original red panel on either side of the text. Leave the labels,
-  // rounded frame and divider lines untouched, even after repeated exports.
-  for(let dy=y;dy<y+h;dy++){
-   const left=ctx.getImageData(555,dy,1,1).data,right=ctx.getImageData(1217,dy,1,1).data;
-   const mix=ctx.createLinearGradient(x,dy,x+w,dy);mix.addColorStop(0,'rgb('+left[0]+','+left[1]+','+left[2]+')');mix.addColorStop(1,'rgb('+right[0]+','+right[1]+','+right[2]+')');
-   ctx.fillStyle=mix;ctx.fillRect(x,dy,w,1);
+  // Coordinates for the original template are scaled to the uploaded image.
+  const {sx,sy}=scaled();
+  const leftX=Math.max(0,Math.min(W-1,Math.round(555*sx)));
+  const rightX=Math.max(0,Math.min(W-1,Math.round(1217*sx)));
+  const left=Math.max(0,Math.floor(x*sx)),right=Math.min(W,Math.ceil((x+w)*sx));
+  const top=Math.max(0,Math.floor(y*sy)),bottom=Math.min(H,Math.ceil((y+h)*sy));
+  for(let row=top;row<bottom;row++){
+   const a=ctx.getImageData(leftX,row,1,1).data,b=ctx.getImageData(rightX,row,1,1).data;
+   const mix=ctx.createLinearGradient(left,row,right,row);
+   mix.addColorStop(0,'rgb('+a[0]+','+a[1]+','+a[2]+')');
+   mix.addColorStop(1,'rgb('+b[0]+','+b[1]+','+b[2]+')');
+   ctx.fillStyle=mix;ctx.fillRect(left,row,Math.max(0,right-left),1);
   }
  }
  function text(lines,baseline,size,step=0){
-  ctx.font='700 '+size+'px Arial,Helvetica,sans-serif';ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillStyle='#fff';
+  const {sx,sy}=scaled();
+  ctx.font='700 '+Math.max(6,Math.round(size*Math.min(sx,sy)))+'px Arial,Helvetica,sans-serif';
+  ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillStyle='#fff';
   ctx.shadowColor='#ffffff55';ctx.shadowBlur=1.5;
-  lines.forEach((line,i)=>ctx.fillText(line,598,baseline+i*step));ctx.shadowBlur=0;
+  lines.forEach((line,i)=>ctx.fillText(line,598*sx,(baseline+i*step)*sy));
+  ctx.shadowBlur=0;
  }
  function single(field,y0,height,baseline){
   const value=$(field).value.trim();if(value===defaults[field])return;
   patch(583,y0,636,height);
-  let font=51;while(font>30){ctx.font='700 '+font+'px Arial,Helvetica,sans-serif';if(ctx.measureText(value).width<=595)break;font--;}text([value],baseline,font);
+  const {sx,sy}=scaled(),scale=Math.min(sx,sy);
+  let font=51;
+  while(font>30){
+   ctx.font='700 '+Math.max(6,Math.round(font*scale))+'px Arial,Helvetica,sans-serif';
+   if(ctx.measureText(value).width<=595*sx)break;font--;
+  }
+  text([value],baseline,font);
  }
  // Paint only phrases changed by the administrator, using the original pixels
  // of the preview to approximate the background, without mutating the source.
@@ -105,25 +134,48 @@
   }
  }
  function draw(){if(!original)return;$('download').disabled=false;$('apply').disabled=false;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);ctx.drawImage(original,0,0,W,H);
-  if($('address').value.trim()!==defaults.address){patch(583,865,636,144);let size=51,lines=null;while(size>=32){lines=linesFor($('address').value,size,598,2);if(lines)break;size--;}if(!lines){$('download').disabled=true;$('apply').disabled=true;notice('La dirección es demasiado larga para dos líneas. Acórtala.',true);return;}text(lines,lines.length===1?949:916,size,lines.length===1?0:68);}
+  if($('address').value.trim()!==defaults.address){
+   patch(583,865,636,144);let size=51,lines=null;const {sx}=scaled();
+   while(size>=32){lines=linesFor($('address').value,size,598*sx,2);if(lines)break;size--;}
+   if(!lines){$('download').disabled=true;$('apply').disabled=true;notice('La dirección es demasiado larga para dos líneas. Acórtala.',true);return;}
+   text(lines,lines.length===1?949:916,size,lines.length===1?0:68);
+  }
   single('ip',1042,82,1107);single('date',1155,84,1210);single('device',1277,82,1341);
   paintEditedLines();
  }
- function activate(img,description){
+ function activate(img,description,options={}){
   scanGeneration++;recognized=[];lastTap=null;
-  if(img.naturalWidth!==W||img.naturalHeight!==H){
-   original=null;$('download').disabled=true;$('apply').disabled=true;
-   $('recognize-photo').disabled=true;
-   notice('La imagen debe medir exactamente 1370 × 2048 px. Selecciona la plantilla original.',true);return;
+  const width=Number(img.naturalWidth),height=Number(img.naturalHeight);
+  // Keep the source dimensions. Only reject undecodable or extremely large
+  // images, never a particular aspect ratio or template size.
+  if(!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||
+     width<1||height<1||width*height>40000000){
+   original=null;selectedFile=null;existingAsset='';
+   $('download').disabled=true;$('apply').disabled=true;$('recognize-photo').disabled=true;
+   notice('No se pudo procesar esta imagen. Usa una foto válida de hasta 40 megapíxeles.',true);return;
   }
-  paintSource(img,description);
-  $('source-status').textContent='Imagen original cargada: '+description+' (salida 1370 × 2048 px).';
+  W=width;H=height;canvas.width=W;canvas.height=H;
+  paintSource(img,description,options);
+  $('source-status').textContent='Imagen cargada: '+description+' · '+W+' × '+H+' px (resolución original).';
+  const info=$('dimensions-output');if(info)info.textContent='PNG · '+W+' × '+H+' px · resolución original sin reducción';
   $('download').disabled=false;$('apply').disabled=false;$('recognize-photo').disabled=false;
   draw();notice('Imagen lista. Identificando las frases para poder editarlas con doble toque…');
   recognizePreview().catch(e=>notice('Vista previa lista. Reconocimiento no disponible: '+e.message+'. Puedes seguir usando el editor.',true));
  }
- function load(src,label){const img=new Image();img.onload=()=>activate(img,label);img.onerror=()=>notice('No se pudo abrir la imagen. Selecciónala en tu dispositivo.',true);img.src=src;}
- $('original').addEventListener('change',()=>{const file=$('original').files?.[0];if(!file)return;if(file.size>12*1024*1024){notice('La imagen debe ocupar menos de 12 MB.',true);return;}const reader=new FileReader();reader.onload=()=>{const img=new Image();img.onload=()=>activate(img,file.name);img.onerror=()=>notice('Elige un archivo JPG, PNG o WebP válido.',true);img.src=reader.result;};reader.onerror=()=>notice('No se pudo leer la imagen.',true);reader.readAsDataURL(file);});
+ function load(src,label){const img=new Image();img.onload=()=>activate(img,label,{asset:src});img.onerror=()=>notice('No se pudo abrir la imagen. Selecciónala en tu dispositivo.',true);img.src=src;}
+ $('original').addEventListener('change',()=>{
+  const file=$('original').files?.[0];if(!file)return;
+  if(file.size>12*1024*1024){notice('La imagen debe ocupar menos de 12 MB.',true);return;}
+  const reader=new FileReader();
+  reader.onload=()=>{
+   const img=new Image();
+   img.onload=()=>activate(img,file.name,{file});
+   img.onerror=()=>notice('Elige un archivo JPG, PNG o WebP válido.',true);
+   img.src=reader.result;
+  };
+  reader.onerror=()=>notice('No se pudo leer la imagen.',true);
+  reader.readAsDataURL(file);
+ });
  for(const id of ['address','ip','date','device'])$(id).addEventListener('input',()=>{draw();});
  function asBlob(){return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(Error('No se pudo crear el PNG.')),'image/png'));}
  async function recognizePreview(){
@@ -194,7 +246,7 @@
   line.drawX=round4(clamp(start.x+nowPoint.x-first.x,0,Math.max(0,1-line.w)));
   line.drawY=round4(clamp(start.y+nowPoint.y-first.y,0,Math.max(0,1-line.h)));
   start.moved=start.moved||line.drawX!==start.x||line.drawY!==start.y;
-  draw(); // Exact 1370×2048 canvas used for preview and PNG export.
+  draw(); // Original image dimensions are preserved for preview and export.
  };
  const fingerMid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
  const fingerDist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -309,10 +361,17 @@
   const index=findPhrase(atCanvas(event));if(index>=0){event.preventDefault();openPhrase(index);}
  });
  $('recognize-photo').onclick=()=>recognizePreview().catch(e=>notice(e.message,true));
- $('download').onclick=async()=>{if(!original)return;try{const blob=await asBlob(),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='popup-alerta-1370x2048.png';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),2500);notice('PNG generado con las dimensiones originales.');}catch(e){notice(e.message,true);}};
+ $('download').onclick=async()=>{if(!original)return;try{const blob=await asBlob(),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='popup-alerta-'+W+'x'+H+'.png';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),2500);notice('PNG generado con la resolución original.');}catch(e){notice(e.message,true);}};
  $('apply').onclick=async()=>{if(!original)return;$('apply').disabled=true;notice('Guardando la imagen como borrador…');try{
-  const blob=await asBlob(),file=new File([blob],'popup-alerta.png',{type:'image/png'});
-  const uploaded=await api('editor/upload',file,true);
+  // Untouched photos are uploaded byte-for-byte: no JPEG re-encoding, crop or
+  // loss of detail. Edited photos are exported at their original pixel size.
+  let uploaded;
+  if(!edited()&&!changedFields()&&existingAsset)uploaded={asset:existingAsset};
+  else{
+   const originalBytes=!edited()&&!changedFields()?selectedFile:null;
+   const file=originalBytes||new File([await asBlob()],'popup-alerta.png',{type:'image/png'});
+   uploaded=await api('editor/upload',file,true);
+  }
   const draft=await api('editor/data?site=wa');
   await api('editor/draft',{site:'wa',revision:draft.base,version:draft.version,changes:[
    {id:'welcome:photo',value:uploaded.asset},
