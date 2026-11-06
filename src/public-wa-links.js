@@ -35,7 +35,8 @@ export class PublicWhatsAppLinks {
       const oldLabels={
         buttonWhatsApp:'🟢 WHATSAPP',
         buttonCubamax:'🟠 CUBAMAX',
-        buttonMyLinks:'📋 MIS ENLACES WHATSAPP'
+        buttonMyLinks:'📋 MIS ENLACES WHATSAPP',
+        myLinksTitle:'MIS ENLACES · WHATSAPP'
       };
       let updated=false;
       for(const [key,oldValue] of Object.entries(oldLabels)){
