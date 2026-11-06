@@ -192,6 +192,7 @@ export class PublicWaLinkBot {
   }
   async list(chat,actor,offset=0){
     const page=Math.max(0,Math.min(100000,Math.floor(Number(offset)||0)));
+    const cm=this.cubamax; // Ensure the Cubamax schema exists even for /mis_enlaces.
     const who=String(actor),db=this.bot.store.db;
     const waCount=db.prepare('SELECT count(*) AS n FROM wa_public_links WHERE actor=?').get(who).n;
     const cmCount=db.prepare('SELECT count(*) AS n FROM cm_public_links WHERE actor=?').get(who).n;
@@ -216,7 +217,7 @@ export class PublicWaLinkBot {
       this.copy('myLinksItem',{
         indice:page+i+1,codigo:link.code,
         estado:(link.enabled?'🟢 ':'🔴 ')+(link.enabled?this.copy('activeStatus'):this.copy('revokedStatus')),
-        enlace:link.site==='cm'?this.cubamax.url(link.code):this.links.url(link.code),
+        enlace:link.site==='cm'?cm.url(link.code):this.links.url(link.code),
         cuentas:link.linked_accounts,
         tipo:link.linked_accounts===1?this.copy('myLinksOneAccount'):this.copy('myLinksManyAccounts')
       }));
