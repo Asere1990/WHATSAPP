@@ -360,20 +360,23 @@ export class PublicWaLinkBot {
         return this.send(chat,this.copy('confirmExpired'));
       const numbers=this.sender.numberOptions();
       if(numbers.length>1){
-        this.bot.pending.set(key,{...pending,kind:'publicWaSenderChoice',senderNumbers:numbers});
+        this.bot.pending.set(key,{...pending,senderNumbers:numbers});
         return this.showSenderChoices(chat,numbers);
       }
       return this.deliverSelected(chat,key,actor,pending);
     }
     if(verb==='send-from'){
       const pending=this.bot.pending.get(key);
-      if(pending?.kind!=='publicWaSenderChoice'||pending.actor!==String(actor))
+      if(pending?.kind!=='publicWaConfirm'||!pending.senderNumbers||pending.actor!==String(actor))
         return this.send(chat,this.copy('confirmExpired'));
       if(!/^\d{1,2}$/.test(value)||!pending.senderNumbers?.[Number(value)])
         return this.showSenderChoices(chat,pending.senderNumbers||[]);
       const selected=pending.senderNumbers[Number(value)];
-      if(!this.sender.numberOptions().includes(selected))
-        return this.showSenderChoices(chat,this.sender.numberOptions(),'Ese número dejó de estar configurado.');
+      if(!this.sender.numberOptions().includes(selected)){
+        const latest=this.sender.numberOptions();
+        this.bot.pending.set(key,{...pending,senderNumbers:latest});
+        return this.showSenderChoices(chat,latest,'Ese número dejó de estar configurado.');
+      }
       let source;
       try{source=this.sender.source(selected).id;}
       catch(error){return this.showSenderChoices(chat,pending.senderNumbers,error.message);}
