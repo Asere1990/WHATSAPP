@@ -63,7 +63,26 @@
      try{const result=await json('public-wa-delete-user',{actor:u.actor});status.textContent='Se eliminaron '+result.removed+' enlaces; las cuentas de WhatsApp permanecen intactas.';await refresh();}
      catch(e){status.textContent=e.message;del.disabled=false;}
     };
-    actions.append(inspect,del);row.append(actions,details);list.append(row);
+    const ban=node('button',u.banned?'✅ DESBANEAR USUARIO':'⛔ BANEAR USUARIO');
+    ban.className=u.banned?'':'wa-public-danger';
+    if(u.admin){ban.textContent='ADMINISTRADOR · NO BANEABLE';ban.disabled=true;}
+    ban.onclick=async()=>{
+     if(u.admin)return;
+     const nextBanned=!u.banned;
+     const prompt=nextBanned
+      ?'¿Banear al Telegram ID '+u.actor+'? Se bloqueará su acceso y se revocarán sus enlaces públicos. Las cuentas de WhatsApp conectadas NO se desconectarán.'
+      :'¿Desbanear al Telegram ID '+u.actor+'? Podrá recuperar los permisos que conserve, pero sus enlaces seguirán revocados hasta que se reactiven.';
+     if(!confirm(prompt))return;
+     ban.disabled=true;
+     try{
+      await json('public-wa-ban-user',{actor:u.actor,banned:nextBanned});
+      await refresh();
+      status.textContent=nextBanned
+       ?'🚫 Usuario '+u.actor+' baneado; las cuentas vinculadas permanecen intactas.'
+       :'✅ Usuario '+u.actor+' desbaneado; sus enlaces permanecen en su estado actual.';
+     }catch(e){status.textContent=e.message;ban.disabled=false;}
+    };
+    actions.append(inspect,del,ban);row.append(actions,details);list.append(row);
    }
    if(!data.users.length)list.append(node('p','Todavía no hay enlaces públicos creados.'));
    status.textContent='Administración de enlaces públicos de WhatsApp. Eliminar enlaces no desconecta las cuentas.';
