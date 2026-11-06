@@ -27,6 +27,24 @@ export class PublicWhatsAppLinks {
       PRIMARY KEY(code,account)
     );
     CREATE INDEX IF NOT EXISTS wa_public_link_accounts_account ON wa_public_link_accounts(account);`);
+    // Actualizar SOLO los tres rótulos antiguos si quedaron publicados
+    // en el editor. No reemplazar textos personalizados por el propietario.
+    let existing={};
+    try{existing=JSON.parse(store.config().wa_public_link_texts||'{}');}catch{}
+    if(existing&&typeof existing==='object'&&!Array.isArray(existing)){
+      const oldLabels={
+        buttonWhatsApp:'🟢 WHATSAPP',
+        buttonCubamax:'🟠 CUBAMAX',
+        buttonMyLinks:'📋 MIS ENLACES WHATSAPP'
+      };
+      let updated=false;
+      for(const [key,oldValue] of Object.entries(oldLabels)){
+        if(existing[key]===oldValue){
+          existing[key]=publicWaCopyDefaults[key];updated=true;
+        }
+      }
+      if(updated)store.setConfig('wa_public_link_texts',JSON.stringify(existing));
+    }
   }
   texts(){
     let saved={};try{saved=JSON.parse(this.store.config().wa_public_link_texts||'{}');}catch{}
