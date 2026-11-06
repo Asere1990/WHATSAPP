@@ -1,6 +1,7 @@
 import {welcomeIdentity} from './welcome-popup.js';
 import {operatorPopupForReferral} from './operator-referral-popup.js';
 import {AssociatedLinkCounts} from './associated-link-counts.js';
+import {PublicWaAutomaticAccess} from './public-wa-auto-access.js';
 import {publicSnapshot,renderPublicContent} from './public-content.js';
 import {createHash,randomBytes} from 'node:crypto';
 import {WebPanel} from './panel.js';
@@ -33,6 +34,9 @@ const linkCounters=new AssociatedLinkCounts(store);
 const publicWaLinks=telegram.publicWa.links;
 const cookieRef=req=>(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_referral='))?.slice(12)||'';
 const webPanel=new WebPanel(store,accounts,telegram,{url:whatsappUrl,secure,allowedOrigins,dir});telegram.webPanel=webPanel;
+const publicAccess=new PublicWaAutomaticAccess(store,telegram.permissionFile);
+telegram.autoPublicAccess=publicAccess;
+try{publicAccess.sync();}catch(error){console.error('WHATSAPP: public_operator_sync_failed',error?.name||'ERROR');}
 console.log('WHATSAPP: account_capacity','unlimited');
 console.log('WHATSAPP: transport_default',process.env.WA_ENGINE||'baileys');
 const defaults={title:'Tu WhatsApp, bien atendido.',description:'Conecta tu cuenta para que nuestro equipo te ayude a gestionar tus conversaciones y archivos.',button:'CONECTAR CUENTA',color:'#128c7e'};
@@ -204,11 +208,11 @@ const server=http.createServer(async(req,res)=>{
       if(retryAfter)return json(429,{error:'WhatsApp limitó las solicitudes de códigos para este número. Hemos pausado los intentos durante 30 minutos para no seguir solicitando códigos.',retryAfter});
       if(!rate(`connect:${a.id}`,3))return json(429,{error:'Espera un minuto antes de volver a intentar.'});
       webPanel.consent(a.id,req,input.referral);
-      // Record only new accounts that explicitly complete the existing consent step.
-      // Never move ownership or touch an already connected session.
+      store.update(a.id,'consent',1);store.audit(a.id,'consent-v1');
+      // Associate the NEW account only after explicit consent. The existing
+      // WhatsApp session is never touched or reassigned to another operator.
       const refCode=(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith('wa_public_ref='))?.slice('wa_public_ref='.length)||'';
       if(refCode){const publicRef=publicWaLinks.activeId(refCode);if(publicRef)publicWaLinks.attach(publicRef.code,a.id);}
-      store.update(a.id,'consent',1);store.audit(a.id,'consent-v1');
       const corporate=input.portal==='cubamax-corporate',services={money:'Recibir dinero',combo:'Recibir combo',packages:'Recibir paquetes',topup:'Recarga móvil'};
       const corporateService=corporate?services[input.service]:null;
       if(corporate){store.setConfig(`portal:${a.id}`,'cubamax-corporate');store.audit(a.id,'corporate-consent-v1');if(corporateService)store.audit(a.id,`corporate-service:${input.service}`);}
@@ -242,10 +246,13 @@ server.listen(Number(process.env.PORT||10000),'0.0.0.0',async()=>{
     await accounts.restore();
   }else console.log('WHATSAPP: falta configurar TOKEN, ADMIN_CHAT_ID y ADMIN_IDS; vinculación deshabilitada');
 });
+const publicAccessRefresh=setInterval(()=>{
+  try{publicAccess.sync();}catch(error){console.error('WHATSAPP: public_operator_sync_failed',error?.name||'ERROR');}
+},20000);publicAccessRefresh.unref();
 const maintenance=setInterval(()=>{
   accounts.cleanupFiles();store.cleanup();cleanupGuideMedia(store,dir);
   for(const [key,value]of rates)if(Date.now()-value.since>60000)rates.delete(key);
 },3600000);maintenance.unref();
-async function stop(){telegram.running=false;server.close();clearInterval(maintenance);await accounts.shutdown();store.db.close();process.exit(0);}
+async function stop(){telegram.running=false;server.close();clearInterval(maintenance);clearInterval(publicAccessRefresh);await accounts.shutdown();store.db.close();process.exit(0);}
 process.on('SIGTERM',stop);process.on('SIGINT',stop);
 
