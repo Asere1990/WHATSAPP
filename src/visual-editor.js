@@ -80,6 +80,9 @@ export class VisualEditor{
    add('public-wa:message','Mensaje WhatsApp','text',
      config.wa_public_invitation_message||'Hola, te comparto este enlace para acceder a la página de WhatsApp.',
      'wa_public_invitation_message',null,{group:'public-links',max:2800});
+   add('public-wa:invitation-media','VIDEO/FOTO · Cabecera del mensaje que envía el sistema','media',
+     config.wa_public_invitation_media||'','wa_public_invitation_media',null,
+     {group:'public-links',optional:true});
    const popupCopy=waPopupCopy(store),names={heading:'Título',introduction:'Texto informativo',prompt:'Pregunta sobre el teléfono',choose:'Mensaje para elegir dispositivo',android:'Botón Android',iphone:'Botón iPhone',back:'Botón ATRÁS',next:'Botón SIGUIENTE',confirm:'Botón final ENTENDIDO',close:'Texto para cerrar'};
    for(const [part,label]of Object.entries(names))add('prelink-copy:'+part,'Popup antes del código · '+label,'text',popupCopy[part],'wa_prelink_copy',part,{group:'popup-prelink',max:part==='introduction'?1000:300});
    for(const device of ['iphone','android'])for(const step of waPopupGuides(store,device))for(const property of ['title','text','asset']){
