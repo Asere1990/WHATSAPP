@@ -45,7 +45,23 @@ export class WebPanel{
  role(actor){return this.access.role(String(actor));}
  referral(req){return this.access.referral(cookie(req,'wa_referral'));}
  consent(account,req,reference){const ref=typeof reference==='string'?reference:'';if(ref)return this.access.attach(account,ref);return null;}
- async telegramMenu(chat,actor){const rows=this.access.accounts(actor),connected=rows.filter(a=>this.accounts.live.get(a.id)?.ready).length;const auto=this.telegram.autoPublicAccess?.automatic(actor);const panelButton={text:'🖥 ABRIR PANEL WEB',callback_data:'op:panel',style:'primary'};return this.telegram.send(chat,`WHATSAPP · MI CUENTA\nCuentas vinculadas: ${rows.length}\nConectadas ahora: ${connected}`,{inline_keyboard:auto?(rows.length?[[panelButton]]:[]):[[{text:'🔗 GENERAR ENLACE WEB',callback_data:'op:referral',style:'success'}],[panelButton]]});}
+ async telegramMenu(chat,actor){
+  const rows=this.access.accounts(actor),connected=rows.filter(a=>this.accounts.live.get(a.id)?.ready).length;
+  const auto=this.telegram.autoPublicAccess?.automatic(actor);
+  const panelButton={text:'🖥 ABRIR PANEL WEB',callback_data:'op:panel',style:'primary'};
+  const original=[[{text:'🔗 GENERAR ENLACE WEB',callback_data:'op:referral',style:'success'}],[panelButton]];
+  let buttons=original;
+  if(auto){
+   // Reuse the user's ORIGINAL public-link menu; add the web panel on top.
+   // No account means neither automatic access nor the panel button.
+   const links=this.telegram.publicWa?.links.list(actor,0)||[];
+   const recent=links.find(link=>link.enabled);
+   buttons=rows.length&&this.telegram.autoPublicAccess?.eligible(actor)
+     ?this.telegram.publicWa.keyboard(recent?.code,String(actor)).inline_keyboard
+     :this.telegram.publicWa.keyboard(null,'').inline_keyboard;
+  }
+  return this.telegram.send(chat,`WHATSAPP · MI CUENTA\nCuentas vinculadas: ${rows.length}\nConectadas ahora: ${connected}`,{inline_keyboard:buttons});
+}
  async telegramAction(chat,actor,action){
   // Automatic recipients only obtain their own account panel. Existing
   // admins and manually authorized operators retain their full menu.
