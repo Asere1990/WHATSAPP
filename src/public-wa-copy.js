@@ -13,6 +13,7 @@ export const publicWaCopyCatalog=Object.freeze({
 
  // Instrucciones del chat y vista previa del nuevo envío.
  codeHelp:item('public-links-flow','Ayuda al escribir código','Puedes escribir, por ejemplo: miweb2026.\nUsa /cancelar para salir.'),
+ cancelHelp:item('public-links-flow','Ayuda para cancelar','/cancelar para salir.'),
  ownPhotoNotice:item('public-links-flow','Advertencia en vista previa de foto propia','Tu foto se utilizará sin modificar. Comprueba que fecha y hora sean correctas.'),
  countryPrompt:item('public-links-flow','Pregunta del país','🌎 ¿A qué país deseas enviar el enlace por WhatsApp?\n\nEscribe el nombre del país, por ejemplo: Cuba.\n\n/cancelar para salir.'),
  phonePrompt:item('public-links-flow','Pregunta del teléfono · {pais}','📱 País: {pais}\n\nEscribe el número de WhatsApp del destinatario.\nPuede incluir el código internacional o ser un número local de {pais}.\n\n/cancelar para salir.'),
