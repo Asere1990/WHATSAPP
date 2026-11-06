@@ -151,30 +151,55 @@ export class WebPanel{
    const url=new URL(req.url,'http://local');
    if(route==='/api/panel/public-wa-users'&&req.method==='GET'){
     if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
-    const associated=this.telegram.associatedUsers;
-    // Read BOTH checked-in and persistent permisos.txt through its existing
-    // reader. Never overwrite it or use filtered permissions(): banned users
-    // must remain visible so admins can restore them.
-    const permitted=this.telegram.permissionFile.read();
-    const usersById=new Map();
-    for(const user of this.store.db.prepare(
-      'SELECT actor,count(*) AS links,sum(enabled) AS active,max(created) AS latest FROM wa_public_links GROUP BY actor ORDER BY latest DESC').all())
-      usersById.set(String(user.actor),{...user,links:Number(user.links)||0,active:Number(user.active)||0});
-    for(const actor of permitted)
-      if(!usersById.has(actor))usersById.set(actor,{actor,links:0,active:0,latest:0});
-    // Keep banned users listed even when all their links were removed.
-    for(const {actor} of this.store.db.prepare(
-      'SELECT actor FROM wa_public_actor_profiles WHERE banned=1').all())
-      if(!usersById.has(actor))usersById.set(actor,{actor,links:0,active:0,latest:0});
-    const profiles=this.store.db.prepare(
-      'SELECT name,username FROM wa_public_actor_profiles WHERE actor=?');
-    const names=this.store.db.prepare('SELECT name FROM panel_people WHERE actor=?');
+    const db=this.store.db,associated=this.telegram.associatedUsers;
+    const permitted=this.telegram.permissionFile.read(),usersById=new Map();
+    const ensure=actor=>{
+     actor=String(actor);
+     if(!usersById.has(actor))usersById.set(actor,{actor,links:0,active:0,latest:0,sources:{}});
+     return usersById.get(actor);
+    };
+    const include=(rows,source,roleRequired=false)=>{
+     for(const item of rows){
+      const user=ensure(item.actor),links=Number(item.links)||0;
+      const active=roleRequired&&!this.role(user.actor)?0:Number(item.active)||0;
+      user.links+=links;user.active+=active;
+      user.latest=Math.max(user.latest,Number(item.latest)||0);
+      user.sources[source]={links,active};
+     }
+    };
+    // Read-only link inventory, attributed only to verified Telegram actors.
+    include(db.prepare('SELECT actor,count(*) links,coalesce(sum(enabled),0) active,max(created) latest FROM wa_public_links GROUP BY actor').all(),'wa');
+    include(db.prepare('SELECT actor,count(*) links,coalesce(sum(enabled),0) active,max(created) latest FROM cm_public_links GROUP BY actor').all(),'cm');
+    // Former /menu referral links retain their Telegram actor and site.
+    for(const item of db.prepare(`SELECT t.actor,coalesce(s.site,'cm') site,count(*) links,
+      coalesce(sum(CASE WHEN t.expires>? THEN 1 ELSE 0 END),0) active,max(t.expires) latest
+      FROM panel_tokens t LEFT JOIN panel_referral_sites s ON s.hash=t.hash
+      WHERE t.kind='referral' GROUP BY t.actor,coalesce(s.site,'cm')`).all(Date.now()))
+     include([item],item.site==='wa'?'legacyWa':'legacyCm',true);
+    include(db.prepare(`SELECT l.actor,count(*) links,
+      coalesce(sum(CASE WHEN p.published IS NOT NULL THEN 1 ELSE 0 END),0) active,
+      max(p.created) latest FROM studio_links l
+      LEFT JOIN studio_pages p ON p.id=l.page GROUP BY l.actor`).all(),'studio',true);
+    // An older associated link has no creator field. Attribute it only to
+    // a WhatsApp account with an explicit panel_owners Telegram association.
+    const hasAssociated=!!db.prepare(
+     "SELECT 1 FROM sqlite_master WHERE type='table' AND name='wa_associated_links'"
+    ).get();
+    if(hasAssociated)include(db.prepare(`SELECT o.actor,count(DISTINCT a.phone) links,
+      count(DISTINCT CASE WHEN a.active=1 THEN a.phone END) active,max(a.updated) latest
+      FROM wa_associated_links a JOIN accounts wa ON wa.phone=a.phone
+      JOIN panel_owners o ON o.account=wa.id GROUP BY o.actor`).all(),'associated');
+    // Keep every old permisos.txt operator and banned user in the directory.
+    for(const actor of permitted)ensure(actor);
+    for(const {actor} of db.prepare(
+     'SELECT actor FROM wa_public_actor_profiles WHERE banned=1').all())ensure(actor);
+    const profiles=db.prepare('SELECT name,username FROM wa_public_actor_profiles WHERE actor=?');
+    const names=db.prepare('SELECT name FROM panel_people WHERE actor=?');
     const admins=this.telegram.admins();
     const users=[...usersById.values()].map(user=>{
-      const profile=profiles.get(user.actor)||{};
-      const fallback=names.get(user.actor)?.name||'';
-      return {...user,name:profile.name||fallback,username:profile.username||'',
-        banned:associated.isBanned(user.actor),admin:admins.has(String(user.actor))};
+     const profile=profiles.get(user.actor)||{},fallback=names.get(user.actor)?.name||'';
+     return {...user,name:profile.name||fallback,username:profile.username||'',
+      banned:associated.isBanned(user.actor),admin:admins.has(user.actor)};
     });
     return json(200,{users});
    }
@@ -197,9 +222,41 @@ export class WebPanel{
     if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
     const actor=url.searchParams.get('actor');
     if(!/^\d{2,22}$/.test(actor||''))return json(400,{error:'Telegram ID inválido.'});
-    return json(200,{items:this.store.db.prepare(
-      'SELECT code,created,enabled,(SELECT count(*) FROM wa_public_link_accounts p WHERE p.code=l.code) linked_accounts FROM wa_public_links l WHERE actor=? ORDER BY created DESC LIMIT 300'
-    ).all(actor)});
+    const db=this.store.db,items=[],now=Date.now(),role=!!this.role(actor);
+    for(const link of db.prepare(`SELECT code,created,enabled,
+      (SELECT count(*) FROM wa_public_link_accounts p WHERE p.code=l.code) linked_accounts
+      FROM wa_public_links l WHERE actor=? ORDER BY created DESC LIMIT 300`).all(actor))
+     items.push({...link,site:'WhatsApp',url:'https://securitywhat.app/'+encodeURIComponent(link.code)});
+    for(const link of db.prepare(`SELECT code,created,enabled,
+      (SELECT count(*) FROM cm_public_link_accounts p WHERE p.code=l.code) linked_accounts
+      FROM cm_public_links l WHERE actor=? ORDER BY created DESC LIMIT 300`).all(actor))
+     items.push({...link,site:'Cubamax',url:'https://cubamaxcom.online/'+encodeURIComponent(link.code)});
+    for(const link of db.prepare(`SELECT coalesce(s.site,'cm') site,t.expires,sh.id short_id
+      FROM panel_tokens t
+      LEFT JOIN panel_referral_sites s ON s.hash=t.hash
+      LEFT JOIN panel_referral_short sh ON sh.hash=t.hash
+      WHERE t.actor=? AND t.kind='referral' ORDER BY t.expires DESC LIMIT 300`).all(actor)){
+     const wa=link.site==='wa',code=link.short_id==null?'Sin código corto':
+      String(link.short_id).padStart(wa?6:5,'0');
+     items.push({site:wa?'WhatsApp · vinculación anterior':'Cubamax · vinculación anterior',
+      code,enabled:role&&link.expires>now,linked_accounts:null,
+      url:link.short_id==null?'':(wa?'https://securitywhat.app/':'https://cubamaxcom.online/')+code});
+    }
+    for(const link of db.prepare(`SELECT l.page,l.token,p.name,p.published
+      FROM studio_links l LEFT JOIN studio_pages p ON p.id=l.page
+      WHERE l.actor=? LIMIT 300`).all(actor))
+     items.push({site:'Web personalizada',code:link.name||link.page,
+      enabled:role&&!!link.published,linked_accounts:null,
+      url:link.published?this.options.url+'/web/'+link.page+'/'+link.token:''});
+    const hasAssociated=!!db.prepare(
+     "SELECT 1 FROM sqlite_master WHERE type='table' AND name='wa_associated_links'"
+    ).get();
+    if(hasAssociated)for(const link of db.prepare(`SELECT DISTINCT a.phone,a.active
+      FROM wa_associated_links a JOIN accounts wa ON wa.phone=a.phone
+      JOIN panel_owners o ON o.account=wa.id WHERE o.actor=? LIMIT 300`).all(actor))
+     items.push({site:'WhatsApp · asociado a cuenta',code:'+'+link.phone,
+      enabled:!!link.active,linked_accounts:null,url:'https://securitywhat.app/'+link.phone});
+    return json(200,{items});
    }
    if(route==='/api/panel/public-wa-delete-user'&&mutate){
     if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
