@@ -90,13 +90,12 @@ export class PublicWhatsAppLinks {
   ownedRef(actor,ref){const row=String(ref).startsWith('~')?this.byId(String(ref).slice(1)):this.record(String(ref));return row?.actor===String(actor)?row:null;}
   active(code){const row=this.record(code);return row?.enabled?row:null;}
   owned(actor,code){const row=this.record(code);return row?.actor===String(actor)?row:null;}
-  create(actor,code,photo){
+  validateNewCode(actor,code){
     actor=String(actor);
     if(!/^\d{2,22}$/.test(actor))throw Error('Cuenta de Telegram no válida.');
     code=this.normalize(code);
-    if(!photoPattern.test(photo||''))throw Error('Primero debes configurar la foto del popup WhatsApp.');
     if(this.record(code))throw Error('Ese código ya existe. Elige otro.');
-    // No apropiarse de enlaces numéricos antiguos ni códigos de invitación.
+    // Existing numeric links are reserved; validate before showing the popup.
     if(/^\d+$/.test(code)){
       const existing=this.db.prepare('SELECT 1 FROM sqlite_master WHERE type=\'table\' AND name=\'wa_associated_links\'').get();
       if(existing&&this.db.prepare('SELECT 1 FROM wa_associated_links WHERE phone=?').get(code))throw Error('Ese código ya corresponde a un enlace existente. Elige otro.');
@@ -105,6 +104,14 @@ export class PublicWhatsAppLinks {
     }
     if(this.db.prepare('SELECT count(*) n FROM wa_public_links WHERE actor=? AND enabled=1').get(actor).n>=100)
       throw Error('Has alcanzado el máximo de 100 enlaces activos.');
+    return code;
+  }
+  create(actor,code,photo){
+    actor=String(actor);
+    if(!/^\d{2,22}$/.test(actor))throw Error('Cuenta de Telegram no válida.');
+    code=this.normalize(code);
+    if(!photoPattern.test(photo||''))throw Error('Primero debes configurar la foto del popup WhatsApp.');
+    this.validateNewCode(actor,code);
     this.db.prepare('INSERT INTO wa_public_links(code,actor,photo,created,enabled) VALUES(?,?,?,?,1)').run(code,actor,photo,Date.now());
     return this.record(code);
   }
