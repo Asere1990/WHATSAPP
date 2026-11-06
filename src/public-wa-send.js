@@ -49,9 +49,14 @@ export function normalizePublicWaSender(phone){
 }
 export function verifyPublicWaSender(store,phone){
  const digits=normalizePublicWaSender(phone);
- const row=store.db.prepare('SELECT id,phone,consent,confirmed,paused,status FROM accounts WHERE phone=?').get(digits);
- if(!row||!row.consent||!row.confirmed||['revoked','archived'].includes(row.status))
-  throw Error('Ese número todavía no está vinculado y autorizado en el sistema.');
+ const row=store.db.prepare('SELECT id,phone,consent,confirmed,linked,paused,status FROM accounts WHERE phone=?').get(digits);
+ if(!row)throw Error('El número REMITENTE no figura entre las cuentas de WhatsApp de este servicio.');
+ if(['revoked','archived'].includes(row.status)||!row.consent)
+  throw Error(row.linked||row.confirmed
+   ?'El número REMITENTE estuvo vinculado, pero su sesión fue cerrada o revocada. Debes volver a vincularlo para enviar.'
+   :'El número REMITENTE todavía no tiene una sesión autorizada en este servicio.');
+ if(!row.confirmed)
+  throw Error('El número REMITENTE está registrado, pero WhatsApp aún no confirmó la vinculación de su sesión.');
  return row;
 }
 // Existing configurations retain their original senders until the user edits

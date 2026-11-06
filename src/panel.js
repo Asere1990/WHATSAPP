@@ -150,6 +150,32 @@ export class WebPanel{
     else this.limit('user:'+session.actor,180);
     if(mutate&&req.headers['x-panel-csrf']!==session.csrf)return json(403,{error:'Recarga el panel para continuar.'});
    const url=new URL(req.url,'http://local');
+   if(route==='/api/panel/public-wa-system-number-reconnect'&&mutate){
+    if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
+    const input=await readBody(req);
+    if(typeof input.phone!=='string'||input.phone.length>22)
+      return json(400,{error:'Número emisor inválido.'});
+    let phone;
+    try{phone=normalizePublicWaSender(input.phone);}
+    catch(error){return json(400,{error:error.message});}
+    if(!publicWaSenderNumbers(this.store).includes(phone))
+      return json(404,{error:'Número no configurado como emisor del sistema.'});
+    const account=this.store.db.prepare(
+      'SELECT id,consent,confirmed,paused,status FROM accounts WHERE phone=?').get(phone);
+    if(!account)return json(404,{error:'Este número no figura en las cuentas WhatsApp del servicio.'});
+    if(!account.consent||!account.confirmed||['revoked','archived','needs_pairing','auth_failure'].includes(account.status))
+      return json(409,{error:'La sesión de WhatsApp necesita volver a vincularse; una sesión cerrada o revocada no puede reconectarse automáticamente.'});
+    if(account.paused)return json(409,{error:'La cuenta está pausada. Debes activarla antes de enviar.'});
+    const current=this.accounts.live.get(account.id);
+    if(current?.ready)return json(200,{ok:true,connected:true});
+    if(!current){
+      try{await this.accounts.start(account.id);}
+      catch(error){return json(409,{error:'No se pudo iniciar la reconexión: '+(error.message||'Revisa la cuenta.')});}
+    }
+    // Recovery is delegated to the existing session engine. No sent messages,
+    // account permissions or stored history are modified.
+    return json(200,{ok:true,connecting:true,connected:!!this.accounts.live.get(account.id)?.ready});
+   }
    if(route==='/api/panel/public-wa-system-number-remove'&&mutate){
     if(session.role!=='admin')return json(403,{error:'Solo administradores.'});
     const input=await readBody(req);
@@ -173,10 +199,20 @@ export class WebPanel{
       const primary=numbers[0]||'';
       return json(200,{numbers:numbers.map(phone=>{
         const account=this.store.db.prepare(
-          'SELECT id,consent,confirmed,paused,status FROM accounts WHERE phone=?').get(phone);
-        return {phone:'+'+phone,primary:phone===primary,
-          connected:!!account?.consent&&!!account?.confirmed&&!account.paused&&
-            !['revoked','archived'].includes(account.status)&&!!this.accounts.live.get(account.id)?.ready};
+          'SELECT id,consent,confirmed,linked,paused,status FROM accounts WHERE phone=?').get(phone);
+        const live=account?this.accounts.live.get(account.id):null;
+        const connected=!!account?.consent&&!!account?.confirmed&&!account.paused&&!!live?.ready;
+        const revoked=!!account&&(['revoked','archived'].includes(account.status)||!account.consent);
+        const state=!account?'No registrado en este servicio':
+          revoked?(account.linked||account.confirmed?'Sesión cerrada; requiere vinculación':'No autorizado aquí'):
+          account.paused?'Cuenta pausada':
+          connected?'Conectado':
+          ['needs_pairing','auth_failure'].includes(account.status)?'Requiere vinculación':
+          live?'Conectando / sincronizando':
+          account.confirmed?'Vinculado · Sin conexión':'Vinculación sin confirmar';
+        const canReconnect=!!account?.consent&&!!account.confirmed&&!account.paused&&!live&&
+          !['revoked','archived','needs_pairing','auth_failure'].includes(account.status);
+        return {phone:'+'+phone,primary:phone===primary,connected,state,canReconnect};
       })});
     }
     const input=await readBody(req);
