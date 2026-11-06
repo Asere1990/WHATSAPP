@@ -20,6 +20,7 @@ test('admin web list includes old permisos.txt operators with zero links, public
  bot.permissionFile.source=source;
  bot.permissionFile.add('334455667');
  bot.publicWa.links.create('445566778','enlace-antiguo','/portal-media/'+'a'.repeat(64)+'.png');
+ bot.publicWa.cubamax; // Main service initializes both public link stores before admin actions.
  bot.associatedUsers.remember({id:'445566778',first_name:'Marta',username:'marta_demo'});
  const accounts={dir,live:new Map()};
  const panel=new WebPanel(store,accounts,bot,{url:'http://test',secure:false,allowedOrigins:new Set(['http://test']),dir});
