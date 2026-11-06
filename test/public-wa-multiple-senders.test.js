@@ -314,9 +314,13 @@ test('removing the first sender preserves the second and does not restore the de
   'the earlier default must never be recreated automatically');
  assert.equal(ctx.store.account(ctx.first.id).consent,1);
  assert.equal(ctx.store.account(ctx.second.id).consent,1);
- const {actor:again,key:againKey}=await createPreview(ctx,'nuevo-sin-emisores');
+ // The already-created link can still be previewed, but no sender exists
+ // to fulfill a new delivery.
+ ctx.bot.pending.set(key,{kind:'publicWaConfirm',actor:String(actor),
+  code:'nuevo-tras-eliminar-primero',recipient:'12025550149',
+  country:'Estados Unidos'});
  const prior=ctx.sent.length;
- await ctx.flow.callback(again,againKey,again,'pwa:send-confirm');
+ await ctx.flow.callback(actor,key,actor,'pwa:send-confirm');
  assert.equal(ctx.sent.length,prior,'nothing can be sent with an empty sender list');
  assert.match(ctx.outputs.at(-1)[1],/No hay números emisores configurados/);
  // An explicitly re-added sender must be available again, without restoring
