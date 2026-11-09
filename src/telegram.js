@@ -9,6 +9,7 @@ import {AssociatedPopupBot} from './associated-popup-bot.js';
 import {OperatorPopupBot} from './operator-popup-bot.js';
 import {PublicWaLinkBot} from './public-wa-links-bot.js';
 import {PublicAssociatedUsers} from './public-associated-users.js';
+import {ensureTelegramBotOffset} from './telegram-bot-offset.js';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 export class Telegram {
   constructor(store,config) {this.store=store;this.config=config;this.permissionFile=new PermissionFile({dataDir:config.dataDir||process.env.DATA_DIR||'./data'});this.pending=new Map();this.running=false;this.offset=Number(store.config().telegram_offset||0);this.control=new Control(this);this.guideEditor=new GuideEditor(this);this.portalEditor=new PortalEditor(this);this.pageEditor=new PageEditor(this);this.systemMessages=new SystemMessages(this);this.associated=new AssociatedPopupBot(this);this.operatorPopup=new OperatorPopupBot(this);this.publicWa=new PublicWaLinkBot(this);}
@@ -288,6 +289,22 @@ export class Telegram {
   }
   async start() {
     this.running=true;this.systemMessages.resolve();
+    // Identify the bot before polling. A new TOKEN must never reuse another
+    // bot's stored Telegram update offset, or its early messages may be skipped.
+    while(this.running){
+      try{
+        const identity=await this.api('getMe',{});
+        if(!identity?.is_bot)throw Error('El TOKEN no corresponde a un bot de Telegram.');
+        const state=ensureTelegramBotOffset(this.store,identity.id);
+        this.offset=state.offset;
+        console.log('WHATSAPP: telegram_bot_ready',JSON.stringify({botId:String(identity.id),changed:state.changed}));
+        break;
+      }catch(error){
+        console.error('WHATSAPP: telegram_bot_identity_failed',error?.code||error?.name||'BOT_IDENTITY_ERROR');
+        if(this.running)await sleep(3000);
+      }
+    }
+    if(!this.running)return;
     try{await this.registerCommands();}catch{console.error('WHATSAPP: telegram_command_registration_failed');}
     while(this.running){
       try{
