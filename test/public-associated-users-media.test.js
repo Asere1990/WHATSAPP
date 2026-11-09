@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {mkdtempSync,mkdirSync,writeFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,rmSync,readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {Store} from '../src/store.js';
@@ -10,6 +10,10 @@ import {PublicCubamaxLinks} from '../src/public-cubamax-links.js';
 import {PublicAssociatedUsers} from '../src/public-associated-users.js';
 import {PublicWaSender} from '../src/public-wa-send.js';
 import {VisualEditor} from '../src/visual-editor.js';
+
+const systemAdminActor=readFileSync('admins.txt','utf8').split(/\r?\n/)
+ .map(line=>line.split('#')[0].split(',')[0].trim())
+ .find(id=>/^\d+$/.test(id));
 
 function setup(t){
  const dir=mkdtempSync(path.join(tmpdir(),'wa-public-users-')),store=new Store(dir);
@@ -58,7 +62,7 @@ test('admins see real user profile and both portals; revoke, reactivate and ban 
  assert.equal(store.account(account.id).status,'connected');
 });
 test('public system WhatsApp message attaches an editor-uploaded MP4 as header with link caption',async t=>{
- const {store,wa,dir}=setup(t),actor='12345',photo='/portal-media/'+'b'.repeat(64)+'.png';
+ const {store,wa,dir}=setup(t),actor=systemAdminActor,photo='/portal-media/'+'b'.repeat(64)+'.png';
  wa.create(actor,'invitacion-demo',photo);
  const system=store.invite('17867707509','Sistema').account;
  store.update(system.id,'consent',1);store.update(system.id,'status','connected');

@@ -12,6 +12,10 @@ import {WebPanel} from '../src/panel.js';
 import {PublicWaLinkBot} from '../src/public-wa-links-bot.js';
 import {publicWaSenderNumbers} from '../src/public-wa-send.js';
 
+const systemAdminActor=readFileSync('admins.txt','utf8').split(/\r?\n/)
+ .map(line=>line.split('#')[0].split(',')[0].trim())
+ .find(id=>/^\d+$/.test(id));
+
 function setup(t){
  const dir=mkdtempSync(path.join(tmpdir(),'wa-multi-sender-'));
  const store=new Store(dir),sent=[];
@@ -34,7 +38,7 @@ function setup(t){
 function confExtra(ctx){ctx.store.setConfig('wa_public_sender_numbers',JSON.stringify([ctx.second.phone]));}
 async function createPreview(ctx,code='trabajo-nuevo'){
  const {bot,flow,outputs}=ctx;
- const actor='123456789',key=actor+':'+actor;
+ const actor=systemAdminActor,key=actor+':'+actor;
  const photo='/portal-media/'+'a'.repeat(64)+'.png';
  const link=flow.links.create(actor,'enlace-anterior',photo);
  ctx.store.setConfig('wa_public_link_popup_photo',photo);

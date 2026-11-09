@@ -47,6 +47,13 @@ export function normalizePublicWaSender(phone){
  if(!/^[1-9]\d{7,14}$/.test(raw))throw Error('Escribe un número vinculado en formato +17867707509.');
  return raw;
 }
+// Only Telegram IDs listed in admins.txt may use the system sender.
+export function publicWaSystemSendAllowed(actor){
+ const id=String(actor||'');
+ if(!/^\d+$/.test(id))return false;
+ let contents='';try{contents=readFileSync('admins.txt','utf8');}catch{return false;}
+ return contents.split(/\r?\n/).some(line=>line.split('#')[0].split(',')[0].trim()===id);
+}
 export function verifyPublicWaSender(store,phone){
  const digits=normalizePublicWaSender(phone);
  const row=store.db.prepare('SELECT id,phone,consent,confirmed,linked,paused,status FROM accounts WHERE phone=?').get(digits);
@@ -132,6 +139,8 @@ export class PublicWaSender {
  }
  async send({actor,code,phone,source}){
   actor=String(actor);
+  if(!publicWaSystemSendAllowed(actor))
+   throw Error('Solo los administradores de admins.txt pueden enviar desde números del sistema.');
   const link=this.links.owned(actor,code);
   if(!link?.enabled)throw Error('El enlace fue revocado o eliminado. No se envió ningún mensaje.');
   // The selected sender must still belong to the system's configured list.

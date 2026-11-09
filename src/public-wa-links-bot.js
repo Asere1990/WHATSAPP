@@ -3,7 +3,7 @@ import {PublicCubamaxLinks} from './public-cubamax-links.js';
 import {publicPopupPhoto} from './public-wa-photo.js';
 import {sendEditorImage} from './editor-image.js';
 import {savePageImage} from './page-editor.js';
-import {PublicWaSender,publicWaCountry,publicWaDestination} from './public-wa-send.js';
+import {PublicWaSender,publicWaCountry,publicWaDestination,publicWaSystemSendAllowed} from './public-wa-send.js';
 import {renderPublicWaCopy} from './public-wa-copy.js';
 
 // Public code/link management is isolated from WhatsApp/Meta sessions.
@@ -28,6 +28,10 @@ export class PublicWaLinkBot {
     return this.bot.send(chat,text,this.styleKeyboard(markup));
   }
   key(chat,actor){return String(chat)+':'+String(actor);}
+  systemSendDenied(chat,key,actor){
+    this.bot.pending.delete(key);
+    return this.send(chat,'Solo los administradores de admins.txt pueden enviar desde números del sistema. Comparte tu enlace desde tu propio WhatsApp.',this.keyboard(null,String(actor)));
+  }
   async start(chat,key){
     this.bot.pending.delete(key);
     const t=this.links.texts(),actor=String(key).split(':').at(-1);
@@ -49,6 +53,8 @@ export class PublicWaLinkBot {
     ]});
   }
   async askCode(chat,key,site='wa',sendFirst=false){
+    if(sendFirst&&!publicWaSystemSendAllowed(key.split(':').at(-1)))
+      return this.systemSendDenied(chat,key,key.split(':').at(-1));
     if(site==='cm'){
       this.bot.pending.set(key,{kind:'publicCmCode',started:Date.now()});
       return this.send(chat,this.copy('cubamaxCodePrompt')+'\n\n'+this.copy('cubamaxCodeHelp'));
@@ -63,7 +69,8 @@ export class PublicWaLinkBot {
     return this.styleKeyboard({inline_keyboard:[
       ...(panelEnabled?[[{text:this.button('buttonOwnPanel'),callback_data:'pwa:panel'}]]:[]),
       [{text:this.button('buttonViewLinks'),callback_data:'pwa:list:0'}],
-      ...(code?[[{text:this.button('buttonSendLink'),callback_data:'pwa:send:'+ref}],
+      ...(code?[
+        ...(publicWaSystemSendAllowed(actor)?[[{text:this.button('buttonSendLink'),callback_data:'pwa:send:'+ref}]]:[]),
         [{text:this.button('buttonAssociatedAccounts'),callback_data:'pwa:accounts:'+ref}],
         [{text:this.button('buttonRevoke'),callback_data:'pwa:revoke:'+ref}],
         [{text:this.button('buttonDelete'),callback_data:'pwa:delete:'+ref}]]:[]),
@@ -114,10 +121,11 @@ export class PublicWaLinkBot {
     await this.send(chat,this.copy('delivered')+'\n\n'+this.links.url(row.code)+
       '\n\n'+this.copy('firstOnly'),this.keyboard(row.code));
     // El enlace ya existe. El nuevo flujo de envío NO altera su contenido ni las cuentas.
-    return this.askCountry(chat,key,actor,row.code);
+    if(publicWaSystemSendAllowed(actor))return this.askCountry(chat,key,actor,row.code);
   }
 
   async askCountry(chat,key,actor,code){
+    if(!publicWaSystemSendAllowed(actor))return this.systemSendDenied(chat,key,actor);
     const row=this.links.owned(actor,code);
     if(!row?.enabled)return this.send(chat,this.copy('inactiveLink'));
     this.bot.pending.set(key,{kind:'publicWaCountry',code,actor:String(actor)});
@@ -199,6 +207,10 @@ export class PublicWaLinkBot {
   }
   async input(chat,key,actor,m){
     const pending=this.bot.pending.get(key);
+    if(!publicWaSystemSendAllowed(actor)&&
+      (pending?.sendFirst||pending?.sendContext||
+       ['publicWaCountry','publicWaPhone','publicWaConfirm'].includes(pending?.kind)))
+      return this.systemSendDenied(chat,key,actor);
     if(pending?.kind==='publicCmCode')return this.inputCubamax(chat,key,actor,m);
     if(pending?.kind==='publicWaCode'&&pending.sendFirst){
       const raw=m.text?.trim()||'';
@@ -326,6 +338,7 @@ export class PublicWaLinkBot {
       });
   }
   async deliverSelected(chat,key,actor,pending,selectedSource=null){
+    if(!publicWaSystemSendAllowed(actor))return this.systemSendDenied(chat,key,actor);
     this.bot.pending.delete(key); // Un toque = un solo intento.
     try{
       const source=selectedSource||pending.source||
@@ -343,6 +356,8 @@ export class PublicWaLinkBot {
   }
   async callback(chat,key,actor,data){
     const action=data.slice(4),parts=action.split(':'),verb=parts[0],value=parts.slice(1).join(':');
+    if(['send','send-confirm','send-from'].includes(verb)&&!publicWaSystemSendAllowed(actor))
+      return this.systemSendDenied(chat,key,actor);
     if(verb==='menu')return this.start(chat,key);
     if(verb==='panel'){
       if(!this.bot.autoPublicAccess?.eligible(actor)||!this.bot.webPanel?.role(actor))

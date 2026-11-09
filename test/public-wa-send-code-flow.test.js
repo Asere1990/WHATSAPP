@@ -1,11 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync} from 'node:fs';
+import {mkdtempSync,rmSync,readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {Store} from '../src/store.js';
 import {PublicWaLinkBot} from '../src/public-wa-links-bot.js';
-import {PublicWaSender} from '../src/public-wa-send.js';
+import {PublicWaSender,publicWaSystemSendAllowed} from '../src/public-wa-send.js';
+
+const systemAdminActor=readFileSync('admins.txt','utf8').split(/\r?\n/)
+ .map(line=>line.split('#')[0].split(',')[0].trim())
+ .find(id=>/^\d+$/.test(id));
 
 function setup(t){
  const dir=mkdtempSync(path.join(tmpdir(),'wa-send-fresh-code-'));
@@ -26,7 +30,7 @@ function setup(t){
 
 test('ENVIAR POR WHATSAPP requests a fresh code, country and phone before OCR popup preview and sends that exact URL',async t=>{
  const {store,bot,flow,events,outgoing}=setup(t);
- const actor='123456789',chat=actor,key=actor+':'+actor;
+ const actor=systemAdminActor,chat=actor,key=actor+':'+actor;
  const oldPhoto='/portal-media/'+'a'.repeat(64)+'.png';
  const newPhoto='/portal-media/'+'b'.repeat(64)+'.png';
  const previous=flow.links.create(actor,'enlace-predeterminado',oldPhoto);
@@ -96,7 +100,7 @@ test('the sender drops only an embedded old WhatsApp URL; all other editor text 
 
 test('a numeric code already used by a legacy WhatsApp link is rejected before country, phone or popup',async t=>{
  const {store,bot,flow,events}=setup(t);
- const actor='123456789',key=actor+':'+actor;
+ const actor=systemAdminActor,key=actor+':'+actor;
  const photo='/portal-media/'+'c'.repeat(64)+'.png';
  const previous=flow.links.create(actor,'anterior',photo);
  store.db.exec('CREATE TABLE IF NOT EXISTS wa_associated_links(phone TEXT PRIMARY KEY)');
@@ -117,7 +121,7 @@ test('a numeric code already used by a legacy WhatsApp link is rejected before c
 
 test('a numeric code claimed after entry but before popup cannot leave a preview without continuation',async t=>{
  const {store,bot,flow,events}=setup(t);
- const actor='123456789',key=actor+':'+actor;
+ const actor=systemAdminActor,key=actor+':'+actor;
  const photo='/portal-media/'+'d'.repeat(64)+'.png';
  const previous=flow.links.create(actor,'anterior',photo);
  store.setConfig('wa_public_link_popup_photo',photo);
@@ -141,7 +145,7 @@ test('a numeric code claimed after entry but before popup cannot leave a preview
 
 test('an unlinked WhatsApp recipient reaches the popup and send confirmation without customer-service authorization',async t=>{
  const {store,bot,flow,events,outgoing}=setup(t);
- const actor='123456789',key=actor+':'+actor,chat=actor;
+ const actor=systemAdminActor,key=actor+':'+actor,chat=actor;
  const photo='/portal-media/'+'c'.repeat(64)+'.png';
  const previous=flow.links.create(actor,'anterior-enlace',photo);
  store.setConfig('wa_public_link_popup_photo',photo);
@@ -167,4 +171,30 @@ test('an unlinked WhatsApp recipient reaches the popup and send confirmation wit
  assert.equal(outgoing.length,0,'the system must not pretend an offline sender delivered the message');
  assert.match(events.at(-1).args[1],/REMITENTE/);
  assert.match(events.at(-1).args[1],/DESTINATARIO no necesita estar vinculado/);
+});
+
+test('unlisted users can create links but cannot send from system numbers, including old callbacks',async t=>{
+ const {store,bot,flow,events,outgoing}=setup(t);
+ const actor=['1122334455','2233445566','3344556677'].find(id=>!publicWaSystemSendAllowed(id));
+ assert.ok(actor);
+ const key=actor+':'+actor,photo='/portal-media/'+'e'.repeat(64)+'.png';
+ const link=flow.links.create(actor,'enlace-propio',photo);
+ const buttons=flow.keyboard(link.code).inline_keyboard.flat().map(button=>button.callback_data);
+ assert.equal(buttons.some(data=>data?.startsWith('pwa:send:')),false);
+ assert.ok(buttons.some(data=>data?.startsWith('pwa:accounts:')));
+ await flow.callback(actor,key,actor,'pwa:whatsapp');
+ assert.equal(bot.pending.get(key).kind,'publicWaCode','creating own links stays available');
+ await flow.callback(actor,key,actor,'pwa:send:~'+link.link_id);
+ assert.equal(bot.pending.has(key),false,'old sending buttons cannot enter the flow');
+ assert.match(events.at(-1).args[1],/Solo los administradores/);
+ bot.pending.set(key,{kind:'publicWaPhone',code:link.code,actor,country:{iso:'US',name:'Estados Unidos'}});
+ await flow.input(actor,key,actor,{text:'2025550147'});
+ assert.equal(bot.pending.has(key),false,'a previous send flow cannot be continued');
+ bot.pending.set(key,{kind:'publicWaConfirm',code:link.code,actor,recipient:'12025550147'});
+ await flow.callback(actor,key,actor,'pwa:send-confirm');
+ assert.equal(bot.pending.has(key),false);
+ const source=store.db.prepare('SELECT id FROM accounts WHERE phone=?').get('17867707509').id;
+ await assert.rejects(()=>flow.sender.send({actor,code:link.code,phone:'12025550147',source}),/administradores/);
+ assert.equal(outgoing.length,0);
+ assert.equal(flow.links.record(link.code).enabled,1,'own link remains active');
 });
