@@ -18,6 +18,12 @@
   addSave=document.getElementById('wa-system-number-add-save'),
   addCancel=document.getElementById('wa-system-number-add-cancel'),
   addStatus=document.getElementById('wa-system-number-add-status');
+ const menuToggle=document.getElementById('accounts-tools-toggle'),menu=document.getElementById('accounts-tools');
+ const permissionButton=document.getElementById('wa-permission-users-open'),
+  permissionDialog=document.getElementById('wa-permission-users-dialog'),
+  permissionClose=document.getElementById('wa-permission-users-close'),
+  permissionList=document.getElementById('wa-permission-users-list'),
+  permissionStatus=document.getElementById('wa-permission-users-status');
  let csrf='',admin=false,loading=false;
  const node=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=String(text);return e;};
  async function json(path,body){
@@ -28,7 +34,7 @@
  async function check(){
   if(admin)return;try{
    const info=await json('me');
-   if(info.role==='admin'){csrf=info.csrf;admin=true;button.hidden=false;if(changeNumberButton)changeNumberButton.hidden=false;if(addButton)addButton.hidden=false;}
+   if(info.role==='admin'){csrf=info.csrf;admin=true;button.hidden=false;if(changeNumberButton)changeNumberButton.hidden=false;if(addButton)addButton.hidden=false;if(permissionButton)permissionButton.hidden=false;}
   }catch{}
  }
  async function showLinks(actor,place){
@@ -117,6 +123,73 @@
    status.textContent='Enlaces atribuibles a cada Telegram ID. ELIMINAR TODO conserva su alcance original: solo enlaces públicos nuevos de WhatsApp.';
   }catch(e){status.textContent=e.message;}
   finally{loading=false;}
+ }
+
+ function setMenu(open){
+  if(!menu||!menuToggle)return;
+  menu.hidden=!open;menuToggle.setAttribute('aria-expanded',String(open));
+ }
+ if(menu&&menuToggle){
+  menuToggle.onclick=()=>setMenu(menu.hidden);
+  menu.addEventListener('click',e=>{if(e.target.closest?.('a,button'))setMenu(false);});
+  document.addEventListener?.('click',e=>{if(!menu.hidden&&!menu.contains(e.target)&&e.target!==menuToggle)setMenu(false);});
+  document.addEventListener?.('keydown',e=>{if(e.key==='Escape')setMenu(false);});
+ }
+ function userChatUrl(actor,username){
+  if(/^[A-Za-z0-9_]{5,32}$/.test(username||''))return 'https://t.me/'+username;
+  if(/^[1-9][0-9]{4,19}$/.test(String(actor||'')))return 'tg://user?id='+actor;
+  return '';
+ }
+ function userDate(value){
+  const n=Number(value);
+  return Number.isFinite(n)&&n>0?new Date(n).toLocaleString('es',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'Fecha no registrada';
+ }
+ async function loadPermissionUsers(){
+  if(!permissionList||!permissionStatus)return;
+  permissionStatus.textContent='Consultando permisos.txt…';permissionList.replaceChildren();
+  try{
+   const data=await json('public-wa-users');
+   const users=data.users.filter(u=>u.permitted).sort((a,b)=>
+    Number(b.linked_accounts||0)-Number(a.linked_accounts||0)||
+    String(a.name||a.actor).localeCompare(String(b.name||b.actor),'es'));
+   permissionStatus.textContent=users.length+' usuarios de permisos.txt. Las fechas antiguas indican la primera actividad disponible, no necesariamente el día exacto de alta.';
+   for(const u of users){
+    const actor=String(u.actor||''),name=String(u.name||'').trim()||'Nombre no disponible';
+    const username=/^[A-Za-z0-9_]{5,32}$/.test(u.username||'')?u.username:'';
+    const url=userChatUrl(actor,username);
+    const row=node('article');row.className='wa-permission-user';
+    const top=node('div');top.className='wa-permission-user-head';
+    const identity=node('div');identity.className='wa-permission-identity';
+    const chatLink=text=>{const a=node('a',text);a.href=url;a.target='_blank';a.rel='noopener noreferrer';return a;};
+    identity.append(chatLink(name),chatLink('Telegram ID: '+actor));
+    if(username)identity.append(chatLink('@'+username));
+    const details=node('div');details.className='wa-permission-details';details.hidden=true;
+    details.append(
+     node('p','Ingreso al sistema (primer registro disponible): '+userDate(u.joined_at)),
+     node('p','Tiene cuentas vinculadas: '+(Number(u.linked_accounts||0)>0?'Sí':'No')),
+     node('p','Cuentas vinculadas actualmente: '+Number(u.linked_accounts||0)),
+     node('p','Total de cuentas asociadas registradas: '+Number(u.total_accounts||0)),
+     node('p','Enlaces creados que permanecen registrados: '+Number(u.links||0)),
+     node('p','Estado de acceso: '+(u.banned?'Suspendido':'Autorizado'))
+    );
+    const toggle=node('button','VER DETALLES');toggle.type='button';toggle.className='wa-permission-detail-toggle';
+    toggle.setAttribute('aria-expanded','false');
+    toggle.onclick=()=>{
+     details.hidden=!details.hidden;toggle.textContent=details.hidden?'VER DETALLES':'OCULTAR DETALLES';
+     toggle.setAttribute('aria-expanded',String(!details.hidden));
+    };
+    top.append(identity,toggle);
+    const summary=node('p',Number(u.linked_accounts||0)+' cuentas vinculadas · '+Number(u.links||0)+' enlaces');
+    summary.className='wa-permission-summary';
+    row.append(top,summary,details);permissionList.append(row);
+   }
+   if(!users.length)permissionList.append(node('p','No hay usuarios registrados en permisos.txt.'));
+  }catch(error){permissionStatus.textContent=error.message;}
+ }
+ if(permissionButton&&permissionDialog&&permissionClose){
+  permissionButton.onclick=async()=>{await check();if(!admin)return;permissionDialog.showModal();await loadPermissionUsers();};
+  permissionClose.onclick=()=>permissionDialog.close();
+  permissionDialog.addEventListener('click',e=>{if(e.target===permissionDialog)permissionDialog.close();});
  }
  button.onclick=async()=>{await check();if(!admin)return;dialog.showModal();refresh();};
  close.onclick=()=>dialog.close();

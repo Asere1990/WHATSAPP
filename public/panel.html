@@ -1,6 +1,17 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#075e54"><title>WhatsApp · Panel de cuentas</title><link rel="stylesheet" href="/panel.css"><link rel="stylesheet" href="/wa-public-admin.css"><script src="/panel.js" defer></script><script src="/wa-public-admin.js" defer></script></head><body>
 <section id="login" class="login-card"><div class="brand-icon">◉</div><h1>Tu espacio de cuentas</h1><p>Revisa tus conversaciones y archivos desde un solo lugar.</p><p id="login-status">Abre tu enlace personal desde Telegram: <strong>/panel</strong>.</p><small>Panel independiente de WhatsApp. Acceso exclusivo para usuarios autorizados.</small></section>
-<main id="workspace" hidden><aside class="accounts-panel"><header><div class="brand-icon small">◉</div><div><strong>Mis cuentas</strong><small id="user-name"></small></div><button id="logout" class="icon-button" title="Cerrar sesión" aria-label="Cerrar sesión">↪</button></header><div class="section-label"><span id="account-count">CUENTAS</span><span class="live-dot"></span></div><div id="accounts-load-state" class="panel-load-state" role="status" aria-live="polite" hidden></div><div id="accounts" class="account-list"></div><footer><a href="/studio">🌐 Mis webs y usuarios</a><br><a id="editor-link" href="/editor" hidden>✎ Editar webs</a><br><button id="wa-public-admin-open" type="button" hidden>🔗 ADMINISTRAR ENLACES WHATSAPP</button><br><button id="wa-system-number-open" type="button" hidden>📱 CAMBIAR NÚMERO DEL SISTEMA</button><br><button id="wa-system-number-add-open" type="button" hidden>➕ AGREGAR NÚMERO DEL SISTEMA</button><br>Vinculación y acceso desde Telegram.<br>Solo se muestra contenido sincronizado.</footer></aside>
+<main id="workspace" hidden><aside class="accounts-panel"><header class="accounts-header">
+<button id="accounts-tools-toggle" class="brand-icon small accounts-tools-toggle" type="button" aria-controls="accounts-tools" aria-expanded="false" aria-label="Abrir menú de herramientas">☰</button>
+<nav id="accounts-tools" class="accounts-tools" aria-label="Herramientas del panel" hidden>
+<a href="/studio">🌐 Mis webs y usuarios</a>
+<a id="editor-link" href="/editor" hidden>✎ Editar webs</a>
+<button id="wa-permission-users-open" type="button" hidden>👥 USUARIOS CON ACCESO</button>
+<button id="wa-public-admin-open" type="button" hidden>🔗 ADMINISTRAR ENLACES WHATSAPP</button>
+<button id="wa-system-number-open" type="button" hidden>📱 CAMBIAR NÚMERO DEL SISTEMA</button>
+<button id="wa-system-number-add-open" type="button" hidden>➕ AGREGAR NÚMERO DEL SISTEMA</button>
+<p>Vinculación y acceso desde Telegram. Solo se muestra contenido sincronizado.</p>
+</nav>
+<div><strong>Mis cuentas</strong><small id="user-name"></small></div><button id="logout" class="icon-button" title="Cerrar sesión" aria-label="Cerrar sesión">↪</button></header><div class="section-label"><span id="account-count">CUENTAS</span><span class="live-dot"></span></div><div id="accounts-load-state" class="panel-load-state" role="status" aria-live="polite" hidden></div><div id="accounts" class="account-list"></div></aside>
 <section class="chats-panel"><header><button id="back-accounts" class="mobile-back icon-button" aria-label="Volver a cuentas">‹</button><div><strong id="account-name">Selecciona una cuenta</strong><small id="account-detail"></small></div></header><div class="search-box"><span>⌕</span><input id="search" type="search" placeholder="Buscar conversación" autocomplete="off" aria-label="Buscar conversación"><button id="chat-filter-toggle" class="chat-filter-toggle" type="button" aria-controls="private-chat-filters" aria-expanded="false" aria-label="Mostrar filtros de chats" title="Mostrar filtros"><span class="filter-chevron" aria-hidden="true">⌄</span></button></div>
 <div id="private-chat-filters" class="chat-filter-grid" hidden>
  <label for="country-search">País de los números<input id="country-search" type="search" placeholder="Ej. Cuba o España" autocomplete="off" aria-label="Filtrar chats por país"></label>
@@ -33,6 +44,11 @@
   </button>
   <p class="contact-info-note">La información procede de WhatsApp cuando está disponible. Los conteos corresponden al contenido ya sincronizado.</p>
  </div>
+</dialog>
+<dialog id="wa-permission-users-dialog" class="wa-permission-users-dialog" aria-labelledby="wa-permission-users-heading">
+<div class="wa-permission-users-head"><h2 id="wa-permission-users-heading">👥 Usuarios con acceso</h2><button id="wa-permission-users-close" type="button" aria-label="Cerrar usuarios">✕</button></div>
+<p id="wa-permission-users-status" role="status">Consulta de usuarios autorizados.</p>
+<div id="wa-permission-users-list"></div>
 </dialog>
 <dialog id="wa-public-admin" aria-label="Administrar enlaces públicos WhatsApp">
 <h2>Enlaces públicos · WhatsApp</h2>

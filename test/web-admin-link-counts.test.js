@@ -57,6 +57,12 @@ test('admin web counts every verifiable WhatsApp, Cubamax and old link without c
   assert.equal(response.status,200);return (await response.json()).items;};
  const users=await list(),mr=users.find(x=>x.actor===id),empty=users.find(x=>x.actor===other);
  assert.ok(mr,'old permisos.txt account remains visible');
+ assert.equal(mr.permitted,true);
+ assert.equal(empty.permitted,true);
+ assert.equal(mr.total_accounts,1,'account ownership is counted without modifying the account');
+ assert.equal(mr.linked_accounts,0,'unconfirmed accounts are not reported as linked');
+ assert.ok(mr.joined_at>0,'first verifiable system activity is available');
+ assert.equal(empty.joined_at,null,'never fabricate the join date for an older permission');
  assert.equal(mr.name,'Mr boogie');
  assert.equal(mr.links,6);
  assert.equal(mr.active,6);

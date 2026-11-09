@@ -31,3 +31,29 @@
 #wa-system-number-add-status{min-height:1.5em;color:#075e54}
 .wa-system-number-remove{border:1px solid #ec9992;border-radius:8px;padding:6px 9px;background:#fff0ef;color:#a32822;font-weight:600}
 .wa-system-number-reconnect{border:1px solid #b5d1c3;border-radius:8px;padding:6px 9px;background:#eef8f2;color:#075e54;font-weight:600}
+
+/* El menú sustituye las herramientas fijas que ocultaban las cuentas. */
+.accounts-panel .accounts-header{position:relative}
+.accounts-tools-toggle{font-size:23px;color:#fff;border:1px solid #ffffff45;line-height:1;background:#ffffff20}
+.accounts-tools-toggle[aria-expanded="true"]{background:#ffffff35}
+.accounts-panel .accounts-tools{position:absolute;top:calc(100% - 3px);left:12px;z-index:40;display:flex;flex-direction:column;gap:2px;width:min(320px,calc(100vw - 24px));max-height:calc(100dvh - 85px);overflow-y:auto;padding:9px;background:#fff;border:1px solid #d8e7e0;border-radius:13px;box-shadow:0 16px 38px #05241d45;color:#153a31}
+.accounts-panel .accounts-tools>a,.accounts-panel .accounts-tools>button{display:block;box-sizing:border-box;width:100%;padding:12px 10px;margin:0;border:0;border-radius:9px;background:transparent;color:#126d55;font-weight:650;font-size:12px;line-height:1.4;text-decoration:none;text-align:left}
+.accounts-panel .accounts-tools>a:hover,.accounts-panel .accounts-tools>button:hover{background:#e8f4ee}
+.accounts-panel .accounts-tools>p{padding:8px 10px 4px;margin:0;color:#71877c;font-size:11px;line-height:1.5}
+.wa-permission-users-dialog{border:0;padding:0;width:min(580px,95vw);max-width:95vw;max-height:min(85dvh,780px);border-radius:18px;background:#fff;color:#1d392e;box-shadow:0 30px 70px #00191155;overflow:auto}
+.wa-permission-users-dialog::backdrop{background:#001911aa;backdrop-filter:blur(3px)}
+.wa-permission-users-head{position:sticky;top:0;z-index:1;background:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid #e2ebe6}
+.wa-permission-users-head h2{font-size:19px;margin:0}
+#wa-permission-users-close{border:0;border-radius:9px;padding:8px 12px;background:#f0f5f1;color:#075e54;font-size:18px}
+#wa-permission-users-status{padding:12px 20px;margin:0;color:#647e71;font-size:12px;line-height:1.55}
+#wa-permission-users-list{padding:0 14px 20px}
+.wa-permission-user{padding:15px 6px;border-top:1px solid #edf2ef}
+.wa-permission-user-head{display:flex;gap:10px;align-items:center;justify-content:space-between}
+.wa-permission-identity{display:flex;flex-direction:column;gap:4px;min-width:0}
+.wa-permission-identity a{color:#167b5d;text-decoration:none;font-size:13px;overflow-wrap:anywhere}
+.wa-permission-identity a:first-child{color:#1e3a30;font-size:15px;font-weight:700}
+.wa-permission-summary{margin:8px 0 0;font-size:12px;color:#6c8377}
+.wa-permission-detail-toggle{flex-shrink:0;border:1px solid #bfd6c8;background:#ecf7f1;color:#146647;border-radius:9px;padding:9px 10px;font-size:11px;font-weight:700}
+.wa-permission-details{margin-top:12px;padding:12px;background:#f3f8f5;border-radius:10px;font-size:12px;line-height:1.65}
+.wa-permission-details p{margin:3px 0}
+@media(max-width:760px){.wa-permission-users-dialog{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0;margin:0}.accounts-panel .accounts-tools{max-height:calc(100dvh - 85px)}}

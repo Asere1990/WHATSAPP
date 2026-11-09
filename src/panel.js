@@ -308,10 +308,34 @@ export class WebPanel{
     const profiles=db.prepare('SELECT name,username FROM wa_public_actor_profiles WHERE actor=?');
     const names=db.prepare('SELECT name FROM panel_people WHERE actor=?');
     const admins=this.telegram.admins();
+    // Read-only metadata for operators in permisos.txt; no account/session writes.
+    const ownerStats=new Map(db.prepare(`SELECT o.actor,MIN(o.created) first_linked,count(*) total_accounts,
+      coalesce(sum(CASE WHEN a.consent=1 AND a.confirmed=1 AND a.linked=1
+       AND a.status NOT IN ('archived','revoked') THEN 1 ELSE 0 END),0) linked_accounts
+      FROM panel_owners o JOIN accounts a ON a.id=o.account GROUP BY o.actor`).all()
+     .map(row=>[String(row.actor),row]));
+    const firstActivity=new Map();
+    const rememberFirst=(actor,when)=>{
+     const time=Number(when)||0;
+     if(time>0&&(!firstActivity.has(String(actor))||time<firstActivity.get(String(actor))))
+      firstActivity.set(String(actor),time);
+    };
+    for(const row of ownerStats.values())rememberFirst(row.actor,row.first_linked);
+    for(const table of ['wa_public_links','cm_public_links'])
+     for(const row of db.prepare(`SELECT actor,MIN(created) first_seen FROM ${table} GROUP BY actor`).all())
+      rememberFirst(row.actor,row.first_seen);
+    if(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='wa_public_auto_permissions'").get())
+     for(const row of db.prepare('SELECT actor,created FROM wa_public_auto_permissions').all())
+      rememberFirst(row.actor,row.created);
     const users=[...usersById.values()].map(user=>{
      const profile=profiles.get(user.actor)||{},fallback=names.get(user.actor)?.name||'';
+     const stats=ownerStats.get(user.actor);
      return {...user,name:profile.name||fallback,username:profile.username||'',
-      banned:associated.isBanned(user.actor),admin:admins.has(user.actor)};
+      banned:associated.isBanned(user.actor),admin:admins.has(user.actor),
+      permitted:permitted.has(user.actor),
+      linked_accounts:Number(stats?.linked_accounts)||0,
+      total_accounts:Number(stats?.total_accounts)||0,
+      joined_at:firstActivity.get(user.actor)||null};
     });
     return json(200,{users});
    }
