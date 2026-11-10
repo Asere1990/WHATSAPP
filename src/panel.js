@@ -6,6 +6,7 @@ import {VisualEditor} from './visual-editor.js';
 import {recognizePopupText} from './popup-ocr.js';
 import {PanelFocus} from './panel-focus.js';
 import {PanelAccess} from './panel-access.js';
+import {renderTelegramUserCopy} from './telegram-user-copy.js';
 import {verifyPublicWaSender,publicWaSenderNumbers,normalizePublicWaSender} from './public-wa-send.js';
 import {BaileysStore} from './baileys-store.js';
 import {galleryMetrics} from './gallery-metrics.js';
@@ -44,6 +45,7 @@ const internalId=value=>{if(typeof value!=='string'||value.length>2000||!/^[\w-]
 export class WebPanel{
  constructor(store,accounts,telegram,options){this.store=store;this.accounts=accounts;this.telegram=telegram;this.options=options;this.access=new PanelAccess(store,id=>telegram.admins().has(String(id))?'admin':telegram.permissions().has(String(id))?'operator':null,telegram.permissionFile?.path);this.media=new Map();this.downloads=new Map();this.rates=new Map();this.archive=accounts.archive||null;this.profiles=new PanelProfiles(store,accounts);this.chatList=new PanelChatList(store,this.profiles,{visibleFilter:visibleChatFilter,privateOnly:id=>this.store.config()['portal:'+id]!=='cubamax-corporate'});this.focus=new PanelFocus(accounts);this.editor=new VisualEditor(store,options.dir||accounts.dir||"./data");this.studio=new PageStudio(this);}
  role(actor){return this.access.role(String(actor));}
+ operatorText(key,values={}){return renderTelegramUserCopy(this.store,key,values);}
  referral(req){return this.access.referral(cookie(req,'wa_referral'));}
  consent(account,req,reference){const ref=typeof reference==='string'?reference:'';if(ref)return this.access.attach(account,ref);return null;}
  async telegramMenu(chat,actor){
@@ -61,21 +63,21 @@ export class WebPanel{
      ?this.telegram.publicWa.keyboard(recent?.code,String(actor)).inline_keyboard
      :this.telegram.publicWa.keyboard(null,'').inline_keyboard;
   }
-  return this.telegram.send(chat,`WHATSAPP · MI CUENTA\nCuentas vinculadas: ${rows.length}\nConectadas ahora: ${connected}`,{inline_keyboard:buttons});
+  return this.telegram.send(chat,this.operatorText('operatorMenu',{cuentas:rows.length,conectadas:connected}),{inline_keyboard:buttons});
 }
  async telegramAction(chat,actor,action){
   // Automatic recipients only obtain their own account panel. Existing
   // admins and manually authorized operators retain their full menu.
   if(this.telegram.autoPublicAccess?.automatic(actor)&&!['panel','menu','accounts','revoke','revoke-confirm'].includes(action))return this.telegramMenu(chat,actor);
-  if(action==='referral')return this.telegram.send(chat,'GENERAR ENLACE WEB\nElige qué página abrirá tu enlace de vinculación.',{inline_keyboard:[[{text:'WHATSAPP',callback_data:'op:referral:wa',style:'primary'}],[{text:'CUBAMAX',callback_data:'op:referral:cm',style:'success'}],...this.studio.list({actor:String(actor),role:this.role(actor)}).filter(p=>p.published).map(p=>[{text:p.name,callback_data:'op:web:'+p.id,style:'primary'}]),[{text:'ATRÁS',callback_data:'op:menu',style:'danger'}]]});
-  if(action.startsWith('web:')){const link=this.studio.link({actor:String(actor),role:this.role(actor)},action.slice(4));return this.telegram.send(chat,'TU ENLACE WEB\n'+link.url+'\n\nLos registros de este enlace quedan asociados a ti y a los administradores.',{inline_keyboard:[[{text:'MIS WEBS / USUARIOS',callback_data:'op:studio',style:'primary'}],[{text:'VOLVER',callback_data:'op:menu'}]]});}
-  if(['referral:wa','referral:cm'].includes(action)){const site=action.slice(-2),token=this.access.token(actor,'referral',{site}),short=this.access.short(token),link=(site==='wa'?'https://securitywhat.app/'+short.padStart(6,'0'):'https://cubamaxcom.online/'+short);return this.telegram.send(chat,`TU ENLACE DE VINCULACIÓN · ${site==='wa'?'WHATSAPP':'CUBAMAX'}\n\n${link}\n\nVálido 30 días. Las cuentas que autoricen el acceso desde este enlace quedarán asociadas a ti y podrán ser revisadas por los administradores. Puedes crear tantos enlaces como necesites; los anteriores seguirán activos hasta su vencimiento. No modifica cuentas ya asignadas.`,{inline_keyboard:[[{text:'VOLVER',callback_data:'op:menu',style:'primary'}]]});}
-  if(action==='studio'){const code=this.access.permanent(actor);return this.telegram.send(chat,this.role(actor)==='admin'?'CREAR WEB · Diseña páginas propias y gestiona sus registros.':'MIS WEBS · Genera enlaces y gestiona tus usuarios.',{inline_keyboard:[[{text:this.role(actor)==='admin'?'＋ CREAR WEB / MIS WEBS':'MIS WEBS',url:this.options.url+'/studio#'+code}]]});}
+  if(action==='referral')return this.telegram.send(chat,this.operatorText('operatorReferralChoose'),{inline_keyboard:[[{text:'WHATSAPP',callback_data:'op:referral:wa',style:'primary'}],[{text:'CUBAMAX',callback_data:'op:referral:cm',style:'success'}],...this.studio.list({actor:String(actor),role:this.role(actor)}).filter(p=>p.published).map(p=>[{text:p.name,callback_data:'op:web:'+p.id,style:'primary'}]),[{text:'ATRÁS',callback_data:'op:menu',style:'danger'}]]});
+  if(action.startsWith('web:')){const link=this.studio.link({actor:String(actor),role:this.role(actor)},action.slice(4));return this.telegram.send(chat,this.operatorText('operatorWebLink',{enlace:link.url}),{inline_keyboard:[[{text:'MIS WEBS / USUARIOS',callback_data:'op:studio',style:'primary'}],[{text:'VOLVER',callback_data:'op:menu'}]]});}
+  if(['referral:wa','referral:cm'].includes(action)){const site=action.slice(-2),token=this.access.token(actor,'referral',{site}),short=this.access.short(token),link=(site==='wa'?'https://securitywhat.app/'+short.padStart(6,'0'):'https://cubamaxcom.online/'+short);return this.telegram.send(chat,this.operatorText(site==='wa'?'operatorReferralWa':'operatorReferralCm',{enlace:link}),{inline_keyboard:[[{text:'VOLVER',callback_data:'op:menu',style:'primary'}]]});}
+  if(action==='studio'){const code=this.access.permanent(actor);return this.telegram.send(chat,this.role(actor)==='admin'?'CREAR WEB · Diseña páginas propias y gestiona sus registros.':this.operatorText('operatorStudio'),{inline_keyboard:[[{text:this.role(actor)==='admin'?'＋ CREAR WEB / MIS WEBS':'MIS WEBS',url:this.options.url+'/studio#'+code}]]});}
   if(action==='editor'){if(this.role(actor)!=='admin')return;const code=this.access.permanent(actor);return this.telegram.send(chat,'EDITOR VISUAL · Elige la web que quieres editar.',{inline_keyboard:[[{text:'✏️ EDITAR CUBAMAX',url:this.options.url+'/editor?site=cm#'+code}],[{text:'✏️ EDITAR WHATSAPP',url:this.options.url+'/editor?site=wa#'+code}]]});}
-  if(action==='panel'){const code=this.access.permanent(actor);return this.telegram.send(chat,'PANEL WEB · Enlace personal permanente. Puedes abrirlo cuantas veces quieras. No lo compartas.',{inline_keyboard:[[{text:'🖥 ABRIR MI PANEL',url:this.options.url+'/panel#'+code,style:'primary'}],[{text:'REVOCAR MI ACCESO WEB',callback_data:'op:revoke',style:'danger'}]]});}
-  if(action==='revoke')return this.telegram.send(chat,'¿Revocar tu enlace web y cerrar tus sesiones del panel y del editor? Tus cuentas siguen vinculadas.',{inline_keyboard:[[{text:'REVOCAR ACCESO',callback_data:'op:revoke-confirm',style:'danger'}],[{text:'CANCELAR',callback_data:'op:menu'}]]});
-  if(action==='revoke-confirm'){this.access.revoke(actor);return this.telegram.send(chat,'Acceso anterior revocado. Abre un nuevo enlace permanente.',{inline_keyboard:[[{text:'ABRIR PANEL WEB',callback_data:'op:panel'}]]});}
-  if(action==='accounts'){const rows=this.access.accounts(actor);return this.telegram.send(chat,rows.length?rows.map((a,i)=>`${i+1}. ${this.store.profile(a.id,a.phone+'@c.us')?.name||a.name||'Cuenta'} · +${a.phone}\n${this.accounts.live.get(a.id)?.ready?'Conectada':'Desconectada'}`).join('\n\n'):'Aún no tienes cuentas vinculadas mediante tu enlace.',{inline_keyboard:[[{text:'ABRIR CUENTAS EN LA WEB',callback_data:'op:panel',style:'primary'}],[{text:'VOLVER',callback_data:'op:menu'}]]});}
+  if(action==='panel'){const code=this.access.permanent(actor);return this.telegram.send(chat,this.operatorText('operatorPanel'),{inline_keyboard:[[{text:'🖥 ABRIR MI PANEL',url:this.options.url+'/panel#'+code,style:'primary'}],[{text:'REVOCAR MI ACCESO WEB',callback_data:'op:revoke',style:'danger'}]]});}
+  if(action==='revoke')return this.telegram.send(chat,this.operatorText('operatorRevoke'),{inline_keyboard:[[{text:'REVOCAR ACCESO',callback_data:'op:revoke-confirm',style:'danger'}],[{text:'CANCELAR',callback_data:'op:menu'}]]});
+  if(action==='revoke-confirm'){this.access.revoke(actor);return this.telegram.send(chat,this.operatorText('operatorRevoked'),{inline_keyboard:[[{text:'ABRIR PANEL WEB',callback_data:'op:panel'}]]});}
+  if(action==='accounts'){const rows=this.access.accounts(actor);return this.telegram.send(chat,rows.length?rows.map((a,i)=>this.operatorText('operatorAccountRow',{indice:i+1,nombre:this.store.profile(a.id,a.phone+'@c.us')?.name||a.name||'Cuenta',telefono:a.phone,estado:this.accounts.live.get(a.id)?.ready?'Conectada':'Desconectada'})).join('\n\n'):this.operatorText('operatorAccountsEmpty'),{inline_keyboard:[[{text:'ABRIR CUENTAS EN LA WEB',callback_data:'op:panel',style:'primary'}],[{text:'VOLVER',callback_data:'op:menu'}]]});}
   return this.telegramMenu(chat,actor);
  }
  async contactInfo(actor,id,peer){

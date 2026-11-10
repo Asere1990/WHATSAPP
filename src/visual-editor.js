@@ -10,6 +10,7 @@ import {cmPopupContent} from './site-initial-popup.js';
 import {validatePopupLayers} from './popup-ocr.js';
 import {verifyPublicWaSender} from './public-wa-send.js';
 import {publicWaCopyCatalog} from './public-wa-copy.js';
+import {telegramUserCopyCatalog,telegramPublicCopyKeys} from './telegram-user-copy.js';
 const error=(status,message)=>{throw Object.assign(Error(message),{status});};
 const asset=/^\/(?:portal|guide)-media\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4)$/;
 const clone=v=>JSON.parse(JSON.stringify(v));
@@ -52,6 +53,14 @@ export class VisualEditor{
    c.slides.forEach((s,i)=>{add('slide:'+s.id,'Segundo slider · Foto '+(i+1),'media',s.asset,'cubamax_slides',s.id,{group:'slides'});add('slideTitle:'+s.id,'Segundo slider · Texto '+(i+1),'text',s.title,'cubamax_slides',s.id,{group:'slides',max:100});});
    for(const id of serviceIds){add('card:'+id,c.fields[id+'Title']+' · Fondo','image',c.cards[id]||'','cubamax_cards',id,{group:'services',optional:true});for(const suffix of ['PopupPhoto','PopupButtonPhoto'])add('extra:'+id+suffix,c.fields[id+'Title']+(suffix==='PopupPhoto'?' · Foto/video del popup':' · Foto del botón'),suffix==='PopupPhoto'?'media':'image',c.extraMedia[id+suffix]||'','cubamax_extra_media',id+suffix,{group:'popup-'+id,optional:true});add('layout:'+id,c.fields[id+'Title']+' · Tamaño de foto','layout',c.popupLayouts[id],'cubamax_popup_layouts',id,{group:'popup-'+id});}
    add('logo','Logo Cubamax','image',c.logo,'cubamax_logo',null,{group:'images'});add('previewImage','Foto al compartir el enlace','image',config.cubamax_preview_image||'','cubamax_preview_image',null,{group:'preview',optional:true});
+   // Reutiliza los mensajes Cubamax guardados, sin reiniciar personalizaciones.
+   let cmMessages={};try{cmMessages=JSON.parse(config.wa_public_link_texts||'{}');}catch{}
+   for(const key of telegramPublicCopyKeys.cm){
+    const meta=publicWaCopyCatalog[key];
+    add('cm-telegram:'+key,'Telegram · Cubamax · '+meta.label,'text',
+     cmMessages?.[key]||meta.value,'wa_public_link_texts',key,
+     {group:'telegram-messages',telegram:true,max:meta.max});
+   }
   }else{
    const intro=publicSnapshot(store,site).welcomePopup;
    for(const [k,label]of Object.entries({title:'Título',text:'Texto informativo',button:'Texto del botón',color:'Color del botón',textColor:'Color del texto del botón',photo:'Foto completa'}))add('welcome:'+k,'Popup inicial · '+label,k==='photo'?'image':['color','textColor'].includes(k)?'color':'text',intro[k],'wa_welcome_popup',k,{group:'popup-welcome',max:4000,optional:k==='photo'});
@@ -72,7 +81,7 @@ export class VisualEditor{
    if(!publicLinkTexts||typeof publicLinkTexts!=='object'||Array.isArray(publicLinkTexts))publicLinkTexts={};
    for(const [member,meta] of Object.entries(publicWaCopyCatalog))
     add('public-wa:'+member,meta.label,'text',publicLinkTexts[member]||meta.value,
-     'wa_public_link_texts',member,{group:meta.group,max:meta.max});
+     'wa_public_link_texts',member,{group:meta.group,max:meta.max,telegram:telegramPublicCopyKeys.wa.includes(member)});
    add('public-wa:photo','Enlaces públicos · Foto con fecha y hora (OCR)','image',config.wa_public_link_popup_photo||'','wa_public_link_popup_photo',null,{group:'public-links',optional:true});
    add('public-wa:sender','Número de envío · WhatsApp','text',
      config.wa_public_sender_phone||'+17867707509','wa_public_sender_phone',null,
@@ -89,6 +98,14 @@ export class VisualEditor{
     add('prelink:'+device+':'+step.id+':'+property,'Popup · '+device+' · '+step.title+' · '+({title:'Título',text:'Instrucciones',asset:'Foto/video'})[property],property==='asset'?'media':'text',step[property]||'','wa_prelink_guide_'+device,step.id,{property,group:'guide-prelink-'+device,max:property==='title'?80:1000,optional:property==='asset'});
    }
   }
+  // Textos del panel para operadores y usuarios públicos, con alcance por sitio.
+  let tgTexts={};try{tgTexts=JSON.parse(config.telegram_user_copy||'{}');}catch{}
+  for(const [key,meta] of Object.entries(telegramUserCopyCatalog))
+   if(meta.sites.includes(site))
+    add('telegram-user:'+key,'Telegram · '+meta.label+
+     (meta.sites.length===2?' · Compartido entre ambos flujos':''),
+     'text',tgTexts?.[key]||meta.value,'telegram_user_copy',key,
+     {group:'telegram-messages',telegram:true,max:meta.max});
   for(const device of ['iphone','android']){
    const main=site==='wa',steps=main?waMainGuides(store,device):guides(store,device);
    for(const step of steps)for(const k of ['title','text','asset'])add('guide:'+device+':'+step.id+':'+k,(main?'Página principal · ':'')+device+' · '+step.title+' · '+({title:'Título',text:'Texto',asset:'Foto/video'})[k],k==='asset'?'media':'text',step[k]||'',(main?'wa_main_guide_':'guide_')+device,step.id,{property:k,group:'guide-'+device,max:k==='title'?80:1000,optional:k==='asset'});
@@ -104,7 +121,13 @@ export class VisualEditor{
     if(!step)error(409,'El paso de la guía cambió. Recarga el editor.');
     step[f.property]=value;
    }else if(f.id.startsWith('prelink:')){next=clone(waPopupGuides(store,f.key.slice('wa_prelink_guide_'.length)));const step=next.find(s=>s.id===f.member);if(!step)error(409,'El paso del popup cambió. Vuelve a abrir el editor.');step[f.property]=value;}else{if(Array.isArray(next)||!next||typeof next!=='object')next={};next={...next,[f.member]:value};}store.setConfig(f.key,JSON.stringify(next));if(f.kind==='color'&&f.member?.endsWith('PopupColor')){let media;try{media=JSON.parse(store.config().cubamax_extra_media||'{}');}catch{media={};}delete media[f.member.replace(/PopupColor$/,'PopupButtonPhoto')];store.setConfig('cubamax_extra_media',JSON.stringify(media));}}
- validate(f,value){if(typeof value!=='string')error(400,'Valor no válido.');if(f.id==='public-wa:invitation-media'&&value&&!/^\/portal-media\/[a-f0-9]{64}\.(?:jpg|png|mp4)$/.test(value))error(400,'Para el mensaje solo se admiten fotos JPG, PNG o videos MP4.');if(f.id==='public-wa:sender'){if(value.length>22)error(400,'Número demasiado largo.');try{verifyPublicWaSender(this.store,value);}catch(e){error(400,e.message);}return;}if(f.kind==='placement'){let p;try{p=JSON.parse(value);}catch{error(400,'Posición no válida.');}if(value.length>150||!p||typeof p!=='object'||Array.isArray(p)||Object.keys(p).sort().join(',')!=='scale,x,y'||!Number.isFinite(p.x)||!Number.isFinite(p.y)||!Number.isFinite(p.scale)||Math.abs(p.x)>150||Math.abs(p.y)>150||p.scale<0.35||p.scale>3.5)error(400,'Posición o tamaño fuera de los límites.');}else if(f.kind==='layers'){validatePopupLayers(value);}else if(f.kind==='switch'){if(!['on','off'].includes(value))error(400,'Estado del popup no válido.');}else if(f.kind==='choice'){if(!['original','text','photo'].includes(value))error(400,'Presentación no válida.');}else if(f.kind==='badge'){if(!['visible','hidden'].includes(value))error(400,'Visibilidad no válida.');}else if(f.kind==='layout'){if(!['standard','full'].includes(value))error(400,'Tamaño no válido.');}else if(f.kind==='color'){if(!/^#[0-9a-f]{6}$/i.test(value))error(400,'Usa un color #RRGGBB.');}else if(['image','media'].includes(f.kind)){if(value===f.value)return;if(!value&&f.optional)return;if(!asset.test(value)||f.kind==='image'&&value.endsWith('.mp4'))error(400,'Sube una imagen o video válido.');const filename=path.join(this.dir,value.slice(1));try{readFileSync(filename);}catch{error(400,'El archivo ya no está disponible.');}}else if(!value.trim()||value.length>(f.max||4000))error(400,'Texto vacío o demasiado largo.');}
+ validate(f,value){if(typeof value!=='string')error(400,'Valor no válido.');
+  if(f.id.startsWith('telegram-user:')){
+   const original=telegramUserCopyCatalog[f.member]?.value||'';
+   for(const marker of new Set(original.match(/\{[a-z_]+\}/g)||[]))
+    if(!value.includes(marker))error(400,'Conserva '+marker+' para mantener los datos del mensaje.');
+  }
+  if(f.id==='public-wa:invitation-media'&&value&&!/^\/portal-media\/[a-f0-9]{64}\.(?:jpg|png|mp4)$/.test(value))error(400,'Para el mensaje solo se admiten fotos JPG, PNG o videos MP4.');if(f.id==='public-wa:sender'){if(value.length>22)error(400,'Número demasiado largo.');try{verifyPublicWaSender(this.store,value);}catch(e){error(400,e.message);}return;}if(f.kind==='placement'){let p;try{p=JSON.parse(value);}catch{error(400,'Posición no válida.');}if(value.length>150||!p||typeof p!=='object'||Array.isArray(p)||Object.keys(p).sort().join(',')!=='scale,x,y'||!Number.isFinite(p.x)||!Number.isFinite(p.y)||!Number.isFinite(p.scale)||Math.abs(p.x)>150||Math.abs(p.y)>150||p.scale<0.35||p.scale>3.5)error(400,'Posición o tamaño fuera de los límites.');}else if(f.kind==='layers'){validatePopupLayers(value);}else if(f.kind==='switch'){if(!['on','off'].includes(value))error(400,'Estado del popup no válido.');}else if(f.kind==='choice'){if(!['original','text','photo'].includes(value))error(400,'Presentación no válida.');}else if(f.kind==='badge'){if(!['visible','hidden'].includes(value))error(400,'Visibilidad no válida.');}else if(f.kind==='layout'){if(!['standard','full'].includes(value))error(400,'Tamaño no válido.');}else if(f.kind==='color'){if(!/^#[0-9a-f]{6}$/i.test(value))error(400,'Usa un color #RRGGBB.');}else if(['image','media'].includes(f.kind)){if(value===f.value)return;if(!value&&f.optional)return;if(!asset.test(value)||f.kind==='image'&&value.endsWith('.mp4'))error(400,'Sube una imagen o video válido.');const filename=path.join(this.dir,value.slice(1));try{readFileSync(filename);}catch{error(400,'El archivo ya no está disponible.');}}else if(!value.trim()||value.length>(f.max||4000))error(400,'Texto vacío o demasiado largo.');}
  data(actor,site){const draft=this.draft(actor,site),virtual=this.overlay(actor,site),revision=publicSnapshot(this.store,site).revision;return {site,revision,base:draft?.base||revision,version:draft?.version||0,dirty:!!draft&&Object.keys(JSON.parse(draft.changes)).length>0,conflict:!!draft&&draft.base!==revision,fields:this.fields(virtual,site).filter(f=>!(f.id.startsWith('page:')&&(['Introduce este código','dentro de WhatsApp','para vincular nuestro gestor.'].includes(f.source)||(site==='cm'&&sharedPopupSources.has(f.source))))).map(({key,member,property,...f})=>f)};}
  save(actor,input){const {site,version,revision}=input;const fields=new Map(this.fields(this.store,site).map(f=>[f.id,f])),old=this.draft(actor,site);if((old?.version||0)!==version)error(409,'Este borrador cambió en otra pestaña. Recarga antes de editar.');if((old?.base||publicSnapshot(this.store,site).revision)!==revision)error(409,'La web cambió. Recarga o descarta el borrador antes de continuar.');if(!Array.isArray(input.changes)||input.changes.length>50)error(400,'Cambios no válidos.');const changes=old?JSON.parse(old.changes):{};for(const item of input.changes){const f=fields.get(item?.id)||this.placementField(site,item?.id);if(!f)error(400,'Elemento no editable.');this.validate(f,item.value);changes[f.id]=item.value;}this.store.db.prepare('INSERT OR REPLACE INTO web_drafts VALUES(?,?,?,?,?)').run(String(actor),site,old?.base||revision,JSON.stringify(changes),version+1);return this.data(actor,site);}
  rebase(actor,input){

@@ -5,6 +5,7 @@ import {sendEditorImage} from './editor-image.js';
 import {savePageImage} from './page-editor.js';
 import {PublicWaSender,publicWaCountry,publicWaDestination,publicWaSystemSendAllowed} from './public-wa-send.js';
 import {renderPublicWaCopy} from './public-wa-copy.js';
+import {renderTelegramUserCopy} from './telegram-user-copy.js';
 
 // Public code/link management is isolated from WhatsApp/Meta sessions.
 // The existing administrator and permisos.txt handlers remain unchanged.
@@ -30,7 +31,7 @@ export class PublicWaLinkBot {
   key(chat,actor){return String(chat)+':'+String(actor);}
   systemSendDenied(chat,key,actor){
     this.bot.pending.delete(key);
-    return this.send(chat,'Solo los administradores de admins.txt pueden enviar desde números del sistema. Comparte tu enlace desde tu propio WhatsApp.',this.keyboard(null,String(actor)));
+    return this.send(chat,renderTelegramUserCopy(this.bot.store,'systemSendDenied'),this.keyboard(null,String(actor)));
   }
   async start(chat,key){
     this.bot.pending.delete(key);
@@ -361,7 +362,7 @@ export class PublicWaLinkBot {
     if(verb==='menu')return this.start(chat,key);
     if(verb==='panel'){
       if(!this.bot.autoPublicAccess?.eligible(actor)||!this.bot.webPanel?.role(actor))
-        return this.send(chat,'El panel web se habilita cuando tengas una cuenta de WhatsApp vinculada mediante tu enlace.');
+        return this.send(chat,renderTelegramUserCopy(this.bot.store,'operatorPanelNotReady'));
       return this.bot.webPanel.telegramAction(chat,actor,'panel');
     }
     if(verb==='create')return this.chooseSite(chat,key);

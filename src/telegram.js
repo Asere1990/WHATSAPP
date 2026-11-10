@@ -9,6 +9,7 @@ import {AssociatedPopupBot} from './associated-popup-bot.js';
 import {OperatorPopupBot} from './operator-popup-bot.js';
 import {PublicWaLinkBot} from './public-wa-links-bot.js';
 import {PublicAssociatedUsers} from './public-associated-users.js';
+import {renderTelegramUserCopy} from './telegram-user-copy.js';
 import {ensureTelegramBotOffset} from './telegram-bot-offset.js';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 export class Telegram {
@@ -120,7 +121,7 @@ export class Telegram {
     if(privateChat&&this.store?.db)this.associatedUsers.remember(actor,m.contact);
     const isAdmin=this.admins().has(String(actor.id)),isOperator=this.permissions().has(String(actor.id));
     if(privateChat&&!isAdmin&&this.store?.db&&this.associatedUsers.isBanned(actor.id))
-      return this.send(m.chat.id,'🚫 Tu acceso al sistema está suspendido. Consulta con un administrador.');
+      return this.send(m.chat.id,renderTelegramUserCopy(this.store,'accessSuspended'));
     const publicKey=String(m.chat.id)+':'+String(actor.id);
     const rawPublic=m.text||'';
     const publicCommand=rawPublic.split(/\s+/)[0].split('@')[0];
