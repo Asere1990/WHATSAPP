@@ -70,26 +70,39 @@ function sanitizeMarkup(markup){
     }))
   );
 }
-function listOwned(telegram,actor){
+function listOwned(telegram,actor,offset=0){
   const links=telegram.publicWa.links,cm=telegram.publicWa.cubamax;
   const db=telegram.store.db;
-  const read=(table,site)=>
-    db.prepare('SELECT rowid AS id,code,enabled,created FROM '+table+' WHERE actor=? ORDER BY created DESC LIMIT 100')
-      .all(actor).map(row=>({
-        site,code:row.code,id:row.id,enabled:!!row.enabled,created:row.created,
-        url:site==='wa'?links.url(row.code):cm.url(row.code),
-        action:site==='wa'?'pwa:show:~'+row.id:'pwa:cm-show:~'+row.id
-      }));
-  return [...read('wa_public_links','wa'),...read('cm_public_links','cm')]
-    .sort((a,b)=>b.created-a.created).slice(0,200);
+  const start=Math.max(0,Math.min(100000,Math.trunc(Number(offset)||0)));
+  const limit=40;
+  const total=db.prepare(
+    'SELECT (SELECT count(*) FROM wa_public_links WHERE actor=?) + (SELECT count(*) FROM cm_public_links WHERE actor=?) AS n'
+  ).get(actor,actor).n;
+  const rows=db.prepare(`
+    SELECT 'wa' AS site,rowid AS link_id,code,enabled,created
+    FROM wa_public_links WHERE actor=?
+    UNION ALL
+    SELECT 'cm' AS site,rowid AS link_id,code,enabled,created
+    FROM cm_public_links WHERE actor=?
+    ORDER BY created DESC,link_id DESC
+    LIMIT ? OFFSET ?
+  `).all(actor,actor,limit,start).map(row=>({
+    site:row.site,code:row.code,id:row.link_id,enabled:!!row.enabled,created:row.created,
+    url:row.site==='wa'?links.url(row.code):cm.url(row.code),
+    action:row.site==='wa'?'pwa:show:~'+row.link_id:'pwa:cm-show:~'+row.link_id
+  }));
+  return {rows,total,more:start+rows.length<total};
 }
-function screen(telegram,actor,bridge,out){
+function screen(telegram,actor,bridge,out,offset=0){
   const pending=bridge.bot.pending.get(bridge.bot.currentKey);
+  const current=listOwned(telegram,actor,offset);
   return {
     ok:true,
     pending:pending?.kind||null,
     messages:out,
-    links:listOwned(telegram,actor),
+    links:current.rows,
+    linksTotal:current.total,
+    moreLinks:current.more,
     labels:{
       choose:bridge.copy('choose'),
       whatsapp:bridge.button('buttonWhatsApp'),
@@ -183,6 +196,10 @@ async function execute(telegram,user,request){
       if(!['publicCmCode','publicWaCode','publicWaCountry','publicWaPhone'].includes(pending?.kind))
         throw Error('Selecciona una opción para continuar.');
       await bridge.input(user.actor,key,user.actor,{text:request.value});
+    }else if(action==='page'){
+      const page=Number(request.value);
+      if(!Number.isInteger(page)||page<0||page>100000)throw Error('Página no válida.');
+      return screen(telegram,user.actor,bridge,out,page);
     }else if(action==='photo'){
       const pending=state.pending.get(key);
       if(pending?.kind!=='publicWaPhoto')throw Error('No se ha solicitado una fotografía.');
