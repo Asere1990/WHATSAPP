@@ -108,6 +108,8 @@ h2{font-size:1.2rem;letter-spacing:-.03em;margin:0}
      <span><span id="cm-label" class="service-name">Cubamax</span><span class="service-caption">Crear enlace</span></span>
     </button>
    </div>
+   <div id="home-editor-text" class="notice" hidden></div>
+   <div id="home-extra" class="actions"></div>
    <div class="section-top"><h2>Mis enlaces</h2><span id="home-count" class="counter">0</span></div>
    <div id="recent" class="links"></div>
   </section>
@@ -180,7 +182,7 @@ async function call(action,value){
   state.messages=data.messages||[];
   $('wa-label').textContent=state.labels.whatsapp||'WhatsApp';
   $('cm-label').textContent=state.labels.cubamax||'Cubamax';
-  $('links-heading').textContent=state.labels.myLinks||'Mis enlaces';
+  $('links-heading').textContent=state.labels.myLinksHeading||'Mis enlaces';
   if(action==='start'){setTab('home');}
   else if(action==='callback'&&value==='pwa:list:0'){setTab('links');}
   else setTab('flow');
@@ -235,8 +237,12 @@ function renderLinks(root,links,empty){
 }
 function render(){
  $('home-count').textContent=String(state.links.length);
- renderLinks($('recent'),state.links.slice(0,2),'No has creado enlaces todavía.');
- renderLinks($('links-list'),state.links,'No has creado enlaces todavía.');
+ renderLinks($('recent'),state.links.slice(0,2),state.labels.empty||'No has creado enlaces todavía.');
+ renderLinks($('links-list'),state.links,state.labels.empty||'No has creado enlaces todavía.');
+ $('home-editor-text').textContent=state.labels.choose||'';
+ $('home-editor-text').hidden=!state.labels.choose;
+ $('home-extra').replaceChildren();
+ state.messages.forEach(function(m){(m.buttons||[]).filter(b=>b.action==='pwa:panel').forEach(function(b){var btn=el('button','action primary',b.label);btn.type='button';btn.onclick=()=>call('callback',b.action);$('home-extra').append(btn);});});
  $('results').replaceChildren();
  state.messages.forEach(function(m){
   var card=el('section','panel');
