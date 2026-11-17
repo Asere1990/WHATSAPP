@@ -113,7 +113,7 @@ test('Mini App delegates create and revoke to the original Cubamax methods',asyn
   const other=await request(handler,{initData:sign('98765'),action:'callback',value:'pwa:cm-show:~1'});
   assert.equal(other.status,200);
   assert.equal(other.body.links.length,0);
-  assert.match(other.body.messages[0].text,/no te pertenece|no disponible/i);
+  assert.match(other.body.messages[0].text,/no te pertenece|no est[aá] disponible|no disponible/i);
 });
 
 test('Mini App cannot submit a photo or arbitrary message without prior bot flow',async()=>{
