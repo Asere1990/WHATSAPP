@@ -5,6 +5,7 @@
 import {createHash, createHmac, timingSafeEqual} from 'node:crypto';
 import {PublicWaLinkBot} from './public-wa-links-bot.js';
 import {userMiniappLabels} from './miniapp-user-editor.js';
+import {userMiniappMedia} from './miniapp-user-media.js';
 
 const miniappOrigin='https://whatsapp-cubamax-miniapp.onrender.com';
 const maxAge=6*60*60, idle=30*60*1000;
@@ -113,6 +114,7 @@ function screen(telegram,actor,bridge,out,offset=0){
     links:current.rows,
     linksTotal:current.total,
     moreLinks:current.more,
+    media:userMiniappMedia(telegram.store),
     labels:{
       choose:bridge.copy('choose'),
       whatsapp:bridge.button('buttonWhatsApp'),
