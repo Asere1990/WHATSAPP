@@ -1,0 +1,32 @@
+name: Mini App isolated checks
+
+on:
+  push:
+    branches:
+      - miniapp-whatsapp-cubamax-aislada-20261117
+  pull_request:
+    paths:
+      - 'miniapp/**'
+      - 'src/miniapp-bridge.js'
+      - 'src/main.js'
+      - 'test/miniapp-bridge.test.js'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Check existing JavaScript files
+        run: npm run check
+      - name: Test Telegram Mini App bridge
+        run: node --test test/miniapp-bridge.test.js
