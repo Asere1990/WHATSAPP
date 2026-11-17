@@ -5,6 +5,7 @@ import {sendEditorImage} from './editor-image.js';
 import {savePageImage} from './page-editor.js';
 import {PublicWaSender,publicWaCountry,publicWaDestination,publicWaSystemSendAllowed} from './public-wa-send.js';
 import {renderPublicWaCopy} from './public-wa-copy.js';
+import {userMiniappLabels} from './miniapp-user-editor.js';
 import {renderTelegramUserCopy} from './telegram-user-copy.js';
 
 // Public code/link management is isolated from WhatsApp/Meta sessions.
@@ -20,7 +21,7 @@ export class PublicWaLinkBot {
     if(!markup?.inline_keyboard)return markup;
     return {...markup,inline_keyboard:markup.inline_keyboard.map(row=>row.map(button=>{
       const action=String(button.callback_data||'');
-      const style=button.web_app?'primary':(action==='pwa:panel'||action==='op:panel'||action==='pwa:cubamax')?'primary':
+      const style=button.web_app?(button.web_app.url.endsWith('/admin.html')?'danger':'primary'):(action==='pwa:panel'||action==='op:panel'||action==='pwa:cubamax')?'primary':
         (action.startsWith('pwa:send:')||action==='pwa:send-confirm'||action==='pwa:whatsapp')?'success':'danger';
       return {...button,style};
     }))};
@@ -36,17 +37,14 @@ export class PublicWaLinkBot {
   async start(chat,key){
     this.bot.pending.delete(key);
     const t=this.links.texts(),actor=String(key).split(':').at(-1);
-    const panelEnabled=!!this.bot.autoPublicAccess?.eligible(actor)&&
-      !!this.bot.webPanel?.role(actor);
     const isAdmin=!!this.bot.admins?.().has(actor);
-    return this.send(chat,t.choose,{inline_keyboard:[
-      ...(panelEnabled?[[{text:this.button('buttonOwnPanel'),callback_data:'pwa:panel'}]]:[]),
-      [{text:this.button('buttonWhatsApp'),callback_data:'pwa:whatsapp'}],
-      [{text:this.button('buttonCubamax'),callback_data:'pwa:cubamax'}],
-      [{text:this.button('buttonMyLinks'),callback_data:'pwa:list:0'}],
-      [{text:'🌐 ABRIR MINI APP',web_app:{url:'https://whatsapp-cubamax-miniapp.onrender.com'}}],
-      ...(isAdmin?[[{text:'👨🏻‍💻𝐀𝐃𝐌𝐈𝐍𝐈𝐒𝐓𝐑𝐀𝐃𝐎𝐑 𝐖𝐄𝐁',web_app:{url:'https://whatsapp-cubamax-miniapp.onrender.com/admin.html'}}]]:[])
-    ]});
+    const title=userMiniappLabels(this.bot.store,t).headerTitle;
+    // El menú público solo abre la mini app; el motor sigue atendiendo
+    // los callbacks originales cuando el cliente accede desde ella.
+    const entry=isAdmin
+      ?{text:'👨🏻‍💻𝐀𝐃𝐌𝐈𝐍𝐈𝐒𝐓𝐑𝐀𝐃𝐎𝐑 𝐖𝐄𝐁',web_app:{url:'https://whatsapp-cubamax-miniapp.onrender.com/admin.html'}}
+      :{text:title,web_app:{url:'https://whatsapp-cubamax-miniapp.onrender.com'}};
+    return this.send(chat,t.choose,{inline_keyboard:[[entry]]});
   }
   async chooseSite(chat,key){
     this.bot.pending.delete(key);
