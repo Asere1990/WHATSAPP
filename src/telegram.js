@@ -132,6 +132,7 @@ export class Telegram {
       return this.publicWa.callback(m.chat.id,publicKey,actor.id,u.callback_query.data);
     }
     if(privateChat&&publicCommand==='/start')return this.publicWa.start(m.chat.id,publicKey);
+    if(privateChat&&publicCommand==='/menu'&&!isAdmin)return this.publicWa.start(m.chat.id,publicKey);
     if(privateChat&&publicCommand==='/mis_enlaces')return this.publicWa.list(m.chat.id,actor.id);
     const publicPending=this.pending.get(publicKey);
     if(privateChat&&publicCommand==='/cancelar'&&
