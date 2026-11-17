@@ -4,6 +4,7 @@
 // No modifica los handlers, sesiones, cuentas ni mensajes del bot.
 import {createHash, createHmac, timingSafeEqual} from 'node:crypto';
 import {PublicWaLinkBot} from './public-wa-links-bot.js';
+import {userMiniappOverrides} from './miniapp-user-editor.js';
 
 const miniappOrigin='https://whatsapp-cubamax-miniapp.onrender.com';
 const maxAge=6*60*60, idle=30*60*1000;
@@ -124,7 +125,8 @@ function screen(telegram,actor,bridge,out,offset=0){
       cancel:bridge.button('buttonCancel'),
       active:bridge.copy('activeStatus'),
       revoked:bridge.copy('revokedStatus'),
-      accounts:bridge.button('buttonAssociatedAccounts')
+      accounts:bridge.button('buttonAssociatedAccounts'),
+      ...userMiniappOverrides(telegram.store)
     }
   };
 }

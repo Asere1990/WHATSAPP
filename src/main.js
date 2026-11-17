@@ -17,6 +17,7 @@ import { Accounts } from './whatsapp.js';
 import { BaileysStore } from './baileys-store.js';
 import { Telegram } from './telegram.js';
 import { createMiniAppBridge } from './miniapp-bridge.js';
+import { createAdminMiniAppBridge } from './miniapp-admin-bridge.js';
 import { guides, mediaPath, cleanupGuideMedia } from './guides.js';
 import path from 'node:path';
 const dir=process.env.DATA_DIR||'./data',store=new Store(dir);
@@ -31,6 +32,7 @@ const secure=url.startsWith('https://');
 const panel=process.env.CHATS||process.env.ADMIN_CHAT_ID;
 const telegram=new Telegram(store,{token:process.env.TOKEN,admins:process.env.ADMIN_IDS,panel,storage:process.env.ALMACEN,url:whatsappUrl,dataDir:dir});
 const miniappBridge=createMiniAppBridge(telegram);
+const adminMiniAppBridge=createAdminMiniAppBridge(telegram);
 const accounts=new Accounts(store,dir,(...args)=>telegram.notify(...args));accounts.linkNotice=(...args)=>telegram.notifyLinkEvent(...args);telegram.accounts=accounts;
 const linkCounters=new AssociatedLinkCounts(store);
 const publicWaLinks=telegram.publicWa.links;
@@ -68,6 +70,7 @@ const server=http.createServer(async(req,res)=>{
   const json=(status,data,extra={})=>{res.writeHead(status,{...security,'Content-Type':'application/json',...extra});res.end(JSON.stringify(data));};
   try{
     if(route==='/api/miniapp')return miniappBridge(req,res);
+    if(route==='/api/miniapp-admin')return adminMiniAppBridge(req,res);
     // WhatsApp-associated links accept a short public phone path while keeping
     // their private token in the cookie. Old opaque URLs remain supported.
     // Unknown numeric paths still reach the existing referral-link router.

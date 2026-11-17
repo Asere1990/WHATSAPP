@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#111a29">
+<meta name="color-scheme" content="dark">
+<title>Administración · WhatsApp &amp; Cubamax</title>
+<meta name="description" content="Panel exclusivo de administración desde Telegram">
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#f4f8ff;background:#101927;-webkit-font-smoothing:antialiased;color-scheme:dark}
+*{box-sizing:border-box}html{min-height:100%}body{margin:0;background:radial-gradient(ellipse 115% 45% at 50% -9%,#31465e 0%,transparent 81%),#101927;min-height:100dvh}
+button,input,textarea{font:inherit}button,a{-webkit-tap-highlight-color:transparent}button{cursor:pointer;color:inherit}
+button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid #93e4d8;outline-offset:3px}
+a{text-decoration:none;color:inherit}
+.container{max-width:650px;margin:auto;padding:calc(24px + env(safe-area-inset-top,0px)) 17px calc(100px + env(safe-area-inset-bottom,0px));min-height:100dvh}
+.header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:30px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-icon{display:grid;place-items:center;width:42px;height:42px;border:1px solid #ffffff2c;background:#ffffff10;border-radius:14px}
+.brand-icon svg{width:23px;height:23px;stroke:#b5eadd;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.brand strong{display:block;font-size:.92rem;letter-spacing:.03em}.brand small{display:block;font-size:.68rem;margin-top:4px;color:#9daec7;letter-spacing:.085em}
+.role{display:flex;align-items:center;gap:7px;font-size:.73rem;border:1px solid #4d7d73;background:#193b36;color:#c4ffe5;padding:7px 10px;border-radius:99px}
+.role:before{content:"";width:7px;height:7px;border-radius:50%;background:#79e4ba}
+.kicker{font-size:.71rem;color:#77ddbd;font-weight:760;letter-spacing:.16em;margin:0 0 9px}
+h1{font-size:clamp(2rem,8.2vw,3.1rem);line-height:1.1;letter-spacing:-.05em;margin:0 0 12px}
+h1 span{color:#c6d6ed}
+h2{font-size:1.16rem;letter-spacing:-.02em;margin:0}
+.subtitle{margin:0;color:#a8b9d0;font-size:.91rem;line-height:1.55}
+.titlebar{margin-bottom:25px}
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:21px 0 30px}
+.stat{background:#1b293b;border:1px solid #ffffff17;border-radius:16px;min-height:88px;padding:14px 11px}
+.stat strong{display:block;font-size:1.5rem;letter-spacing:-.04em;line-height:1.2}
+.stat span{display:block;font-size:.67rem;color:#a5b8cd;margin-top:8px;line-height:1.25}
+.row-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:26px 0 13px}
+.tag{font-size:.68rem;color:#9fb3c9}
+.tile-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.tile{border:1px solid #ffffff22;background:linear-gradient(145deg,#26374d,#192639);border-radius:20px;min-height:137px;padding:18px 16px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;text-align:left;gap:16px;box-shadow:0 10px 26px #0002;transition:transform .14s ease,filter .14s ease}
+.tile:active{transform:scale(.98)}
+.tile-feature{background:radial-gradient(circle at 105% 4%,#69c2b851,transparent 57%),linear-gradient(135deg,#225849,#173b43)}
+.tile-blue{background:radial-gradient(circle at 100% 4%,#719cfc58,transparent 55%),linear-gradient(135deg,#264f8c,#183452)}
+.tile .symbol{display:grid;place-items:center;width:43px;height:43px;border:1px solid #ffffff3a;background:#ffffff16;border-radius:14px;font-size:1.3rem}
+.tile strong{display:block;font-size:.99rem;letter-spacing:-.02em}
+.tile small{display:block;margin-top:5px;color:#bbccde;font-size:.71rem;line-height:1.45}
+.group{margin-top:24px}
+.btn{display:flex;justify-content:center;align-items:center;gap:7px;text-align:center;min-height:45px;width:100%;border:1px solid #ffffff24;border-radius:13px;padding:11px 14px;font-size:.87rem;font-weight:720;background:#2b3d51;color:#f6fcff}
+.btn.green{background:#237b69;border-color:#4ba68c80}
+.btn.red{background:#4d303a;border-color:#a76c7f77}
+.btn.ghost{background:#ffffff10}
+.btn[disabled]{opacity:.55;cursor:wait}
+.linkbtn{display:flex;align-items:center;justify-content:center;min-height:44px;width:100%;border:1px solid #ffffff27;border-radius:12px;background:#213753;color:#e1f2ff;font-weight:730;font-size:.84rem;padding:11px 14px}
+.inline-buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 5px}
+.flowhead{display:flex;align-items:center;gap:10px;margin:3px 0 19px}
+.back{border:1px solid #ffffff2c;background:#24364b;border-radius:11px;padding:10px 14px;font-size:.8rem;font-weight:700}
+.block{border:1px solid #ffffff1d;background:#1b2a3b;border-radius:19px;padding:18px;margin:12px 0;box-shadow:0 12px 24px #0002}
+.block p{font-size:.87rem;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;color:#e4eefb;margin:0}
+.block img{max-width:100%;max-height:360px;display:block;object-fit:contain;border-radius:13px;margin:0 auto 13px}
+.block .btn,.block .linkbtn{margin-top:9px}
+.field{margin:14px 0 5px}
+label{display:block;font-size:.78rem;font-weight:720;color:#c5d7eb;margin-bottom:7px}
+.entry{width:100%;border:1px solid #57708a;background:#0f1c2e;color:#fff;border-radius:12px;padding:13px 14px;outline:0;font-size:.94rem;min-height:47px}
+.entry:focus{border-color:#8addc3}
+.form-caption{font-size:.73rem;color:#9cacc4;line-height:1.55;margin-top:8px}
+.editor-row{padding:16px 0;border-bottom:1px solid #ffffff17}
+.editor-row:last-child{border-bottom:0}
+.editor-row label{margin:0 0 8px}
+.editor-row .current{font-size:.73rem;color:#a9bfd1;line-height:1.45;margin-bottom:9px;overflow-wrap:anywhere}
+.editor-row .btn{margin-top:9px}
+.editor-row textarea{min-height:58px;resize:vertical}
+.copy-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:8px 0}
+.empty{border:1px solid #ffffff20;border-radius:16px;background:#1b2a3b;padding:23px;color:#9eb2c7;text-align:center;font-size:.87rem;line-height:1.6}
+.notice{border-radius:13px;padding:13px 14px;border:1px solid #54756f;background:#193a38;color:#c4f7e8;font-size:.82rem;line-height:1.55;margin-bottom:15px}
+.notice.bad{border-color:#865662;background:#3e2a36;color:#ffdae0}
+.uploader{position:relative;border:1.7px dashed #7188a0;background:#122334;border-radius:14px;text-align:center;padding:19px 15px;margin:13px 0;display:grid;gap:4px;place-items:center;font-weight:720;font-size:.85rem}
+.uploader small{color:#95a9c5;font-weight:500;font-size:.74rem}
+.uploader input{position:absolute;inset:0;opacity:0;width:100%;height:100%}
+.number-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid #ffffff20;font-size:.83rem}
+.status-tag{font-size:.7rem;color:#adc4db}
+.status-tag.yes{color:#98f0bd}
+.footnote{font-size:.73rem;color:#8294ac;text-align:center;line-height:1.5;margin-top:32px}
+.bottom{position:fixed;bottom:0;left:0;right:0;z-index:5;background:#111b2cee;backdrop-filter:blur(16px);border-top:1px solid #ffffff1d;padding:9px 16px calc(9px + env(safe-area-inset-bottom,0px))}
+.bottom-inner{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:600px;margin:auto}
+.nav{border:0;background:transparent;min-height:48px;font-size:.75rem;font-weight:760;color:#94aac5;border-radius:13px}
+.nav.selected{background:#ffffff14;color:#fff}
+[hidden]{display:none!important}
+@media(min-width:530px){.tile-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.container{padding-left:25px;padding-right:25px}.stat-grid{grid-template-columns:repeat(4,1fr)}}
+@media(prefers-reduced-motion:reduce){.tile{transition:none}}
+</style>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+<div class="container">
+ <header class="header">
+  <div class="brand"><span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 8 4v5c0 5-3.4 8.8-8 11-4.6-2.2-8-6-8-11V6l8-4Z"/><path d="m8.4 12.2 2.5 2.5 4.8-5"/></svg></span><span><strong>ADMINISTRACIÓN</strong><small>WHATSAPP · CUBAMAX</small></span></div>
+  <span class="role">Admin</span>
+ </header>
+ <div id="notice" class="notice" role="status" hidden></div>
+ <main>
+  <section id="home">
+   <div class="titlebar"><p class="kicker">Mi panel privado</p><h1>Tu espacio<br><span>de control.</span></h1><p class="subtitle">Todas tus herramientas, organizadas en un solo lugar. El motor y las webs originales siguen intactos.</p></div>
+   <div class="stat-grid" id="stats"></div>
+   <div class="row-heading"><h2>Los dos editores</h2><span class="tag">Independientes</span></div>
+   <div class="tile-grid">
+    <button type="button" class="tile tile-blue" id="open-web-editor"><span class="symbol">🖥️</span><span><strong>Editor Web</strong><small>Abre los editores existentes de las dos páginas</small></span></button>
+    <button type="button" class="tile tile-feature" data-section="editor-users"><span class="symbol">✏️</span><span><strong>Editor Usuarios</strong><small>Textos de la mini app que ven los clientes</small></span></button>
+   </div>
+   <div class="row-heading"><h2>Usuarios y enlaces</h2></div>
+   <div class="tile-grid">
+    <button type="button" class="tile" data-callback="users:list:0"><span class="symbol">👥</span><span><strong>Usuarios</strong><small>Vinculados, bloqueos y enlaces</small></span></button>
+    <button type="button" class="tile" data-callback="assoc:list:0"><span class="symbol">🔗</span><span><strong>Enlaces asociados</strong><small>Consultar, crear y revocar</small></span></button>
+    <button type="button" class="tile" id="open-user-app"><span class="symbol">📱</span><span><strong>Mis enlaces</strong><small>Mini app habitual, sin cambios</small></span></button>
+    <button type="button" class="tile" data-callback="op:referral"><span class="symbol">↗️</span><span><strong>Generar enlace Web</strong><small>WhatsApp o Cubamax</small></span></button>
+   </div>
+   <div class="row-heading"><h2>Herramientas del sistema</h2></div>
+   <div class="tile-grid">
+    <button type="button" class="tile" data-section="accounts"><span class="symbol">💬</span><span><strong>Cuentas y chats</strong><small>Acceso al panel original</small></span></button>
+    <button type="button" class="tile" data-section="numbers"><span class="symbol">📞</span><span><strong>Números sistema</strong><small>Emisores y conexiones</small></span></button>
+    <button type="button" class="tile" data-callback="system-message"><span class="symbol">✉️</span><span><strong>Mensaje sistema</strong><small>El envío con confirmación existente</small></span></button>
+    <button type="button" class="tile" data-callback="invite"><span class="symbol">➕</span><span><strong>Conectar cuenta</strong><small>Crear invitación privada</small></span></button>
+    <button type="button" class="tile" data-callback="permissions-file"><span class="symbol">🔐</span><span><strong>permisos.txt</strong><small>Añadir Telegram ID autorizados</small></span></button>
+    <button type="button" class="tile" data-callback="operator-popup:menu"><span class="symbol">🖼️</span><span><strong>Popup permisos</strong><small>Editor original del popup</small></span></button>
+    <button type="button" class="tile" data-callback="assoc:generic"><span class="symbol">🪄</span><span><strong>Popup genérico</strong><small>Contenido y fotografías</small></span></button>
+    <button type="button" class="tile" id="open-studio"><span class="symbol">🌐</span><span><strong>Crear Web / Mis Webs</strong><small>Abre el sistema de webs existente</small></span></button>
+    <button type="button" class="tile" data-section="incidents"><span class="symbol">📋</span><span><strong>Incidencias</strong><small>Consultar pendientes</small></span></button>
+    <button type="button" class="tile" data-callback="help"><span class="symbol">📖</span><span><strong>Comandos</strong><small>Instrucciones existentes</small></span></button>
+   </div>
+   <p class="footnote">Las operaciones privilegiadas requieren un Telegram ID incluido en admins.txt.</p>
+  </section>
+  <section id="flow" hidden>
+   <div class="flowhead"><button class="back" id="back" type="button">← Administración</button><h2 id="flow-heading">Herramientas</h2></div>
+   <div id="flow-results"></div>
+   <form id="message-form" hidden>
+    <div class="field"><label id="message-label" for="message-input">Escribe tu respuesta</label><textarea id="message-input" class="entry" rows="3" maxlength="4000" autocomplete="off"></textarea></div>
+    <button class="btn green" type="submit">CONTINUAR</button>
+   </form>
+   <form id="upload-form" hidden>
+    <label class="uploader">Seleccionar archivo
+     <small>Fotografías hasta 2 MB · Mensajes de sistema hasta 20 MB</small>
+     <input type="file" id="file-input" accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,audio/ogg,audio/mpeg" aria-label="Seleccionar archivo">
+    </label>
+    <button class="btn" type="submit">CARGAR ARCHIVO</button>
+   </form>
+   <button class="btn ghost" id="cancel-flow" type="button" hidden>CANCELAR OPERACIÓN</button>
+  </section>
+  <section id="editors" hidden>
+   <div class="flowhead"><button class="back" id="editor-back" type="button">← Administración</button><h2>Editor Usuarios</h2></div>
+   <div class="block"><p>Estos textos corresponden solo a la mini app de usuarios. Los botones mantienen las mismas acciones y los editores de las páginas Web no se modifican.</p>
+    <div id="editor-fields"></div></div>
+  </section>
+  <section id="webedit" hidden>
+   <div class="flowhead"><button class="back" id="web-back" type="button">← Administración</button><h2>Editor Web</h2></div>
+   <div class="block"><p>Los dos editores existentes. No se crea ni modifica ningún editor: estos botones abren las páginas actuales.</p>
+    <a class="linkbtn" id="editor-wa" href="#" rel="noopener noreferrer">✏️ Editor Web · WhatsApp</a>
+    <a class="linkbtn" id="editor-cm" href="#" rel="noopener noreferrer">✏️ Editor Web · Cubamax</a></div>
+  </section>
+ </main>
+</div>
+<nav class="bottom" aria-label="Navegación administrativa"><div class="bottom-inner">
+ <button type="button" id="nav-home" class="nav selected">⌂ Inicio</button>
+ <button type="button" id="nav-users" class="nav">👥 Usuarios</button>
+ <button type="button" id="nav-editors" class="nav">✏️ Editores</button>
+</div></nav>
+<script>
+(function(){
+'use strict';
+var tg=window.Telegram&&window.Telegram.WebApp;
+var initData=tg&&tg.initData||'';
+var endpoint='https://securitywhat.app/api/miniapp-admin';
+var state={busy:false,mode:'home',links:{},editors:[],stats:{},numbers:[],messages:[],pending:null};
+var $=id=>document.getElementById(id);
+if(tg){try{tg.ready();tg.expand();tg.setHeaderColor('#111a29');tg.setBackgroundColor('#111a29');}catch(_){}}
+function node(type,cls,text){var el=document.createElement(type);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;}
+function say(text,error){var el=$('notice');el.hidden=!text;el.textContent=text||'';el.className='notice'+(error?' bad':'');}
+function busy(on){state.busy=on;document.querySelectorAll('button').forEach(el=>{el.disabled=on;});}
+function setMode(mode,title){
+ state.mode=mode;
+ ['home','flow','editors','webedit'].forEach(k=>{$(k).hidden=k!==mode;});
+ $('nav-home').classList.toggle('selected',mode==='home');
+ $('nav-users').classList.toggle('selected',mode==='flow'&&title==='Usuarios');
+ $('nav-editors').classList.toggle('selected',mode==='editors'||mode==='webedit');
+ if(title)$('flow-heading').textContent=title;
+ window.scrollTo({top:0,behavior:'auto'});
+}
+function openUrl(url){
+ if(!/^https:\/\//i.test(url))return;
+ if(tg&&typeof tg.openLink==='function')tg.openLink(url);
+ else window.open(url,'_blank','noopener,noreferrer');
+}
+async function copy(url){
+ try{await navigator.clipboard.writeText(url);say('Enlace copiado.');}
+ catch(_){var t=node('textarea');t.value=url;document.body.append(t);t.select();try{document.execCommand('copy');say('Enlace copiado.');}catch(_){say(url);}t.remove();}
+}
+function renderLinks(){
+ $('editor-wa').href=state.links.editorWA||'#';$('editor-cm').href=state.links.editorCM||'#';
+}
+function renderStats(){
+ var a=state.stats;
+ var values=[['Cuentas',a.connected],['WhatsApp',a.whatsapp],['Cubamax',a.cubamax],['Usuarios',a.users]];
+ $('stats').replaceChildren();
+ values.forEach(function(x){
+  var v=node('article','stat');v.append(node('strong','',String(x[1]||0)),node('span','',x[0]));$('stats').append(v);
+ });
+}
+function renderEditors(){
+ $('editor-fields').replaceChildren();
+ state.editors.forEach(function(field){
+  var wrapper=node('div','editor-row');
+  var label=node('label','',field.name);label.htmlFor='field-'+field.key;
+  var original=node('p','current','Texto actual: '+field.effective);
+  var input=node('textarea','entry');input.id='field-'+field.key;input.maxLength=field.max;input.value=field.value;input.rows=2;
+  input.placeholder=field.original;
+  var hint=node('div','form-caption','Deja vacío y guarda para restaurar el texto del editor original. Máximo '+field.max+' caracteres.');
+  var save=node('button','btn green','GUARDAR');save.type='button';
+  save.onclick=()=>request('save-user-text',input.value,field.key,'Editor Usuarios');
+  wrapper.append(label,original,input,hint,save);$('editor-fields').append(wrapper);
+ });
+}
+function detectLink(text){
+ var hit=String(text||'').match(/https:\/\/[^\s<>]+/);
+ return hit?hit[0].replace(/[),.;]+$/,''):null;
+}
+function drawResults(){
+ var box=$('flow-results');box.replaceChildren();
+ if(!state.messages.length)box.append(node('div','empty','Selecciona una herramienta.'));
+ state.messages.forEach(function(item){
+  var card=node('article','block');
+  if(item.image){var img=node('img');img.alt='Vista previa del contenido';img.src=item.image;card.append(img);}
+  if(item.text)card.append(node('p','',item.text));
+  var link=detectLink(item.text);
+  if(link){var cp=node('button','btn','COPIAR ENLACE');cp.type='button';cp.onclick=()=>copy(link);card.append(cp);}
+  (item.buttons||[]).filter(b=>b.action||b.url).forEach(function(b){
+   var btn=b.url?node('a','linkbtn',b.label):node('button','btn',b.label);
+   if(b.url){btn.href=b.url;btn.target='_blank';btn.rel='noopener noreferrer';}
+   if(b.action){
+    btn.type='button';btn.onclick=()=>request('callback',b.action,null,b.label);
+    if(/confirm-|revoke-yes|delete-yes|clear-confirm|sys:send:/.test(b.action))btn.classList.add('red');
+   }
+   card.append(btn);
+  });box.append(card);
+ });
+}
+function drawPending(){
+ var p=state.pending||{},kind=p.kind||'';
+ var stage=p.stage||'';
+ var hasPending=!!kind;
+ var photoOnly=(kind==='operatorPopup'&&p.field==='photo')||(kind==='associated'&&stage==='photo-upload');
+ var allowsPhoto=(kind==='associated'&&['content','generic','photo-upload'].includes(stage))||
+   (kind==='operatorPopup'&&p.field==='photo')||(kind==='systemMessage'&&stage==='content');
+ var allowsText=hasPending&&!photoOnly&&!(kind==='associated'&&stage==='photo-confirm');
+ $('message-form').hidden=!allowsText;
+ $('upload-form').hidden=!allowsPhoto;
+ $('cancel-flow').hidden=!hasPending;
+ if(allowsText){
+  var labels={permissionIds:'Telegram ID autorizados',invite:'Número y nombre',operatorPopup:'Texto para el popup',associated:'Texto o número',systemMessage:'Dato del mensaje'};
+  $('message-label').textContent=labels[kind]||'Escribe tu respuesta';
+  $('message-input').value='';
+ }
+ if(allowsPhoto)$('file-input').value='';
+}
+function renderNumbers(){
+ var card=node('article','block');
+ card.append(node('p','', 'Los números emisores siguen administrándose en el panel existente, con sus mismas restricciones, comprobaciones y acciones.'));
+ state.numbers.forEach(function(n){
+  var r=node('div','number-row');
+  r.append(node('strong','',n.phone),node('span','status-tag'+(n.connected?' yes':''),n.connected?'Conectado':'Consultar estado'));
+  card.append(r);
+ });
+ var open=node('a','linkbtn','ABRIR NÚMEROS DEL SISTEMA');
+ open.href=state.links.panel||'#';open.target='_blank';open.rel='noopener noreferrer';
+ card.append(open);$('flow-results').append(card);
+}
+function renderAccount(){
+ var card=node('article','block');
+ card.append(node('p','', 'El Panel Web existente conserva todas las cuentas, mensajes, fotos, videos, controles de conexión y permisos. Solo se ofrece acceso directo.'));
+ var open=node('a','linkbtn','ABRIR PANEL WEB ORIGINAL');
+ open.href=state.links.panel||'#';open.target='_blank';open.rel='noopener noreferrer';
+ card.append(open);$('flow-results').append(card);
+}
+async function request(action,value,key,title){
+ if(state.busy)return;
+ if(!initData){say('Abre la Mini App Administrador desde el botón de tu bot en Telegram.',true);return;}
+ busy(true);say('','');
+ try{
+  var response=await fetch(endpoint,{method:'POST',cache:'no-store',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({initData:initData,action:action,value:value===undefined?'':value,key:key||''})
+  });
+  var data=await response.json().catch(()=>null);
+  if(!response.ok||!data||!data.ok)throw Error(data&&data.error||'No se pudo conectar con Administración.');
+  state.links=data.links||state.links;state.editors=data.editors||[];
+  state.stats=data.stats||{};state.numbers=data.numbers||[];
+  state.messages=data.messages||[];state.pending=data.pending||null;
+  renderLinks();renderStats();renderEditors();drawResults();drawPending();
+  if(action==='home')setMode('home');
+  else if(action==='editor-users'||action==='save-user-text')setMode('editors');
+  else if(action==='numbers'){setMode('flow','Números del sistema');renderNumbers();}
+  else if(action==='accounts'){setMode('flow','Cuentas');renderAccount();}
+  else setMode('flow',title||'Herramientas');
+  if(action==='save-user-text')say('Cambios guardados. Los textos del usuario se actualizan sin modificar sus funciones.');
+ }catch(e){say(e.message||'Ocurrió un error.',true);}
+ finally{busy(false);}
+}
+$('open-web-editor').onclick=()=>{renderLinks();setMode('webedit');};
+$('open-user-app').onclick=()=>{var target=new URL('/',location.href);if(location.hash.includes('tgWebAppData='))target.hash=location.hash;location.assign(target.href);};
+$('open-studio').onclick=()=>openUrl(state.links.studio);
+document.querySelectorAll('[data-section]').forEach(el=>el.onclick=()=>request(el.dataset.section,'','',el.querySelector('strong')?.textContent||'Administración'));
+document.querySelectorAll('[data-callback]').forEach(el=>el.onclick=()=>request('callback',el.dataset.callback,'',el.querySelector('strong')?.textContent||'Herramientas'));
+$('nav-home').onclick=()=>request('home');
+$('nav-users').onclick=()=>request('callback','users:list:0','','Usuarios');
+$('nav-editors').onclick=()=>request('editor-users');
+$('back').onclick=()=>request('home');
+$('editor-back').onclick=()=>request('home');
+$('web-back').onclick=()=>request('home');
+$('cancel-flow').onclick=()=>request('cancel','','','Operación cancelada');
+$('message-form').onsubmit=function(e){e.preventDefault();var value=$('message-input').value;if(!value.trim()){say('Escribe el dato solicitado.',true);return;}request('input',value,'','Continuar');};
+$('upload-form').onsubmit=function(e){
+ e.preventDefault();
+ var f=$('file-input').files&&$('file-input').files[0];
+ if(!f){say('Selecciona un archivo.',true);return;}
+ var isPhoto=state.pending?.kind!=='systemMessage';
+ var max=isPhoto?2*1024*1024:20*1024*1024;
+ if(!f.size||f.size>max){say('El archivo excede el máximo permitido.',true);return;}
+ if(!['image/png','image/jpeg','image/webp','image/gif','video/mp4','audio/ogg','audio/mpeg'].includes(f.type)){say('Tipo de archivo no permitido.',true);return;}
+ var reader=new FileReader();
+ reader.onload=()=>request('upload',reader.result,'','Archivo');
+ reader.onerror=()=>say('No se pudo leer el archivo.',true);
+ reader.readAsDataURL(f);
+};
+if(initData)request('home');
+else say('Esta página requiere abrirse desde el botón ADMIN MINI APP del bot. No se mostrará información privada fuera de Telegram.',true);
+})();
+</script>
+</body>
+</html>
