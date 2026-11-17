@@ -177,9 +177,46 @@ solo lugar.</h1><p id="hero-description" class="description">Crea, comparte y ad
 var apiUrl='https://securitywhat.app/api/miniapp';
 var tg=window.Telegram&&window.Telegram.WebApp;
 var initData=tg&&tg.initData||'';
-var state={links:[],labels:{},pending:null,messages:[],tab:'home',busy:false,totalLinks:0,moreLinks:false,createdLink:null};
+var state={links:[],labels:{},media:{},pending:null,messages:[],tab:'home',busy:false,totalLinks:0,moreLinks:false,createdLink:null};
 var $=id=>document.getElementById(id);
 function tr(key,fallback){return state.labels[key]||fallback;}
+function showBoot(msg){
+ document.body.classList.remove('ui-ready');
+ $('boot-message').textContent=msg||'Preparando tu espacio…';
+ $('boot-retry').hidden=true;
+}
+function reveal(){
+ $('boot-retry').hidden=true;
+ document.body.classList.add('ui-ready');
+}
+async function applyCardMedia(media){
+ const targets={
+  whatsappBackground:'wa-background',whatsappIcon:'wa-icon-photo',
+  cubamaxBackground:'cm-background',cubamaxIcon:'cm-icon-photo'
+ };
+ const loaded=await Promise.all(Object.entries(targets).map(async function([key,id]){
+  const relative=String(media?.[key]||'');
+  if(!/^\/portal-media\/[a-f0-9]{64}\.(?:png|jpg|gif|webp)$/.test(relative))
+    return {id:id,src:'',ok:false};
+  const src='https://securitywhat.app'+relative;
+  const current=$(id);
+  if(current.dataset.loaded===src&&current.complete&&current.naturalWidth>0)
+    return {id:id,src:src,ok:true};
+  const ok=await new Promise(function(resolve){
+   const probe=new Image();
+   probe.onload=()=>resolve(true);
+   probe.onerror=()=>resolve(false);
+   probe.src=src;
+   if(probe.complete)resolve(probe.naturalWidth>0);
+  });
+  return {id:id,src:src,ok:ok};
+ }));
+ loaded.forEach(function(v){
+  const img=$(v.id);
+  if(v.ok){img.src=v.src;img.dataset.loaded=v.src;img.hidden=false;}
+  else{img.hidden=true;img.removeAttribute('src');delete img.dataset.loaded;}
+ });
+}
 function applyLabels(){
  var fields={
   'header-title':['headerTitle','MI ESPACIO'],
@@ -230,7 +267,7 @@ function setTab(name){
  window.scrollTo({top:0,behavior:'auto'});
 }
 async function call(action,value){
- if(!initData){message(tr('telegramOnly','Para crear y administrar enlaces, abre esta mini app desde el bot de Telegram.'),'error');return;}
+ if(!initData){showBoot('Esta mini app debe abrirse desde el bot de Telegram.');$('boot-retry').hidden=true;return;}
  if(state.busy)return;
  busy(true);message('','');
  var previous=new Set(state.links.map(link=>link.site+':'+link.id));
@@ -244,6 +281,13 @@ async function call(action,value){
   state.totalLinks=data.linksTotal||state.links.length;
   state.moreLinks=!!data.moreLinks;
   state.labels=data.labels||{};
+  const latestMedia=data.media||{};
+  const mediaChanged=JSON.stringify(latestMedia)!==JSON.stringify(state.media);
+  if(mediaChanged){
+   if(document.body.classList.contains('ui-ready'))showBoot();
+   await applyCardMedia(latestMedia);
+   state.media=latestMedia;
+  }
   state.pending=data.pending||null;
   state.messages=data.messages||[];
   applyLabels();
@@ -251,8 +295,13 @@ async function call(action,value){
   else if(action==='page'||action==='callback'&&value==='pwa:list:0'){setTab('links');}
   else setTab('flow');
   render();
+  reveal();
  }catch(error){
   message(error.message||tr('genericError','No se pudo completar la acción.'),'error');
+  if(!document.body.classList.contains('ui-ready')){
+   $('boot-message').textContent='No se pudo cargar tu espacio. Comprueba la conexión y vuelve a intentarlo.';
+   $('boot-retry').hidden=false;
+  }
  }finally{busy(false);}
 }
 function el(tag,cls,txt){
@@ -383,8 +432,12 @@ $('photo-form').onsubmit=function(e){
  reader.readAsDataURL(photo);
 };
 render();
+$('boot-retry').onclick=()=>call('start');
 if(initData)call('start');
-else message(tr('previewOnly','Vista preliminar. Para crear enlaces, entra desde la mini app registrada en tu bot de Telegram.'));
+else{
+ $('boot-message').textContent='Abre la mini app desde el botón de Telegram.';
+ $('boot-retry').hidden=true;
+}
 })();
 </script>
 </body>
