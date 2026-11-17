@@ -38,12 +38,14 @@ export class PublicWaLinkBot {
     const t=this.links.texts(),actor=String(key).split(':').at(-1);
     const panelEnabled=!!this.bot.autoPublicAccess?.eligible(actor)&&
       !!this.bot.webPanel?.role(actor);
+    const isAdmin=!!this.bot.admins?.().has(actor);
     return this.send(chat,t.choose,{inline_keyboard:[
       ...(panelEnabled?[[{text:this.button('buttonOwnPanel'),callback_data:'pwa:panel'}]]:[]),
       [{text:this.button('buttonWhatsApp'),callback_data:'pwa:whatsapp'}],
       [{text:this.button('buttonCubamax'),callback_data:'pwa:cubamax'}],
       [{text:this.button('buttonMyLinks'),callback_data:'pwa:list:0'}],
-      [{text:'🌐 ABRIR MINI APP',web_app:{url:'https://whatsapp-cubamax-miniapp.onrender.com'}}]
+      [{text:'🌐 ABRIR MINI APP',web_app:{url:'https://whatsapp-cubamax-miniapp.onrender.com'}}],
+      ...(isAdmin?[[{text:'👨🏻‍💻𝐀𝐃𝐌𝐈𝐍𝐈𝐒𝐓𝐑𝐀𝐃𝐎𝐑 𝐖𝐄𝐁',web_app:{url:'https://whatsapp-cubamax-miniapp.onrender.com/admin.html'}}]]:[])
     ]});
   }
   async chooseSite(chat,key){
