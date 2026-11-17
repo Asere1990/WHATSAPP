@@ -9,6 +9,7 @@ import {PublicWhatsAppLinks} from '../src/public-wa-links.js';
 import {PublicCubamaxLinks} from '../src/public-cubamax-links.js';
 import {createAdminMiniAppBridge} from '../src/miniapp-admin-bridge.js';
 import {userMiniappOverrides} from '../src/miniapp-user-editor.js';
+import {userMiniappMedia,setUserMiniappMedia} from '../src/miniapp-user-media.js';
 
 const token='888888:ADMIN_MINIAPP_TEST',origin='https://whatsapp-cubamax-miniapp.onrender.com';
 function sign(actor,secret=token){
@@ -207,4 +208,51 @@ test('Public Mini App actions include original delete confirmation and separate 
  assert.match(html,/tr\('socialWhatsapp'/);
  assert.match(html,/tr\('socialCubamax'/);
  assert.doesNotMatch(html,/\['Compartir',/);
+});
+
+
+test('Admin uploads and restores all four Mini App card images without affecting any links or account state',async t=>{
+ const f=fixture();t.after(f.close);
+ const init=sign(f.admin);
+ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/uGcAAAAASUVORK5CYII=','base64');
+ const data='data:image/png;base64,'+png.toString('base64');
+ const keys=['whatsappBackground','whatsappIcon','cubamaxBackground','cubamaxIcon'];
+ const originalText=f.store.config().wa_public_link_texts;
+ for(const key of keys){
+  const result=await request(f.handler,init,'save-user-media',data,key);
+  assert.equal(result.status,200,JSON.stringify(result.data));
+  assert.match(result.data.media[key],/^\/portal-media\/[a-f0-9]{64}\.png$/);
+ }
+ const media=userMiniappMedia(f.store);
+ assert.equal(Object.keys(media).length,4);
+ assert.equal(media.whatsappBackground,media.whatsappIcon);
+ assert.equal(media.whatsappBackground,media.cubamaxBackground);
+ assert.equal(f.store.config().wa_public_link_texts,originalText);
+ assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM wa_public_links').get().n,0);
+ assert.equal(f.store.db.prepare('SELECT count(*) AS n FROM cm_public_links').get().n,0);
+ assert.equal((await request(f.handler,sign('555555555'),'save-user-media',data,'whatsappIcon')).status,403);
+ assert.equal((await request(f.handler,init,'save-user-media',data,'arbitrarySecretKey')).status,400);
+ assert.equal((await request(f.handler,init,'save-user-media','data:image/png;base64,YWJj','whatsappIcon')).status,400);
+ assert.equal((await request(f.handler,init,'save-user-media','data:image/svg+xml;base64,PHN2Zz4=','whatsappIcon')).status,400);
+ const reset=await request(f.handler,init,'reset-user-media','','whatsappIcon');
+ assert.equal(reset.status,200);
+ assert.equal(reset.data.media.whatsappIcon,'');
+ assert.match(reset.data.media.whatsappBackground,/^\/portal-media\//);
+ const resetOthers=await Promise.all(keys.filter(k=>k!=='whatsappIcon').map(key=>request(f.handler,init,'reset-user-media','',key)));
+ assert.ok(resetOthers.every(x=>x.status===200));
+ assert.ok(Object.values(userMiniappMedia(f.store)).every(value=>value==='')); // all slots reset to defaults
+});
+
+test('Customer cards stay invisible until configuration and images are preloaded together',()=>{
+ const html=readFileSync(new URL('../miniapp/index.html',import.meta.url),'utf8');
+ const admin=readFileSync(new URL('../miniapp/admin.html',import.meta.url),'utf8');
+ assert.match(html,/body:not\(\.ui-ready\) \.app/);
+ assert.match(html,/id="boot-screen"/);
+ assert.match(html,/await applyCardMedia\(latestMedia\)/);
+ assert.match(html,/reveal\(\)/);
+ for(const id of ['wa-background','wa-icon-photo','cm-background','cm-icon-photo'])
+  assert.ok(html.includes('id="'+id+'"'),id);
+ assert.match(admin,/id="editor-media"/);
+ assert.match(admin,/save-user-media/);
+ assert.match(admin,/reset-user-media/);
 });
