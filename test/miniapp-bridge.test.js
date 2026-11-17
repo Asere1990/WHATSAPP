@@ -93,7 +93,9 @@ test('Mini App requires a signed Telegram identity, blocks unknown origins',asyn
   assert.equal(valid.body.ok,true);
   assert.equal(valid.body.labels.cubamax,'🇨🇺 Cubamax desde editor');
   assert.equal(valid.body.labels.myLinksHeading,'Enlaces desde editor');
-  assert.ok(valid.body.messages[0].buttons.some(b=>b.action==='pwa:cubamax'));
+  assert.equal(valid.body.messages[0].text,publicWaCopyDefaults.choose);
+  assert.equal(valid.body.messages[0].buttons.length,1);
+  assert.equal(valid.body.messages[0].buttons[0].label,'MI ESPACIO');
 });
 
 test('Mini App delegates create and revoke to the original Cubamax methods',async()=>{
@@ -153,5 +155,6 @@ test('Existing Telegram menu contains a Mini App button and still retains all or
   assert.match(bot,/web_app:\{url:'https:\/\/whatsapp-cubamax-miniapp\.onrender\.com'\}/);
   assert.match(bot,/this\.button\('buttonWhatsApp'\),callback_data:'pwa:whatsapp'/);
   assert.match(bot,/this\.button\('buttonCubamax'\),callback_data:'pwa:cubamax'/);
-  assert.match(bot,/this\.button\('buttonMyLinks'\),callback_data:'pwa:list:0'/);
+  assert.match(bot,/this\.button\('buttonViewLinks'\),callback_data:'pwa:list:0'/);
+  assert.match(bot,/this\.button\('buttonDelete'\),callback_data:'pwa:delete:'/);
 });
