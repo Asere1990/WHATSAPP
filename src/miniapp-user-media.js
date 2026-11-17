@@ -26,3 +26,35 @@ export function setUserMiniappMedia(store,key,asset){
   store.setConfig(configKey,JSON.stringify(old));
   return userMiniappMedia(store);
 }
+
+
+// Vista preliminar diminuta del MISMO fondo/icono configurado.
+// Se guarda en la configuración pública para que la tarjeta muestre los colores
+// finales en el primer fotograma sin esperar una imagen de hasta 2 MB.
+const previewKey='miniapp_user_previews';
+export function validMiniappPreview(value){
+  if(typeof value!=='string'||value.length>8000)return false;
+  const match=/^data:image\/jpeg;base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
+  if(!match)return false;
+  const b=Buffer.from(match[1],'base64');
+  return b.length>=8&&b.length<=4500&&b[0]===0xff&&b[1]===0xd8&&b[2]===0xff&&
+    b.toString('base64')===match[1];
+}
+export function userMiniappPreviews(store){
+  let raw={};
+  try{raw=JSON.parse(store?.config?.()?.[previewKey]||'{}');}catch{}
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))return {};
+  const media=userMiniappMedia(store);
+  return Object.fromEntries(userMiniappMediaSlots.map(slot=>[
+    slot.key,media[slot.key]&&validMiniappPreview(raw[slot.key])?raw[slot.key]:''
+  ]));
+}
+export function setUserMiniappPreview(store,key,value){
+  if(!userMiniappMediaSlots.some(slot=>slot.key===key))throw Error('Elemento visual inválido.');
+  if(value&&!validMiniappPreview(value))throw Error('Vista previa inválida.');
+  const raw=userMiniappPreviews(store);
+  if(value)raw[key]=value;
+  else delete raw[key];
+  store.setConfig(previewKey,JSON.stringify(raw));
+  return userMiniappPreviews(store);
+}
