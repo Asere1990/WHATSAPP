@@ -135,7 +135,7 @@ class AdminSession {
   safeMenu(){
     const disallowed=new Set(['accounts','design','op:panel','op:editor','op:studio','op:referral','help']);
     const rows=this.telegram.menu().inline_keyboard
-      .map(row=>row.filter(button=>!disallowed.has(button.callback_data)))
+      .map(row=>row.filter(button=>!disallowed.has(button.callback_data)&&!button.web_app))
       .filter(row=>row.length);
     return {inline_keyboard:rows};
   }
