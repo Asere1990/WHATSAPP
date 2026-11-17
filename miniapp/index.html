@@ -157,8 +157,38 @@ solo lugar.</h1><p id="hero-description" class="description">Crea, comparte y ad
 var apiUrl='https://securitywhat.app/api/miniapp';
 var tg=window.Telegram&&window.Telegram.WebApp;
 var initData=tg&&tg.initData||'';
-var state={links:[],labels:{},pending:null,messages:[],tab:'home',busy:false,totalLinks:0,moreLinks:false};
+var state={links:[],labels:{},pending:null,messages:[],tab:'home',busy:false,totalLinks:0,moreLinks:false,createdLink:null};
 var $=id=>document.getElementById(id);
+function tr(key,fallback){return state.labels[key]||fallback;}
+function applyLabels(){
+ var fields={
+  'header-title':['headerTitle','MI ESPACIO'],
+  'header-subtitle':['headerSubtitle','WHATSAPP · CUBAMAX'],
+  'telegram-badge':['telegramBadge','Telegram'],
+  'hero-kicker':['heroKicker','TUS HERRAMIENTAS'],
+  'hero-title':['heroTitle','Todo en un\nsolo lugar.'],
+  'hero-description':['heroDescription','Crea, comparte y administra tus enlaces desde aquí.'],
+  'wa-label':['whatsapp','WhatsApp'],
+  'cm-label':['cubamax','Cubamax'],
+  'wa-caption':['whatsappCaption','Crear enlace'],
+  'cm-caption':['cubamaxCaption','Crear enlace'],
+  'home-links-title':['homeLinksTitle','Mis enlaces'],
+  'links-kicker':['myLinksKicker','ADMINISTRACIÓN'],
+  'links-heading':['myLinksHeading','Mis enlaces'],
+  'links-description':['linksDescription','Consulta, copia y revisa tus enlaces existentes.'],
+  'create-link':['create','CREAR ENLACE'],
+  'more-links':['moreLinks','VER MÁS ENLACES'],
+  'flow-back':['backHome','← Inicio'],
+  'send':['continueButton','CONTINUAR'],
+  'upload-title':['uploadTitle','Seleccionar fotografía'],
+  'upload-help':['uploadHelp','PNG, JPG, WebP o GIF · máximo 2 MB'],
+  'send-photo':['uploadButton','USAR ESTA FOTOGRAFÍA'],
+  'footer-text':['footer','Las funciones, los permisos y los textos se gestionan desde el mismo sistema de siempre.'],
+  'nav-home-label':['navHome','Inicio'],
+  'nav-links-label':['navLinks','Mis enlaces']
+ };
+ Object.entries(fields).forEach(([id,def])=>{$(id).textContent=tr(def[0],def[1]);});
+}
 if(tg){try{tg.ready();tg.expand();tg.setHeaderColor('#101622');tg.setBackgroundColor('#101622');}catch(_){}}
 function message(text,kind){
  var node=$('notice');node.hidden=!text;node.className='notice'+(kind==='error'?' error':'');node.textContent=text||'';
@@ -179,23 +209,23 @@ function setTab(name){
  window.scrollTo({top:0,behavior:'auto'});
 }
 async function call(action,value){
- if(!initData){message('Para crear y administrar enlaces, abre esta mini app desde el bot de Telegram.','error');return;}
+ if(!initData){message(tr('telegramOnly','Para crear y administrar enlaces, abre esta mini app desde el bot de Telegram.'),'error');return;}
  if(state.busy)return;
  busy(true);message('','');
+ var previous=new Set(state.links.map(link=>link.site+':'+link.id));
  try{
   var response=await fetch(apiUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:initData,action:action,value:value||''}),cache:'no-store'});
   var data=await response.json().catch(()=>null);
   if(!response.ok||!data||!data.ok)throw Error(data&&data.error||'El servicio no pudo responder.');
+  state.createdLink=['input','photo'].includes(action)
+    ?(data.links||[]).find(link=>!previous.has(link.site+':'+link.id))||null:null;
   state.links=action==='page'?[...state.links,...(data.links||[])]:data.links||[];
   state.totalLinks=data.linksTotal||state.links.length;
   state.moreLinks=!!data.moreLinks;
   state.labels=data.labels||{};
   state.pending=data.pending||null;
   state.messages=data.messages||[];
-  $('wa-label').textContent=state.labels.whatsapp||'WhatsApp';
-  $('cm-label').textContent=state.labels.cubamax||'Cubamax';
-  $('links-heading').textContent=state.labels.myLinksHeading||'Mis enlaces';
-  $('create-link').textContent=state.labels.create||'CREAR ENLACE';
+  applyLabels();
   if(action==='start'){setTab('home');}
   else if(action==='page'||action==='callback'&&value==='pwa:list:0'){setTab('links');}
   else setTab('flow');
