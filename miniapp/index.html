@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#10131d">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Acceso a Web WhatsApp y Cubamax desde Telegram.">
+<title>WhatsApp · Cubamax</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;color:#f7f8ff;background:#10131d;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+html{min-height:100%;scroll-behavior:smooth}
+body{margin:0;min-height:100vh;min-height:100dvh;background:radial-gradient(ellipse 100% 45% at 50% -12%,#283650 0%,transparent 86%),#10131d}
+body:before{content:"";pointer-events:none;position:fixed;inset:0;background-image:radial-gradient(#ffffff12 .65px,transparent .7px);background-size:24px 24px;mask-image:linear-gradient(#0008,transparent 70%)}
+main{position:relative;max-width:600px;margin:auto;min-height:100dvh;padding:calc(28px + env(safe-area-inset-top,0px)) 22px calc(30px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:11px;letter-spacing:.035em;font-size:.8rem;font-weight:800}
+.brand-mark{display:grid;place-items:center;width:36px;height:36px;border:1px solid #ffffff3d;border-radius:12px;background:#ffffff10;box-shadow:0 6px 24px #0003}
+.brand-mark svg{width:19px;height:19px}
+.brand small{display:block;font-weight:550;font-size:.66rem;color:#a9b6ca;letter-spacing:.12em;margin-top:4px}
+.hero{padding:clamp(52px,13vh,95px) 0 27px}
+.eyebrow{display:inline-flex;align-items:center;gap:9px;border:1px solid #ffffff20;border-radius:99px;padding:8px 12px;color:#b9cadf;font-size:.68rem;letter-spacing:.15em;font-weight:800}
+.eyebrow:before{content:"";height:7px;width:7px;background:#67c5a7;border-radius:50%;box-shadow:0 0 0 4px #67c5a720}
+h1{font-weight:790;letter-spacing:-.052em;line-height:1.05;font-size:clamp(2.7rem,10.8vw,4rem);margin:22px 0 15px}
+h1 span{color:#b5c7e6}
+.subtitle{font-size:.96rem;color:#b0bfd4;line-height:1.65;max-width:32ch;margin:0}
+.services{display:grid;gap:16px;margin-top:19px}
+.service{isolation:isolate;position:relative;display:flex;min-height:184px;flex-direction:column;justify-content:space-between;overflow:hidden;padding:23px;border-radius:24px;text-decoration:none;color:white;border:1px solid #ffffff28;box-shadow:0 18px 32px #0004;transition:transform .17s ease,box-shadow .17s ease}
+.service:active{transform:scale(.985)}
+.service:focus-visible{outline:3px solid white;outline-offset:4px}
+.service.whatsapp{background:radial-gradient(circle at 97% 0%,#58dc9870,transparent 48%),linear-gradient(125deg,#135f57 0%,#0b3739 95%)}
+.service.cubamax{background:radial-gradient(circle at 95% -5%,#8dabff77,transparent 50%),linear-gradient(125deg,#2254b3 0%,#172e63 100%)}
+.service:after{content:"";z-index:-1;position:absolute;width:188px;height:188px;right:-75px;bottom:-103px;border:1px solid #ffffff2b;border-radius:50%;box-shadow:0 0 0 22px #ffffff07,0 0 0 47px #ffffff06}
+.service-top{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+.service-icon{width:48px;height:48px;border:1px solid #ffffff5b;background:#ffffff24;border-radius:16px;display:grid;place-items:center;backdrop-filter:blur(5px)}
+.service-icon svg{width:26px;height:26px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.arrow{font-size:1.4rem;line-height:1;color:#fffbe8}
+.service-label{margin:14px 0 2px;font-size:1.6rem;letter-spacing:-.035em;font-weight:760}
+.service-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:.8rem;color:#e5f0f0d9}
+.open{border:1px solid #ffffff51;padding:6px 11px;border-radius:50px;font-size:.74rem;font-weight:750;color:white;background:#ffffff15}
+.footer{margin-top:auto;padding-top:36px;color:#8492a9;text-align:center;font-size:.73rem;line-height:1.55}
+.footer strong{font-weight:650;color:#bac7da}
+@media (min-width:560px){main{padding-left:30px;padding-right:30px}.services{grid-template-columns:1fr 1fr}.service{min-height:236px}}
+@media (prefers-reduced-motion:reduce){.service{transition:none}}
+</style>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+<main>
+ <header class="brand" aria-label="Acceso a servicios">
+  <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M14 17.5h7M17.5 14v7"/></svg></span>
+  <span>PORTAL DE ACCESO<small>DESDE TELEGRAM</small></span>
+ </header>
+ <section class="hero" aria-labelledby="page-title">
+  <span class="eyebrow">TUS SERVICIOS</span>
+  <h1 id="page-title">Todo en un<br><span>solo lugar.</span></h1>
+  <p class="subtitle">Selecciona la página a la que deseas acceder.</p>
+ </section>
+ <nav class="services" aria-label="Elegir servicio">
+  <a class="service whatsapp" href="https://securitywhat.app/whatsapp" target="_self" aria-label="Abrir Web WhatsApp">
+   <div class="service-top">
+    <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20a8 8 0 1 0-7-4.1L3 21l5.1-2A7.9 7.9 0 0 0 12 20Z"/><path d="M9 9.2c.9 2.1 2.2 3.5 4.7 4.9l1.5-1.1 2.1.8c-.3 1.8-1.9 2.2-3.4 1.8a10.4 10.4 0 0 1-6.2-6.2c-.4-1.5 0-3.1 1.8-3.4l.8 2.1Z"/></svg></span>
+    <span class="arrow" aria-hidden="true">↗</span>
+   </div>
+   <div><h2 class="service-label">Web WhatsApp</h2><div class="service-meta"><span>Acceso y vinculación</span><span class="open">ENTRAR</span></div></div>
+  </a>
+  <a class="service cubamax" href="https://cubamaxcom.online/cubamax" target="_self" aria-label="Abrir Cubamax">
+   <div class="service-top">
+    <span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 7 9 5v10l-9-5V7ZM21 7l-9 5v10l9-5V7Z"/></svg></span>
+    <span class="arrow" aria-hidden="true">↗</span>
+   </div>
+   <div><h2 class="service-label">Cubamax</h2><div class="service-meta"><span>Portal de servicios</span><span class="open">ENTRAR</span></div></div>
+  </a>
+ </nav>
+ <footer class="footer">Acceso directo a las páginas actuales.<br><strong>Sus procesos de vinculación permanecen sin cambios.</strong></footer>
+</main>
+<script>
+(function(){
+  var app=window.Telegram&&window.Telegram.WebApp;
+  if(!app)return;
+  try{app.ready();app.expand();}catch(_){}
+})();
+</script>
+</body>
+</html>
