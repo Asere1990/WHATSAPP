@@ -143,7 +143,7 @@ test('Mini App paginates many links without hiding revoked links',async()=>{
   assert.equal(second.status,200);
   assert.equal(second.body.links.length,12);
   assert.equal(second.body.moreLinks,false);
-  assert.equal(second.body.links[1].enabled,false);
+  assert.equal(second.body.links[0].enabled,false);
   assert.equal((await request(handler,{initData,action:'page',value:-1})).status,400);
 });
 
