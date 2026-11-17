@@ -9,6 +9,8 @@ import {SystemMessages} from './system-messages.js';
 import {userMiniappEditorData,updateUserMiniappLabel} from './miniapp-user-editor.js';
 import {publicWaCopyCatalog,publicWaCopyDefaults} from './public-wa-copy.js';
 import {publicWaSenderNumbers} from './public-wa-send.js';
+import {userMiniappMedia,userMiniappMediaSlots,setUserMiniappMedia} from './miniapp-user-media.js';
+import {savePageImage} from './page-editor.js';
 
 const origin='https://whatsapp-cubamax-miniapp.onrender.com';
 const ageLimit=6*3600,idle=30*60000,sessions=new Map(),rates=new Map();
@@ -170,6 +172,7 @@ class AdminSession {
       messages:this.messages,
       pending:this.pending.get(this.actor+':'+this.actor)||null,
       editors:userMiniappEditorData(this.telegram.store,this.telegram.publicWa.links.texts()),
+      media:userMiniappMedia(this.telegram.store),mediaSlots:userMiniappMediaSlots,
       links:this.links(),stats:this.stats(),
       numbers:publicWaSenderNumbers(this.telegram.store).map(number=>{
         const account=this.telegram.store.db.prepare('SELECT id,consent,confirmed,paused FROM accounts WHERE phone=?').get(number);
@@ -197,6 +200,28 @@ class AdminSession {
         this.telegram.publicWa.links.updateText(name,value.trim()||publicWaCopyDefaults[name]);
       }else updateUserMiniappLabel(this.telegram.store,data.key,value);
       this.capture('✅ Texto de la mini app de usuarios guardado. Se mostrará al volver a abrir la mini app.');
+    }else if(action==='save-user-media'){
+      if(!userMiniappMediaSlots.some(slot=>slot.key===data.key))throw Error('Elemento visual no disponible.');
+      if(typeof value!=='string'||value.length>3*1024*1024)throw Error('La foto no puede superar 2 MB.');
+      const match=/^data:image\/(?:jpeg|png|webp|gif);base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
+      if(!match)throw Error('Sube una fotografía JPG, PNG, WebP o GIF.');
+      const binary=Buffer.from(match[1],'base64');
+      if(binary.length<8||binary.length>2*1024*1024||binary.toString('base64')!==match[1])
+        throw Error('La fotografía no es válida o supera los 2 MB.');
+      // Reutiliza la validación del editor de páginas (tipo real,
+      // nombre por SHA-256, carpeta de disco persistente).
+      const asset=await savePageImage({
+        accounts:{dir:this.telegram.accounts.dir},
+        download:async fileId=>{
+          if(fileId!=='miniapp-user-photo')throw Error('Archivo no disponible.');
+          return binary;
+        }
+      },{photo:[{file_id:'miniapp-user-photo',file_size:binary.length}]});
+      setUserMiniappMedia(this.telegram.store,data.key,asset);
+      this.capture('✅ Fotografía guardada. La mini app mostrará la imagen antes de enseñar la tarjeta.');
+    }else if(action==='reset-user-media'){
+      setUserMiniappMedia(this.telegram.store,data.key,'');
+      this.capture('✅ Diseño original restaurado para este elemento visual.');
     }else if(action==='numbers'){
       this.capture('Números emisores del sistema: utiliza el Panel Web original para consultar, agregar, cambiar o reconectar números. No se ha modificado su funcionamiento.');
     }else if(action==='accounts'){
