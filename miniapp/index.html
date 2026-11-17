@@ -216,6 +216,16 @@ async function applyCardMedia(media){
   if(v.ok){img.src=v.src;img.dataset.loaded=v.src;img.hidden=false;}
   else{img.hidden=true;img.removeAttribute('src');delete img.dataset.loaded;}
  });
+ // Esperar a que las imágenes reales del DOM estén decodificadas.
+ // Sin esto algunas pantallas iOS podían dibujar un instante el fondo viejo.
+ await Promise.all(loaded.filter(v=>v.ok).map(async function(v){
+  const img=$(v.id);
+  try{
+   if(typeof img.decode==='function')await img.decode();
+  }catch(_){
+   img.hidden=true;img.removeAttribute('src');delete img.dataset.loaded;
+  }
+ }));
 }
 function applyLabels(){
  var fields={
