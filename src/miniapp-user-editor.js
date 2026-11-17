@@ -22,7 +22,7 @@ export function userMiniappOverrides(store){
   for(const field of userMiniappFields){
     const value=raw[field.key];
     if(typeof value==='string'&&value.trim()&&value.length<=field.max&&
-       !/[\u0000-\u001f\u007f]/.test(value))allowed[field.key]=value;
+       !/[\u0000-\u0009\u000b-\u001f\u007f]/.test(value))allowed[field.key]=value;
   }
   return allowed;
 }
@@ -38,7 +38,7 @@ export function userMiniappEditorData(store,publicTexts){
 export function updateUserMiniappLabel(store,key,value){
   const field=userMiniappFields.find(item=>item.key===key);
   if(!field)throw Error('Campo no disponible en Editor Usuarios.');
-  if(typeof value!=='string'||value.length>field.max||/[\u0000-\u001f\u007f]/.test(value))
+  if(typeof value!=='string'||value.length>field.max||/[\u0000-\u0009\u000b-\u001f\u007f]/.test(value))
     throw Error('Texto inválido o demasiado largo.');
   const values=userMiniappOverrides(store);
   if(value.trim())values[key]=value.trim();
