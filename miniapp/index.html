@@ -289,8 +289,17 @@ function render(){
  $('home-extra').replaceChildren();
  state.messages.forEach(function(m){(m.buttons||[]).filter(b=>b.action==='pwa:panel').forEach(function(b){var btn=el('button','action primary',b.label);btn.type='button';btn.onclick=()=>call('callback',b.action);$('home-extra').append(btn);});});
  $('results').replaceChildren();
- var linkInMessages=state.links.find(function(link){return state.messages.some(function(m){return (m.text||'').includes(link.url);});});
- if(linkInMessages){var featured=el('section','link');addLink(featured,linkInMessages);$('results').append(featured);}
+ var linkInMessages=state.createdLink||state.links.find(function(link){return state.messages.some(function(m){return (m.text||'').includes(link.url);});});
+ if(linkInMessages){
+  var featured=el('section','link');addLink(featured,linkInMessages);$('results').append(featured);
+  if(state.createdLink){
+   var social=el('section','social-card'),heading=el('h3','',tr('socialHeading','INGENIERÍA SOCIAL'));
+   var text=linkInMessages.site==='cm'
+      ?tr('socialCubamax','Comparte el enlace solo con personas que aceptaron recibirlo e indica claramente qué página abrirán.')
+      :tr('socialWhatsapp','Comparte el enlace solo con personas que aceptaron recibirlo. Explica su propósito y no solicites códigos.');
+   social.append(heading,el('p','',text));$('results').append(social);
+  }
+ }
  state.messages.forEach(function(m){
   var card=el('section','panel');
   if(m.image){var img=el('img','panel-preview');img.src=m.image;img.alt='Vista previa de la fotografía del enlace';card.append(img);}
@@ -313,10 +322,10 @@ function render(){
   $('results').append(card);
  });
  var inputs={
-  publicWaCode:['Código de tu enlace','Escribe el código que usarás para compartir el enlace.','text'],
-  publicCmCode:['Código de Cubamax','Elige el código de tu enlace Cubamax.','text'],
-  publicWaCountry:['País del destinatario','Por ejemplo: Cuba, Estados Unidos, México o España.','text'],
-  publicWaPhone:['Número del destinatario','Introduce el número con o sin código internacional.','tel']
+  publicWaCode:[tr('inputWaCode','Código de tu enlace'),tr('helpWaCode','Escribe el código que usarás para compartir el enlace.'),'text'],
+  publicCmCode:[tr('inputCmCode','Código de Cubamax'),tr('helpCmCode','Elige el código de tu enlace Cubamax.'),'text'],
+  publicWaCountry:[tr('inputCountry','País del destinatario'),tr('helpCountry','Por ejemplo: Cuba, Estados Unidos, México o España.'),'text'],
+  publicWaPhone:[tr('inputPhone','Número del destinatario'),tr('helpPhone','Introduce el número con o sin código internacional.'),'tel']
  };
  var config=inputs[state.pending];
  $('entry-form').hidden=!config;
@@ -337,23 +346,23 @@ $('create-link').onclick=()=>call('callback','pwa:create');
 $('more-links').onclick=()=>call('page',state.links.length);
 $('entry-form').onsubmit=function(e){
  e.preventDefault();
- var value=$('entry').value.trim();if(!value){message('Escribe el dato solicitado.','error');return;}
+ var value=$('entry').value.trim();if(!value){message(tr('missingInput','Escribe el dato solicitado.'),'error');return;}
  call('input',value);
 };
 $('photo-form').onsubmit=function(e){
  e.preventDefault();
  var photo=$('photo').files&&$('photo').files[0];
- if(!photo){message('Selecciona una fotografía.','error');return;}
- if(photo.size>2*1024*1024){message('La imagen no puede superar 2 MB.','error');return;}
- if(!['image/jpeg','image/png','image/webp','image/gif'].includes(photo.type)){message('Formato de imagen no permitido.','error');return;}
+ if(!photo){message(tr('missingPhoto','Selecciona una fotografía.'),'error');return;}
+ if(photo.size>2*1024*1024){message(tr('photoSize','La imagen no puede superar 2 MB.'),'error');return;}
+ if(!['image/jpeg','image/png','image/webp','image/gif'].includes(photo.type)){message(tr('photoFormat','Formato de imagen no permitido.'),'error');return;}
  var reader=new FileReader();
  reader.onload=function(){call('photo',reader.result);};
- reader.onerror=function(){message('No se pudo leer la fotografía.','error');};
+ reader.onerror=function(){message(tr('photoReadError','No se pudo leer la fotografía.'),'error');};
  reader.readAsDataURL(photo);
 };
 render();
 if(initData)call('start');
-else message('Vista preliminar. Para crear enlaces, entra desde la mini app registrada en tu bot de Telegram.');
+else message(tr('previewOnly','Vista preliminar. Para crear enlaces, entra desde la mini app registrada en tu bot de Telegram.'));
 })();
 </script>
 </body>
