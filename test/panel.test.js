@@ -69,9 +69,9 @@ test('enrollment attribution uses the displayed link, not a referral cookie chan
  const {store,a}=setup(t),telegram={admins:()=>new Set(['1']),permissions:()=>new Set(['2','3'])},panel=new WebPanel(store,{live:new Map()},telegram,{url:'http://test',secure:false,allowedOrigins:new Set()});const left=panel.access.token('2','referral'),right=panel.access.token('3','referral');panel.consent(a.id,{headers:{cookie:'wa_referral='+right}},left);assert.equal(panel.access.owner(a.id),'2');assert.throws(()=>panel.consent(a.id,{headers:{}},right),/asignada/);
 });
 
-test('limited Telegram users get their menu and cannot invoke admin callbacks or commands',async t=>{
- const {store}=setup(t),bot=new Telegram(store,{}),calls=[];bot.admins=()=>new Set(['1']);bot.permissions=()=>new Set(['2']);bot.api=async()=>{};bot.webPanel={access:{remember(){}},telegramMenu:async(...args)=>calls.push(['menu',...args]),telegramAction:async(...args)=>calls.push(['action',...args])};
- const message={chat:{id:2,type:'private'},from:{id:2,first_name:'Equipo'},text:'/menu'};await bot.handle({message});assert.deepEqual(calls,[['menu',2,2]]);
+test('limited Telegram users get one Mini App menu and cannot invoke admin callbacks or commands',async t=>{
+ const {store}=setup(t),bot=new Telegram(store,{}),calls=[];bot.admins=()=>new Set(['1']);bot.permissions=()=>new Set(['2']);bot.api=async()=>{};bot.webPanel={access:{remember(){}},telegramMenu:async(...args)=>calls.push(['menu',...args]),telegramAction:async(...args)=>calls.push(['action',...args])};bot.publicWa.start=async(...args)=>calls.push(['miniapp',...args]);
+ const message={chat:{id:2,type:'private'},from:{id:2,first_name:'Equipo'},text:'/menu'};await bot.handle({message});assert.deepEqual(calls,[['miniapp',2,'2:2']]);
  await bot.handle({message:{...message,text:'/desconectar abc'}});await bot.handle({callback_query:{id:'x',from:message.from,message,data:'design'}});assert.equal(calls.length,1);
  await bot.handle({message:{...message,text:'/panel'}});assert.deepEqual(calls.at(-1),['action',2,2,'panel']);
  await bot.handle({message:{...message,chat:{id:-100,type:'group'}}});await bot.handle({message:{...message,from:{id:3}}});assert.equal(calls.length,2);

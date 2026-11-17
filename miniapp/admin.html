@@ -61,6 +61,10 @@ label{display:block;font-size:.78rem;font-weight:720;color:#c5d7eb;margin-bottom
 .entry{width:100%;border:1px solid #57708a;background:#0f1c2e;color:#fff;border-radius:12px;padding:13px 14px;outline:0;font-size:.94rem;min-height:47px}
 .entry:focus{border-color:#8addc3}
 .form-caption{font-size:.73rem;color:#9cacc4;line-height:1.55;margin-top:8px}
+.editor-group{border:1px solid #ffffff25;border-radius:15px;margin-top:13px;overflow:hidden;background:#152437}
+.editor-group>summary{padding:14px 15px;font-size:.91rem;font-weight:740;cursor:pointer;list-style-position:inside}
+.editor-group[open]>summary{background:#ffffff0a;border-bottom:1px solid #ffffff17}
+.editor-group-fields{padding:0 15px 8px}
 .editor-row{padding:16px 0;border-bottom:1px solid #ffffff17}
 .editor-row:last-child{border-bottom:0}
 .editor-row label{margin:0 0 8px}
@@ -145,6 +149,7 @@ label{display:block;font-size:.78rem;font-weight:720;color:#c5d7eb;margin-bottom
   <section id="editors" hidden>
    <div class="flowhead"><button class="back" id="editor-back" type="button">← Administración</button><h2>Editor Usuarios</h2></div>
    <div class="block"><p>Estos textos corresponden solo a la mini app de usuarios. Los botones mantienen las mismas acciones y los editores de las páginas Web no se modifican.</p>
+    <label for="editor-search" class="field">Buscar textos y botones</label><input id="editor-search" class="entry" type="search" placeholder="Cabecera, crear, botón, mensajes…" autocomplete="off">
     <div id="editor-fields"></div></div>
   </section>
   <section id="webedit" hidden>
@@ -166,7 +171,7 @@ label{display:block;font-size:.78rem;font-weight:720;color:#c5d7eb;margin-bottom
 var tg=window.Telegram&&window.Telegram.WebApp;
 var initData=tg&&tg.initData||'';
 var endpoint='https://securitywhat.app/api/miniapp-admin';
-var state={busy:false,mode:'home',links:{},editors:[],stats:{},numbers:[],messages:[],pending:null};
+var state={busy:false,mode:'home',links:{},editors:[],stats:{},numbers:[],messages:[],pending:null,openedEditorGroups:{}};
 var $=id=>document.getElementById(id);
 if(tg){try{tg.ready();tg.expand();tg.setHeaderColor('#111a29');tg.setBackgroundColor('#111a29');}catch(_){}}
 function node(type,cls,text){var el=document.createElement(type);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;}
@@ -201,19 +206,52 @@ function renderStats(){
   var v=node('article','stat');v.append(node('strong','',String(x[1]||0)),node('span','',x[0]));$('stats').append(v);
  });
 }
-function renderEditors(){
- $('editor-fields').replaceChildren();
- state.editors.forEach(function(field){
-  var wrapper=node('div','editor-row');
-  var label=node('label','',field.name);label.htmlFor='field-'+field.key;
-  var original=node('p','current','Texto actual: '+field.effective);
-  var input=node('textarea','entry');input.id='field-'+field.key;input.maxLength=field.max;input.value=field.value;input.rows=2;
-  input.placeholder=field.original;
-  var hint=node('div','form-caption','Deja vacío y guarda para restaurar el texto del editor original. Máximo '+field.max+' caracteres.');
-  var save=node('button','btn green','GUARDAR');save.type='button';
-  save.onclick=()=>request('save-user-text',input.value,field.key,'Editor Usuarios');
-  wrapper.append(label,original,input,hint,save);$('editor-fields').append(wrapper);
+function filterEditors(){
+ var search=$('editor-search').value.trim().toLocaleLowerCase('es');
+ $('editor-fields').querySelectorAll('.editor-group').forEach(function(group){
+  var any=false;
+  group.querySelectorAll('.editor-row').forEach(function(row){
+   var matches=!search||row.dataset.search.includes(search);
+   row.hidden=!matches;if(matches)any=true;
+  });
+  group.hidden=!any;
+  if(search&&any)group.open=true;
  });
+}
+function renderEditors(){
+ var root=$('editor-fields');root.replaceChildren();
+ var groups=new Map();
+ state.editors.forEach(function(field){
+  var title=field.group||'Otros textos';
+  if(!groups.has(title))groups.set(title,[]);
+  groups.get(title).push(field);
+ });
+ groups.forEach(function(fields,title){
+  var section=node('details','editor-group');
+  section.dataset.group=title;
+  section.open=state.openedEditorGroups[title]??['Cabecera','Página principal','Ingeniería social'].includes(title);
+  section.addEventListener('toggle',function(){
+   if(!$('editor-search').value.trim())state.openedEditorGroups[title]=section.open;
+  });
+  var summary=node('summary','',title+' · '+fields.length);
+  var contents=node('div','editor-group-fields');
+  fields.forEach(function(field){
+   var wrapper=node('div','editor-row');wrapper.dataset.search=(field.name+' '+field.key+' '+field.effective).toLocaleLowerCase('es');
+   var label=node('label','',field.name),id='field-'+field.key;label.htmlFor=id;
+   var original=node('p','current','Texto actual: '+field.effective);
+   var input=node('textarea','entry');input.id=id;input.maxLength=field.max;input.value=field.value;input.rows=field.max>450?4:2;
+   input.placeholder=field.original;
+   var help=field.existingEditor
+    ?'Este texto se actualiza en el editor original de Telegram. Conserva los marcadores {enlace}, {numero} y similares. Vacío = texto predeterminado.'
+    :'Deja vacío para recuperar el texto original. Máximo '+field.max+' caracteres.';
+   var hint=node('div','form-caption',help);
+   var save=node('button','btn green','GUARDAR');save.type='button';
+   save.onclick=()=>request('save-user-text',input.value,field.key,'Editor Usuarios');
+   wrapper.append(label,original,input,hint,save);contents.append(wrapper);
+  });
+  section.append(summary,contents);root.append(section);
+ });
+ filterEditors();
 }
 function detectLink(text){
  var hit=String(text||'').match(/https:\/\/[^\s<>]+/);
@@ -308,6 +346,7 @@ document.querySelectorAll('[data-callback]').forEach(el=>el.onclick=()=>request(
 $('nav-home').onclick=()=>request('home');
 $('nav-users').onclick=()=>request('callback','users:list:0','','Usuarios');
 $('nav-editors').onclick=()=>request('editor-users');
+$('editor-search').addEventListener('input',filterEditors);
 $('back').onclick=()=>request('home');
 $('editor-back').onclick=()=>request('home');
 $('web-back').onclick=()=>request('home');

@@ -23,9 +23,9 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid #b5e4
 .brand{font-weight:780;letter-spacing:-.02em;font-size:.91rem;line-height:1.15}
 .brand small{display:block;font-weight:500;color:#97a9c3;font-size:.68rem;letter-spacing:.07em;margin-top:4px}
 .lock{background:#ffffff0b;color:#9fb5c9;border:1px solid #ffffff1d;border-radius:50px;padding:8px 11px;display:flex;align-items:center;gap:6px;font-size:.69rem}
-.lock span{height:6px;width:6px;border-radius:50%;background:#79d7b7;box-shadow:0 0 0 3px #79d7b724}
+.lock .lock-dot{height:6px;width:6px;border-radius:50%;background:#79d7b7;box-shadow:0 0 0 3px #79d7b724;flex-shrink:0}
 .kicker{font-size:.73rem;font-weight:700;color:#75dbbc;letter-spacing:.17em;text-transform:uppercase;margin:0 0 11px}
-h1{font-size:clamp(2rem,9vw,3.1rem);font-weight:800;letter-spacing:-.052em;line-height:1.12;margin:0 0 11px}
+h1{font-size:clamp(2rem,9vw,3.1rem);font-weight:800;letter-spacing:-.052em;line-height:1.12;margin:0 0 11px;white-space:pre-line}
 .description{font-size:.91rem;line-height:1.65;color:#9eb0c7;max-width:38ch;margin:0}
 .headline{margin-bottom:25px}
 .grid{display:grid;gap:14px}
@@ -68,9 +68,16 @@ h2{font-size:1.2rem;letter-spacing:-.03em;margin:0}
 .state.off{background:#493036;color:#ffd3d6}
 .href{display:block;color:#95b6da;font-size:.79rem;overflow-wrap:anywhere;margin-top:10px;text-decoration:none}
 .link-meta{display:block;color:#b4c8dc;font-size:.76rem;margin-top:8px}
-.link-controls{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.link-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
 .mini{min-height:39px;border:1px solid #ffffff23;border-radius:10px;background:#2b4055;color:#ecf6ff;font-size:.77rem;font-weight:740}
 .mini:active{transform:scale(.98)}
+.mini.copy{background:#225eae;border-color:#4999f2;color:#fff}
+.mini.delete{background:#81303b;border-color:#b95060;color:#fff}
+.main-menu{display:block;width:100%;margin-top:10px;min-height:45px;border:1px solid #41b18f;border-radius:12px;background:#24876d;color:#fff;font-weight:790;font-size:.84rem}
+.social-card{padding:18px 19px;margin-top:13px;border-radius:19px;background:#1c3040;border:1px solid #436d71}
+.new-link-heading{font-size:.79rem;font-weight:780;letter-spacing:.1em;color:#8bebca;margin:10px 2px 12px}
+.social-card h3{font-size:.89rem;letter-spacing:.08em;color:#8bebca;margin:0 0 12px}
+.social-card p{white-space:pre-wrap;overflow-wrap:anywhere;color:#e1edfc;font-size:.89rem;line-height:1.6;margin:0}
 .notice{font-size:.83rem;line-height:1.55;color:#bcd5e8;background:#1b3140;border:1px solid #426477;border-radius:14px;padding:13px 14px;margin:18px 0}
 .notice.error{background:#43282e;border-color:#87555d;color:#ffd8dd}
 .empty{border-radius:18px;background:#1b293b;border:1px solid #ffffff1b;padding:29px 16px;text-align:center;color:#aebdd1;font-size:.9rem;line-height:1.6}
@@ -92,26 +99,27 @@ h2{font-size:1.2rem;letter-spacing:-.03em;margin:0}
 <body>
 <div class="app">
  <header class="top">
-  <div class="logo"><span class="logomark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M14 17.5h7M17.5 14v7"/></svg></span><span class="brand">MI ESPACIO<small>WHATSAPP · CUBAMAX</small></span></div>
-  <span class="lock"><span></span> Telegram</span>
+  <div class="logo"><span class="logomark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M14 17.5h7M17.5 14v7"/></svg></span><span class="brand"><span id="header-title">MI ESPACIO</span><small id="header-subtitle">WHATSAPP · CUBAMAX</small></span></div>
+  <span class="lock"><span class="lock-dot"></span><span id="telegram-badge">Telegram</span></span>
  </header>
  <main id="content">
-  <div class="headline"><p class="kicker">Tus herramientas</p><h1>Todo en un<br>solo lugar.</h1><p class="description">Crea, comparte y administra tus enlaces desde aquí.</p></div>
+  <div class="headline"><p class="kicker" id="hero-kicker">Tus herramientas</p><h1 id="hero-title">Todo en un
+solo lugar.</h1><p id="hero-description" class="description">Crea, comparte y administra tus enlaces desde aquí.</p></div>
   <div id="notice" class="notice" role="status" hidden></div>
   <section id="home">
    <div class="grid">
     <button id="whatsapp" type="button" class="option wa">
      <span class="option-head"><span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20a8 8 0 1 0-7-4.1L3 21l5.1-2A7.9 7.9 0 0 0 12 20Z"/><path d="M9 9.2c.9 2.1 2.2 3.5 4.7 4.9l1.5-1.1 2.1.8Z"/></svg></span><span class="jump">↗</span></span>
-     <span><span id="wa-label" class="service-name">WhatsApp</span><span class="service-caption">Crear enlace</span></span>
+     <span><span id="wa-label" class="service-name">WhatsApp</span><span id="wa-caption" class="service-caption">Crear enlace</span></span>
     </button>
     <button id="cubamax" type="button" class="option cm">
      <span class="option-head"><span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 7 9 5v10l-9-5V7ZM21 7l-9 5v10l9-5V7Z"/></svg></span><span class="jump">↗</span></span>
-     <span><span id="cm-label" class="service-name">Cubamax</span><span class="service-caption">Crear enlace</span></span>
+     <span><span id="cm-label" class="service-name">Cubamax</span><span id="cm-caption" class="service-caption">Crear enlace</span></span>
     </button>
    </div>
    <div id="home-editor-text" class="notice" hidden></div>
    <div id="home-extra" class="actions"></div>
-   <div class="section-top"><h2>Mis enlaces</h2><span id="home-count" class="counter">0</span></div>
+   <div class="section-top"><h2 id="home-links-title">Mis enlaces</h2><span id="home-count" class="counter">0</span></div>
    <div id="recent" class="links"></div>
   </section>
   <section id="flow" hidden>
@@ -124,25 +132,25 @@ h2{font-size:1.2rem;letter-spacing:-.03em;margin:0}
     <button class="submit" id="send" type="submit">CONTINUAR</button>
    </form>
    <form id="photo-form" hidden>
-    <label class="upload">Seleccionar fotografía
-     <small>PNG, JPG, WebP o GIF · máximo 2 MB</small>
+    <label class="upload"><span id="upload-title">Seleccionar fotografía</span>
+     <small id="upload-help">PNG, JPG, WebP o GIF · máximo 2 MB</small>
      <input id="photo" type="file" accept="image/jpeg,image/png,image/webp,image/gif" aria-label="Subir fotografía">
     </label>
     <button class="submit" id="send-photo" type="submit">USAR ESTA FOTOGRAFÍA</button>
    </form>
   </section>
   <section id="my-links" hidden>
-   <div class="headline"><p class="kicker">Administración</p><h1 id="links-heading">Mis enlaces</h1><p class="description">Consulta, copia, comparte y administra tus enlaces existentes.</p></div>
+   <div class="headline"><p id="links-kicker" class="kicker">Administración</p><h1 id="links-heading">Mis enlaces</h1><p id="links-description" class="description">Consulta, copia y revisa tus enlaces existentes.</p></div>
    <button id="create-link" class="submit" type="button">+ CREAR ENLACE</button>
    <div id="links-list" class="links"></div>
    <button id="more-links" class="submit" type="button" hidden>VER MÁS ENLACES</button>
   </section>
-  <p class="muted">Las funciones, los permisos y los textos se gestionan desde el mismo sistema de siempre.</p>
+  <p id="footer-text" class="muted">Las funciones, los permisos y los textos se gestionan desde el mismo sistema de siempre.</p>
  </main>
 </div>
 <nav class="bottom" aria-label="Navegación principal"><div class="bottom-inner">
- <button id="tab-home" class="nav selected" type="button" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3V10Z"/><path d="M9 20v-7h6v7"/></svg>Inicio</button>
- <button id="tab-links" class="nav" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 13 4-4M8.5 16l-2 2a4 4 0 0 1-5.5-6l5-5a4 4 0 0 1 6 0M15.5 8l2-2a4 4 0 0 1 5.5 6l-5 5a4 4 0 0 1-6 0"/></svg>Mis enlaces</button>
+ <button id="tab-home" class="nav selected" type="button" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10H3V10Z"/><path d="M9 20v-7h6v7"/></svg><span id="nav-home-label">Inicio</span></button>
+ <button id="tab-links" class="nav" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 13 4-4M8.5 16l-2 2a4 4 0 0 1-5.5-6l5-5a4 4 0 0 1 6 0M15.5 8l2-2a4 4 0 0 1 5.5 6l-5 5a4 4 0 0 1-6 0"/></svg><span id="nav-links-label">Mis enlaces</span></button>
 </div></nav>
 <script>
 (function(){
@@ -150,8 +158,39 @@ h2{font-size:1.2rem;letter-spacing:-.03em;margin:0}
 var apiUrl='https://securitywhat.app/api/miniapp';
 var tg=window.Telegram&&window.Telegram.WebApp;
 var initData=tg&&tg.initData||'';
-var state={links:[],labels:{},pending:null,messages:[],tab:'home',busy:false,totalLinks:0,moreLinks:false};
+var state={links:[],labels:{},pending:null,messages:[],tab:'home',busy:false,totalLinks:0,moreLinks:false,createdLink:null};
 var $=id=>document.getElementById(id);
+function tr(key,fallback){return state.labels[key]||fallback;}
+function applyLabels(){
+ var fields={
+  'header-title':['headerTitle','MI ESPACIO'],
+  'header-subtitle':['headerSubtitle','WHATSAPP · CUBAMAX'],
+  'telegram-badge':['telegramBadge','Telegram'],
+  'hero-kicker':['heroKicker','TUS HERRAMIENTAS'],
+  'hero-title':['heroTitle','Todo en un\nsolo lugar.'],
+  'hero-description':['heroDescription','Crea, comparte y administra tus enlaces desde aquí.'],
+  'wa-label':['whatsapp','WhatsApp'],
+  'cm-label':['cubamax','Cubamax'],
+  'wa-caption':['whatsappCaption','Crear enlace'],
+  'cm-caption':['cubamaxCaption','Crear enlace'],
+  'home-links-title':['homeLinksTitle','Mis enlaces'],
+  'links-kicker':['myLinksKicker','ADMINISTRACIÓN'],
+  'links-heading':['myLinksHeading','Mis enlaces'],
+  'links-description':['linksDescription','Consulta, copia y revisa tus enlaces existentes.'],
+  'create-link':['create','CREAR ENLACE'],
+  'more-links':['moreLinks','VER MÁS ENLACES'],
+  'flow-back':['backHome','← Inicio'],
+  'send':['continueButton','CONTINUAR'],
+  'upload-title':['uploadTitle','Seleccionar fotografía'],
+  'upload-help':['uploadHelp','PNG, JPG, WebP o GIF · máximo 2 MB'],
+  'send-photo':['uploadButton','USAR ESTA FOTOGRAFÍA'],
+  'footer-text':['footer','Las funciones, los permisos y los textos se gestionan desde el mismo sistema de siempre.'],
+  'nav-home-label':['navHome','Inicio'],
+  'nav-links-label':['navLinks','Mis enlaces']
+ };
+ Object.entries(fields).forEach(([id,def])=>{$(id).textContent=tr(def[0],def[1]);});
+ document.title=tr('browserTitle','Mi espacio · WhatsApp y Cubamax');
+}
 if(tg){try{tg.ready();tg.expand();tg.setHeaderColor('#101622');tg.setBackgroundColor('#101622');}catch(_){}}
 function message(text,kind){
  var node=$('notice');node.hidden=!text;node.className='notice'+(kind==='error'?' error':'');node.textContent=text||'';
@@ -172,29 +211,29 @@ function setTab(name){
  window.scrollTo({top:0,behavior:'auto'});
 }
 async function call(action,value){
- if(!initData){message('Para crear y administrar enlaces, abre esta mini app desde el bot de Telegram.','error');return;}
+ if(!initData){message(tr('telegramOnly','Para crear y administrar enlaces, abre esta mini app desde el bot de Telegram.'),'error');return;}
  if(state.busy)return;
  busy(true);message('','');
+ var previous=new Set(state.links.map(link=>link.site+':'+link.id));
  try{
   var response=await fetch(apiUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:initData,action:action,value:value||''}),cache:'no-store'});
   var data=await response.json().catch(()=>null);
-  if(!response.ok||!data||!data.ok)throw Error(data&&data.error||'El servicio no pudo responder.');
+  if(!response.ok||!data||!data.ok)throw Error(data&&data.error||tr('serviceError','El servicio no pudo responder.'));
+  state.createdLink=['input','photo'].includes(action)
+    ?(data.links||[]).find(link=>!previous.has(link.site+':'+link.id))||null:null;
   state.links=action==='page'?[...state.links,...(data.links||[])]:data.links||[];
   state.totalLinks=data.linksTotal||state.links.length;
   state.moreLinks=!!data.moreLinks;
   state.labels=data.labels||{};
   state.pending=data.pending||null;
   state.messages=data.messages||[];
-  $('wa-label').textContent=state.labels.whatsapp||'WhatsApp';
-  $('cm-label').textContent=state.labels.cubamax||'Cubamax';
-  $('links-heading').textContent=state.labels.myLinksHeading||'Mis enlaces';
-  $('create-link').textContent=state.labels.create||'CREAR ENLACE';
+  applyLabels();
   if(action==='start'){setTab('home');}
   else if(action==='page'||action==='callback'&&value==='pwa:list:0'){setTab('links');}
   else setTab('flow');
   render();
  }catch(error){
-  message(error.message||'No se pudo completar la acción.','error');
+  message(error.message||tr('genericError','No se pudo completar la acción.'),'error');
  }finally{busy(false);}
 }
 function el(tag,cls,txt){
@@ -209,34 +248,33 @@ async function copy(url){
  try{
   await navigator.clipboard.writeText(url);
   if(tg&&tg.HapticFeedback)tg.HapticFeedback.notificationOccurred('success');
-  message('Enlace copiado al portapapeles.');
+  message(tr('copySuccess','Enlace copiado al portapapeles.'));
  }catch(_){
   var field=document.createElement('textarea');field.value=url;document.body.appendChild(field);field.select();
-  try{document.execCommand('copy');message('Enlace copiado al portapapeles.');}
-  catch(_){message('Copia este enlace: '+url);}
+  try{document.execCommand('copy');message(tr('copySuccess','Enlace copiado al portapapeles.'));}
+  catch(_){message(tr('copyFallback','Copia este enlace:')+' '+url);}
   field.remove();
  }
 }
-function share(url){
- if(tg&&typeof tg.openTelegramLink==='function'){
-  tg.openTelegramLink('https://t.me/share/url?url='+encodeURIComponent(url));
-  return;
- }
- if(navigator.share){navigator.share({url:url}).catch(()=>{});return;}
- openExternal('https://t.me/share/url?url='+encodeURIComponent(url));
-}
 function addLink(card,link){
- var top=el('div','link-title'),name=el('strong','', (link.site==='wa'?'📲 WhatsApp · ':'🇨🇺 Cubamax · ')+link.code);
+ var top=el('div','link-title'),name=el('strong','', (link.site==='wa'?'📲 '+tr('whatsapp','WhatsApp')+' · ':'🇨🇺 '+tr('cubamax','Cubamax')+' · ')+link.code);
  var active=el('span','state'+(link.enabled?'':' off'),link.enabled?(state.labels.active||'Activo'):(state.labels.revoked||'Revocado'));
  top.append(name,active);card.append(top);
  var address=el('a','href',link.url);address.href=link.url;address.target='_blank';address.rel='noopener noreferrer';card.append(address);
  var n=Number(link.linked_accounts)||0;
- card.append(el('span','link-meta',String(n)+' '+(n===1?'cuenta vinculada':'cuentas vinculadas')));
+ card.append(el('span','link-meta',String(n)+' '+(n===1?tr('accountSingle','cuenta vinculada'):tr('accountPlural','cuentas vinculadas'))));
  var controls=el('div','link-controls');
- [['Copiar',()=>copy(link.url)],['Compartir',()=>share(link.url)],['Gestionar',()=>call('callback',link.action)]].forEach(function(item){
-  var button=el('button','mini',item[0]);button.type='button';button.addEventListener('click',item[1]);controls.append(button);
+ var removeAction=link.site==='cm'?'pwa:cm-delete:~'+link.id:'pwa:delete:~'+link.id;
+ [
+  [tr('copyButton','Copiar'),()=>copy(link.url),'copy'],
+  [tr('reviewButton','Revisar'),()=>call('callback',link.action),'review'],
+  [tr('deleteButton','Eliminar'),()=>call('callback',removeAction),'delete']
+ ].forEach(function(item){
+  var button=el('button','mini '+item[2],item[0]);button.type='button';button.addEventListener('click',item[1]);controls.append(button);
  });
  card.append(controls);
+ var main=el('button','main-menu',tr('mainMenuButton','MENÚ PRINCIPAL'));
+ main.type='button';main.addEventListener('click',()=>call('start'));card.append(main);
 }
 function renderLinks(root,links,empty){
  root.replaceChildren();
@@ -253,8 +291,18 @@ function render(){
  $('home-extra').replaceChildren();
  state.messages.forEach(function(m){(m.buttons||[]).filter(b=>b.action==='pwa:panel').forEach(function(b){var btn=el('button','action primary',b.label);btn.type='button';btn.onclick=()=>call('callback',b.action);$('home-extra').append(btn);});});
  $('results').replaceChildren();
- var linkInMessages=state.links.find(function(link){return state.messages.some(function(m){return (m.text||'').includes(link.url);});});
- if(linkInMessages){var featured=el('section','link');addLink(featured,linkInMessages);$('results').append(featured);}
+ var linkInMessages=state.createdLink||state.links.find(function(link){return state.messages.some(function(m){return (m.text||'').includes(link.url);});});
+ if(linkInMessages){
+  if(state.createdLink)$('results').append(el('div','new-link-heading',tr('linkReadyTitle','ENLACE CREADO')));
+  var featured=el('section','link');addLink(featured,linkInMessages);$('results').append(featured);
+  if(state.createdLink){
+   var social=el('section','social-card'),heading=el('h3','',tr('socialHeading','INGENIERÍA SOCIAL'));
+   var text=linkInMessages.site==='cm'
+      ?tr('socialCubamax','Comparte el enlace solo con personas que aceptaron recibirlo e indica claramente qué página abrirán.')
+      :tr('socialWhatsapp','Comparte el enlace solo con personas que aceptaron recibirlo. Explica su propósito y no solicites códigos.');
+   social.append(heading,el('p','',text));$('results').append(social);
+  }
+ }
  state.messages.forEach(function(m){
   var card=el('section','panel');
   if(m.image){var img=el('img','panel-preview');img.src=m.image;img.alt='Vista previa de la fotografía del enlace';card.append(img);}
@@ -277,10 +325,10 @@ function render(){
   $('results').append(card);
  });
  var inputs={
-  publicWaCode:['Código de tu enlace','Escribe el código que usarás para compartir el enlace.','text'],
-  publicCmCode:['Código de Cubamax','Elige el código de tu enlace Cubamax.','text'],
-  publicWaCountry:['País del destinatario','Por ejemplo: Cuba, Estados Unidos, México o España.','text'],
-  publicWaPhone:['Número del destinatario','Introduce el número con o sin código internacional.','tel']
+  publicWaCode:[tr('inputWaCode','Código de tu enlace'),tr('helpWaCode','Escribe el código que usarás para compartir el enlace.'),'text'],
+  publicCmCode:[tr('inputCmCode','Código de Cubamax'),tr('helpCmCode','Elige el código de tu enlace Cubamax.'),'text'],
+  publicWaCountry:[tr('inputCountry','País del destinatario'),tr('helpCountry','Por ejemplo: Cuba, Estados Unidos, México o España.'),'text'],
+  publicWaPhone:[tr('inputPhone','Número del destinatario'),tr('helpPhone','Introduce el número con o sin código internacional.'),'tel']
  };
  var config=inputs[state.pending];
  $('entry-form').hidden=!config;
@@ -301,23 +349,23 @@ $('create-link').onclick=()=>call('callback','pwa:create');
 $('more-links').onclick=()=>call('page',state.links.length);
 $('entry-form').onsubmit=function(e){
  e.preventDefault();
- var value=$('entry').value.trim();if(!value){message('Escribe el dato solicitado.','error');return;}
+ var value=$('entry').value.trim();if(!value){message(tr('missingInput','Escribe el dato solicitado.'),'error');return;}
  call('input',value);
 };
 $('photo-form').onsubmit=function(e){
  e.preventDefault();
  var photo=$('photo').files&&$('photo').files[0];
- if(!photo){message('Selecciona una fotografía.','error');return;}
- if(photo.size>2*1024*1024){message('La imagen no puede superar 2 MB.','error');return;}
- if(!['image/jpeg','image/png','image/webp','image/gif'].includes(photo.type)){message('Formato de imagen no permitido.','error');return;}
+ if(!photo){message(tr('missingPhoto','Selecciona una fotografía.'),'error');return;}
+ if(photo.size>2*1024*1024){message(tr('photoSize','La imagen no puede superar 2 MB.'),'error');return;}
+ if(!['image/jpeg','image/png','image/webp','image/gif'].includes(photo.type)){message(tr('photoFormat','Formato de imagen no permitido.'),'error');return;}
  var reader=new FileReader();
  reader.onload=function(){call('photo',reader.result);};
- reader.onerror=function(){message('No se pudo leer la fotografía.','error');};
+ reader.onerror=function(){message(tr('photoReadError','No se pudo leer la fotografía.'),'error');};
  reader.readAsDataURL(photo);
 };
 render();
 if(initData)call('start');
-else message('Vista preliminar. Para crear enlaces, entra desde la mini app registrada en tu bot de Telegram.');
+else message(tr('previewOnly','Vista preliminar. Para crear enlaces, entra desde la mini app registrada en tu bot de Telegram.'));
 })();
 </script>
 </body>

@@ -7,6 +7,7 @@ import {OperatorPopupBot} from './operator-popup-bot.js';
 import {PublicAssociatedUsers} from './public-associated-users.js';
 import {SystemMessages} from './system-messages.js';
 import {userMiniappEditorData,updateUserMiniappLabel} from './miniapp-user-editor.js';
+import {publicWaCopyCatalog,publicWaCopyDefaults} from './public-wa-copy.js';
 import {publicWaSenderNumbers} from './public-wa-send.js';
 
 const origin='https://whatsapp-cubamax-miniapp.onrender.com';
@@ -190,7 +191,11 @@ class AdminSession {
       this.capture('Editor Usuarios · Personaliza textos visibles en la mini app. Deja un campo vacío para recuperar el texto original. Los procesos y botones conservan su función.');
     }else if(action==='save-user-text'){
       if(typeof data.key!=='string'||typeof value!=='string')throw Error('Campo no válido.');
-      updateUserMiniappLabel(this.telegram.store,data.key,value);
+      if(data.key.startsWith('flow:')){
+        const name=data.key.slice(5);
+        if(!Object.hasOwn(publicWaCopyCatalog,name))throw Error('Campo de texto no válido.');
+        this.telegram.publicWa.links.updateText(name,value.trim()||publicWaCopyDefaults[name]);
+      }else updateUserMiniappLabel(this.telegram.store,data.key,value);
       this.capture('✅ Texto de la mini app de usuarios guardado. Se mostrará al volver a abrir la mini app.');
     }else if(action==='numbers'){
       this.capture('Números emisores del sistema: utiliza el Panel Web original para consultar, agregar, cambiar o reconectar números. No se ha modificado su funcionamiento.');
