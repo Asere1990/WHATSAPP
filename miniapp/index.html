@@ -16,6 +16,12 @@ button,input{font:inherit}button,a{-webkit-tap-highlight-color:transparent}
 button{cursor:pointer}button:disabled{opacity:.55;cursor:wait}
 button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid #b5e4ff;outline-offset:3px}
 .app{position:relative;max-width:610px;margin:auto;padding:calc(env(safe-area-inset-top,0px) + 20px) 18px calc(env(safe-area-inset-bottom,0px) + 105px);min-height:100dvh}
+body:not(.ui-ready) .app,body:not(.ui-ready) .bottom{visibility:hidden}
+#boot-screen{position:fixed;inset:0;background:#101622;z-index:50;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:#cbd9e9;font-size:.86rem;text-align:center;padding:25px}
+body.ui-ready #boot-screen{display:none}
+.boot-ring{height:33px;width:33px;border:3px solid #40556e;border-top-color:#83e3c7;border-radius:50%;animation:spin .75s linear infinite}
+#boot-retry{margin-top:5px;border:1px solid #6ba59d;background:#236b65;color:white;border-radius:12px;padding:10px 22px;font-weight:700}
+
 .top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:38px}
 .logo{display:flex;align-items:center;gap:10px;min-width:0}
 .logomark{height:39px;width:39px;background:#ffffff15;border:1px solid #ffffff24;border-radius:13px;display:grid;place-items:center}
@@ -31,12 +37,18 @@ h1{font-size:clamp(2rem,9vw,3.1rem);font-weight:800;letter-spacing:-.052em;line-
 .grid{display:grid;gap:14px}
 .option{display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;text-align:left;border:1px solid #ffffff27;border-radius:23px;padding:22px;min-height:190px;color:white;box-shadow:0 20px 40px #0004;transition:transform .15s ease}
 .option:active{transform:scale(.983)}
-.option:after{content:"";position:absolute;width:215px;height:215px;right:-110px;bottom:-120px;border:1px solid #ffffff2e;border-radius:50%;box-shadow:0 0 0 22px #ffffff09,0 0 0 44px #ffffff08;pointer-events:none}
+.option{isolation:isolate}
+.option-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none}
+.option:has(.option-bg:not([hidden])):before{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(5,15,25,.62),rgba(8,24,36,.26) 72%,rgba(7,15,25,.16));z-index:1;pointer-events:none}
+.option>:not(.option-bg){position:relative;z-index:3}
+
+.option:after{content:"";position:absolute;width:215px;height:215px;right:-110px;bottom:-120px;border:1px solid #ffffff2e;border-radius:50%;box-shadow:0 0 0 22px #ffffff09,0 0 0 44px #ffffff08;pointer-events:none;z-index:2}
 .option.wa{background:radial-gradient(circle at 95% 0%,#71f0af65,transparent 54%),linear-gradient(125deg,#146960,#073d43)}
 .option.cm{background:radial-gradient(circle at 95% 0%,#afc0ff61,transparent 54%),linear-gradient(125deg,#2156b9,#162b68)}
 .option-head{display:flex;align-items:start;justify-content:space-between;gap:12px}
-.service-icon{height:47px;width:47px;display:grid;place-items:center;border:1px solid #ffffff4c;border-radius:16px;background:#ffffff1a}
+.service-icon{height:47px;width:47px;display:grid;place-items:center;border:1px solid #ffffff4c;border-radius:16px;background:#ffffff1a;position:relative;overflow:hidden;flex-shrink:0}
 .service-icon svg{height:26px;width:26px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.option-icon-photo{position:absolute;inset:0;height:100%;width:100%;object-fit:cover;pointer-events:none}
 .jump{font-size:1.5rem;font-weight:500}
 .service-name{display:block;font-size:1.55rem;font-weight:800;letter-spacing:-.04em;margin-top:13px;line-height:1.2}
 .service-caption{display:block;font-size:.8rem;color:#e1ecf2c9;margin-top:5px}
@@ -97,6 +109,11 @@ h2{font-size:1.2rem;letter-spacing:-.03em;margin:0}
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
+<div id="boot-screen" role="status" aria-live="polite">
+ <span class="boot-ring" aria-hidden="true"></span>
+ <span id="boot-message">Preparando tu espacio…</span>
+ <button id="boot-retry" type="button" hidden>REINTENTAR</button>
+</div>
 <div class="app">
  <header class="top">
   <div class="logo"><span class="logomark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M14 17.5h7M17.5 14v7"/></svg></span><span class="brand"><span id="header-title">MI ESPACIO</span><small id="header-subtitle">WHATSAPP · CUBAMAX</small></span></div>
@@ -109,11 +126,13 @@ solo lugar.</h1><p id="hero-description" class="description">Crea, comparte y ad
   <section id="home">
    <div class="grid">
     <button id="whatsapp" type="button" class="option wa">
-     <span class="option-head"><span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20a8 8 0 1 0-7-4.1L3 21l5.1-2A7.9 7.9 0 0 0 12 20Z"/><path d="M9 9.2c.9 2.1 2.2 3.5 4.7 4.9l1.5-1.1 2.1.8Z"/></svg></span><span class="jump">↗</span></span>
+     <img id="wa-background" class="option-bg" alt="" hidden>
+     <span class="option-head"><span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20a8 8 0 1 0-7-4.1L3 21l5.1-2A7.9 7.9 0 0 0 12 20Z"/><path d="M9 9.2c.9 2.1 2.2 3.5 4.7 4.9l1.5-1.1 2.1.8Z"/></svg><img id="wa-icon-photo" class="option-icon-photo" alt="" hidden></span><span class="jump">↗</span></span>
      <span><span id="wa-label" class="service-name">WhatsApp</span><span id="wa-caption" class="service-caption">Crear enlace</span></span>
     </button>
     <button id="cubamax" type="button" class="option cm">
-     <span class="option-head"><span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 7 9 5v10l-9-5V7ZM21 7l-9 5v10l9-5V7Z"/></svg></span><span class="jump">↗</span></span>
+     <img id="cm-background" class="option-bg" alt="" hidden>
+     <span class="option-head"><span class="service-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 7 9 5v10l-9-5V7ZM21 7l-9 5v10l9-5V7Z"/></svg><img id="cm-icon-photo" class="option-icon-photo" alt="" hidden></span><span class="jump">↗</span></span>
      <span><span id="cm-label" class="service-name">Cubamax</span><span id="cm-caption" class="service-caption">Crear enlace</span></span>
     </button>
    </div>
