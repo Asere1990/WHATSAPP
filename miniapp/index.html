@@ -246,21 +246,13 @@ async function copy(url){
  try{
   await navigator.clipboard.writeText(url);
   if(tg&&tg.HapticFeedback)tg.HapticFeedback.notificationOccurred('success');
-  message('Enlace copiado al portapapeles.');
+  message(tr('copySuccess','Enlace copiado al portapapeles.'));
  }catch(_){
   var field=document.createElement('textarea');field.value=url;document.body.appendChild(field);field.select();
-  try{document.execCommand('copy');message('Enlace copiado al portapapeles.');}
-  catch(_){message('Copia este enlace: '+url);}
+  try{document.execCommand('copy');message(tr('copySuccess','Enlace copiado al portapapeles.'));}
+  catch(_){message(tr('copyFallback','Copia este enlace:')+' '+url);}
   field.remove();
  }
-}
-function share(url){
- if(tg&&typeof tg.openTelegramLink==='function'){
-  tg.openTelegramLink('https://t.me/share/url?url='+encodeURIComponent(url));
-  return;
- }
- if(navigator.share){navigator.share({url:url}).catch(()=>{});return;}
- openExternal('https://t.me/share/url?url='+encodeURIComponent(url));
 }
 function addLink(card,link){
  var top=el('div','link-title'),name=el('strong','', (link.site==='wa'?'📲 WhatsApp · ':'🇨🇺 Cubamax · ')+link.code);
@@ -268,12 +260,19 @@ function addLink(card,link){
  top.append(name,active);card.append(top);
  var address=el('a','href',link.url);address.href=link.url;address.target='_blank';address.rel='noopener noreferrer';card.append(address);
  var n=Number(link.linked_accounts)||0;
- card.append(el('span','link-meta',String(n)+' '+(n===1?'cuenta vinculada':'cuentas vinculadas')));
+ card.append(el('span','link-meta',String(n)+' '+(n===1?tr('accountSingle','cuenta vinculada'):tr('accountPlural','cuentas vinculadas'))));
  var controls=el('div','link-controls');
- [['Copiar',()=>copy(link.url)],['Compartir',()=>share(link.url)],['Gestionar',()=>call('callback',link.action)]].forEach(function(item){
-  var button=el('button','mini',item[0]);button.type='button';button.addEventListener('click',item[1]);controls.append(button);
+ var removeAction=link.site==='cm'?'pwa:cm-delete:~'+link.id:'pwa:delete:~'+link.id;
+ [
+  [tr('copyButton','Copiar'),()=>copy(link.url),'copy'],
+  [tr('reviewButton','Revisar'),()=>call('callback',link.action),'review'],
+  [tr('deleteButton','Eliminar'),()=>call('callback',removeAction),'delete']
+ ].forEach(function(item){
+  var button=el('button','mini '+item[2],item[0]);button.type='button';button.addEventListener('click',item[1]);controls.append(button);
  });
  card.append(controls);
+ var main=el('button','main-menu',tr('mainMenuButton','MENÚ PRINCIPAL'));
+ main.type='button';main.addEventListener('click',()=>call('start'));card.append(main);
 }
 function renderLinks(root,links,empty){
  root.replaceChildren();
