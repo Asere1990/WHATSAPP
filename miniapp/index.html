@@ -67,6 +67,7 @@ h2{font-size:1.2rem;letter-spacing:-.03em;margin:0}
 .state{flex-shrink:0;border-radius:99px;padding:4px 9px;background:#194b43;color:#b5f3da;font-size:.68rem}
 .state.off{background:#493036;color:#ffd3d6}
 .href{display:block;color:#95b6da;font-size:.79rem;overflow-wrap:anywhere;margin-top:10px;text-decoration:none}
+.link-meta{display:block;color:#b4c8dc;font-size:.76rem;margin-top:8px}
 .link-controls{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
 .mini{min-height:39px;border:1px solid #ffffff23;border-radius:10px;background:#2b4055;color:#ecf6ff;font-size:.77rem;font-weight:740}
 .mini:active{transform:scale(.98)}
@@ -229,6 +230,8 @@ function addLink(card,link){
  var active=el('span','state'+(link.enabled?'':' off'),link.enabled?(state.labels.active||'Activo'):(state.labels.revoked||'Revocado'));
  top.append(name,active);card.append(top);
  var address=el('a','href',link.url);address.href=link.url;address.target='_blank';address.rel='noopener noreferrer';card.append(address);
+ var n=Number(link.linked_accounts)||0;
+ card.append(el('span','link-meta',String(n)+' '+(n===1?'cuenta vinculada':'cuentas vinculadas')));
  var controls=el('div','link-controls');
  [['Copiar',()=>copy(link.url)],['Compartir',()=>share(link.url)],['Gestionar',()=>call('callback',link.action)]].forEach(function(item){
   var button=el('button','mini',item[0]);button.type='button';button.addEventListener('click',item[1]);controls.append(button);
