@@ -170,11 +170,10 @@ class AdminSession {
       pending:this.pending.get(this.actor+':'+this.actor)||null,
       editors:userMiniappEditorData(this.telegram.store,this.telegram.publicWa.links.texts()),
       links:this.links(),stats:this.stats(),
-      numbers:publicWaSenderNumbers(this.telegram.store).map(number=>({
-        phone:'+'+number,
-        connected:!!this.telegram.store.db.prepare('SELECT id FROM accounts WHERE phone=?').get(number)?.id&&
-          [...this.telegram.accounts.live.values()].some(v=>v?.ready&&String(v.account?.phone||'')===number)
-      })),
+      numbers:publicWaSenderNumbers(this.telegram.store).map(number=>{
+        const account=this.telegram.store.db.prepare('SELECT id,consent,confirmed,paused FROM accounts WHERE phone=?').get(number);
+        return {phone:'+'+number,connected:!!account?.consent&&!!account.confirmed&&!account.paused&&!!this.telegram.accounts.live.get(account.id)?.ready};
+      }),
       ...data
     };
   }
