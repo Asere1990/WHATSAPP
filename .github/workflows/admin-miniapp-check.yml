@@ -1,0 +1,37 @@
+name: Admin Mini App isolated regression
+
+on:
+  push:
+    branches:
+      - feature/miniapp-admin-exclusive-20261117
+  pull_request:
+    paths:
+      - miniapp/admin.html
+      - src/miniapp-admin-bridge.js
+      - src/miniapp-user-editor.js
+      - src/miniapp-bridge.js
+      - src/main.js
+      - src/telegram.js
+      - test/miniapp-admin.test.js
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install with production compatibility patch
+        run: npm ci
+      - name: Validate original code
+        run: npm run check
+      - name: Validate admin Mini App bridge and unchanged customer flow
+        run: node --test test/miniapp-admin.test.js test/miniapp-bridge.test.js
+      - name: Full existing regression suite
+        run: npm test
