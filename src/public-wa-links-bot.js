@@ -20,7 +20,7 @@ export class PublicWaLinkBot {
     if(!markup?.inline_keyboard)return markup;
     return {...markup,inline_keyboard:markup.inline_keyboard.map(row=>row.map(button=>{
       const action=String(button.callback_data||'');
-      const style=(action==='pwa:panel'||action==='op:panel'||action==='pwa:cubamax')?'primary':
+      const style=button.web_app?'primary':(action==='pwa:panel'||action==='op:panel'||action==='pwa:cubamax')?'primary':
         (action.startsWith('pwa:send:')||action==='pwa:send-confirm'||action==='pwa:whatsapp')?'success':'danger';
       return {...button,style};
     }))};
@@ -42,7 +42,8 @@ export class PublicWaLinkBot {
       ...(panelEnabled?[[{text:this.button('buttonOwnPanel'),callback_data:'pwa:panel'}]]:[]),
       [{text:this.button('buttonWhatsApp'),callback_data:'pwa:whatsapp'}],
       [{text:this.button('buttonCubamax'),callback_data:'pwa:cubamax'}],
-      [{text:this.button('buttonMyLinks'),callback_data:'pwa:list:0'}]
+      [{text:this.button('buttonMyLinks'),callback_data:'pwa:list:0'}],
+      [{text:'🌐 ABRIR MINI APP',web_app:{url:'https://whatsapp-cubamax-miniapp.onrender.com'}}]
     ]});
   }
   async chooseSite(chat,key){
