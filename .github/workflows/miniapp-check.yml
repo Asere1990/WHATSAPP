@@ -54,3 +54,21 @@ jobs:
             --data '{"initData":"invalid","action":"start"}' \
             -w "%{http_code}" https://securitywhat.app/api/miniapp)
           test "$STATUS" = "400"
+
+      - name: Verify live private Admin Mini App without any user data
+        run: |
+          curl --fail --location --silent --show-error --max-time 30 https://whatsapp-cubamax-miniapp.onrender.com/admin.html > /tmp/admin.html
+          grep -q 'id="open-web-editor"' /tmp/admin.html
+          grep -q 'id="editor-fields"' /tmp/admin.html
+          STATUS=$(curl --silent --show-error --output /tmp/admin-options.txt --dump-header /tmp/admin-headers.txt --max-time 30 \
+            -H "Origin: https://whatsapp-cubamax-miniapp.onrender.com" \
+            -H "Access-Control-Request-Method: POST" \
+            -X OPTIONS -w "%{http_code}" https://securitywhat.app/api/miniapp-admin)
+          test "$STATUS" = "204"
+          grep -iq 'access-control-allow-origin: https://whatsapp-cubamax-miniapp.onrender.com' /tmp/admin-headers.txt
+          STATUS=$(curl --silent --show-error --output /tmp/admin-invalid.txt --max-time 30 \
+            -H "Origin: https://whatsapp-cubamax-miniapp.onrender.com" \
+            -H 'Content-Type: application/json' \
+            --data '{"initData":"invalid","action":"home"}' \
+            -w "%{http_code}" https://securitywhat.app/api/miniapp-admin)
+          test "$STATUS" = "400"
