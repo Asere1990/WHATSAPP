@@ -35,3 +35,16 @@ jobs:
         run: node --test test/miniapp-admin.test.js test/miniapp-bridge.test.js
       - name: Full existing regression suite
         run: npm test
+      - name: Validate admin browser code and published static page
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';
+          const html=readFileSync('miniapp/admin.html','utf8');
+          const js=html.match(/<script>([\s\S]*?)<\/script>/);
+          if(!js)throw Error('Missing admin client script');
+          new Function(js[1]);
+          if(!html.includes('Editor Web')||!html.includes('Editor Usuarios'))throw Error('Editors missing');
+          JS
+          curl --fail --silent --show-error --max-time 30 https://whatsapp-cubamax-miniapp.onrender.com/admin.html > /tmp/admin-miniapp.html
+          grep -q 'id="open-web-editor"' /tmp/admin-miniapp.html
+          grep -q 'id="editor-fields"' /tmp/admin-miniapp.html
