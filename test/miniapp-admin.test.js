@@ -137,13 +137,14 @@ test('Admin associated-link screen uses existing bot callback and pending rules'
  assert.equal(cancel.status,200);assert.equal(cancel.data.pending,null);
 });
 
-test('/start shows Administrador Web to admins only, leaving every public button intact',async()=>{
+test('/start shows only one role-specific Mini App button, named after editable header for users',async()=>{
  const {PublicWaLinkBot}=await import('../src/public-wa-links-bot.js');
  const {publicWaCopyDefaults}=await import('../src/public-wa-copy.js');
  const admin='1234512345',regular='1234567890';
  const bot={
   pending:new Map(),
   admins:()=>new Set([admin]),
+  store:{config:()=>({miniapp_user_labels:JSON.stringify({headerTitle:'Bienvenido'})})},
   send:async(chat,text,markup)=>({chat,text,markup})
  };
  const flow=new PublicWaLinkBot(bot);
@@ -152,14 +153,14 @@ test('/start shows Administrador Web to admins only, leaving every public button
  const b=await flow.start(regular,regular+':'+regular);
  const adminButtons=a.markup.inline_keyboard.flat();
  const userButtons=b.markup.inline_keyboard.flat();
- const adminButton=adminButtons.find(x=>x.text==='👨🏻‍💻𝐀𝐃𝐌𝐈𝐍𝐈𝐒𝐓𝐑𝐀𝐃𝐎𝐑 𝐖𝐄𝐁');
- assert.ok(adminButton);
- assert.equal(adminButton.web_app.url,'https://whatsapp-cubamax-miniapp.onrender.com/admin.html');
- assert.equal(userButtons.some(x=>x.text===adminButton.text),false);
- assert.deepEqual(
-  userButtons.map(x=>x.callback_data||x.web_app?.url),
-  adminButtons.filter(x=>x.text!==adminButton.text).map(x=>x.callback_data||x.web_app?.url)
- );
+ assert.equal(adminButtons.length,1);
+ assert.equal(userButtons.length,1);
+ assert.equal(adminButtons[0].text,'👨🏻‍💻𝐀𝐃𝐌𝐈𝐍𝐈𝐒𝐓𝐑𝐀𝐃𝐎𝐑 𝐖𝐄𝐁');
+ assert.equal(adminButtons[0].web_app.url,'https://whatsapp-cubamax-miniapp.onrender.com/admin.html');
+ assert.equal(userButtons[0].text,'Bienvenido');
+ assert.equal(userButtons[0].web_app.url,'https://whatsapp-cubamax-miniapp.onrender.com');
+ assert.equal(userButtons[0].callback_data,undefined);
+ assert.equal(adminButtons[0].style,'danger');
 });
 
 test('/menu keeps Administrador Web last and marks it red without changing other actions',async()=>{
@@ -172,4 +173,37 @@ test('/menu keeps Administrador Web last and marks it red without changing other
  assert.equal(last[0].web_app.url,'https://whatsapp-cubamax-miniapp.onrender.com/admin.html');
  assert.equal(rows.slice(0,-1).flat().some(button=>!!button.web_app),false);
  assert.ok(rows.slice(0,-1).flat().some(button=>button.callback_data==='users:list:0'));
+});
+
+test('Editor Usuarios edits all visible texts and keeps Telegram text editor synchronized',async t=>{
+ const f=fixture();t.after(f.close);const init=sign(f.admin);
+ const editor=await request(f.handler,init,'editor-users');
+ assert.equal(editor.status,200);
+ const keys=new Set(editor.data.editors.map(field=>field.key));
+ for(const key of ['headerTitle','heroTitle','copyButton','reviewButton','deleteButton','mainMenuButton','socialHeading','socialWhatsapp','socialCubamax','flow:choose','flow:buttonCreate'])
+   assert.ok(keys.has(key),key);
+ const header=await request(f.handler,init,'save-user-text','Bienvenido','headerTitle');
+ assert.equal(header.status,200);
+ assert.equal(header.data.editors.find(x=>x.key==='headerTitle').effective,'Bienvenido');
+ const post=await request(f.handler,init,'save-user-text','Información clara sobre el enlace de WhatsApp.','socialWhatsapp');
+ assert.equal(post.status,200);
+ assert.equal(post.data.editors.find(x=>x.key==='socialWhatsapp').effective,'Información clara sobre el enlace de WhatsApp.');
+ const copy=await request(f.handler,init,'save-user-text','Revisar detalles','reviewButton');
+ assert.equal(copy.status,200);
+ assert.equal(copy.data.editors.find(x=>x.key==='reviewButton').effective,'Revisar detalles');
+ const bot=await request(f.handler,init,'save-user-text','ENLACE NUEVO','flow:buttonCreate');
+ assert.equal(bot.status,200);
+ assert.equal(f.links.texts().buttonCreate,'ENLACE NUEVO');
+ assert.equal((await request(f.handler,sign('9988776655'),'save-user-text','No permitido','headerTitle')).status,403);
+});
+test('Public Mini App actions include original delete confirmation and separate post-link texts',()=>{
+ const html=readFileSync(new URL('../miniapp/index.html',import.meta.url),'utf8');
+ assert.match(html,/pwa:cm-delete:~/);
+ assert.match(html,/pwa:delete:~/);
+ assert.match(html,/tr\('reviewButton','Revisar'\)/);
+ assert.match(html,/tr\('deleteButton','Eliminar'\)/);
+ assert.match(html,/tr\('mainMenuButton','MENÚ PRINCIPAL'\)/);
+ assert.match(html,/tr\('socialWhatsapp'/);
+ assert.match(html,/tr\('socialCubamax'/);
+ assert.doesNotMatch(html,/\['Compartir',/);
 });
