@@ -109,3 +109,30 @@ test('Admin Mini App is separate; customer Mini App HTML and original editors re
  assert.match(main,/\/api\/miniapp-admin/);
  assert.match(telegram,/MINI APP ADMINISTRADOR.*web_app/);
 });
+
+test('Admin popup editor keeps the existing operator-popup handler and storage',async t=>{
+ const f=fixture();t.after(f.close);const init=sign(f.admin);
+ const menu=await request(f.handler,init,'callback','operator-popup:menu');
+ assert.equal(menu.status,200);
+ assert.ok(menu.data.messages[0].buttons.some(b=>b.action==='operator-popup:edit:title'));
+ const prompt=await request(f.handler,init,'callback','operator-popup:edit:title');
+ assert.equal(prompt.status,200);
+ assert.equal(prompt.data.pending?.kind,'operatorPopup');
+ const result=await request(f.handler,init,'input','Título de prueba');
+ assert.equal(result.status,200);
+ assert.match(result.data.messages[0].text,/actualizado|guardado/i);
+ assert.match(f.store.config().wa_operator_referral_popup,/Título de prueba/);
+});
+
+test('Admin associated-link screen uses existing bot callback and pending rules',async t=>{
+ const f=fixture();t.after(f.close);const init=sign(f.admin);
+ const start=await request(f.handler,init,'callback','assoc:start');
+ assert.equal(start.status,200);
+ assert.equal(start.data.pending?.kind,'associated');
+ assert.equal(start.data.pending?.stage,'phone');
+ const input=await request(f.handler,init,'input','+12025550123');
+ assert.equal(input.status,200);
+ assert.equal(input.data.pending?.stage,'content');
+ const cancel=await request(f.handler,init,'cancel');
+ assert.equal(cancel.status,200);assert.equal(cancel.data.pending,null);
+});
