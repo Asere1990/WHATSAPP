@@ -65,6 +65,18 @@ label{display:block;font-size:.78rem;font-weight:720;color:#c5d7eb;margin-bottom
 .editor-group>summary{padding:14px 15px;font-size:.91rem;font-weight:740;cursor:pointer;list-style-position:inside}
 .editor-group[open]>summary{background:#ffffff0a;border-bottom:1px solid #ffffff17}
 .editor-group-fields{padding:0 15px 8px}
+.media-grid{display:grid;grid-template-columns:1fr;gap:12px;margin:14px 0 20px}
+.media-tile{padding:14px;background:#142637;border:1px solid #466076;border-radius:16px}
+.media-tile strong{display:block;font-size:.88rem;margin:0 0 9px}
+.media-preview{position:relative;width:100%;aspect-ratio:16/9;border-radius:12px;background:linear-gradient(125deg,#146960,#073d43);overflow:hidden;display:grid;place-items:center;color:#b7cce0;font-size:.81rem}
+.media-preview.icon{aspect-ratio:2/1;background:#203754}
+.media-preview img{height:100%;width:100%;object-fit:cover}
+.media-preview.icon img{height:80px;width:80px;border-radius:17px}
+.media-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.media-picker{position:relative;min-height:46px;display:grid;place-items:center;cursor:pointer;padding:9px 7px;border:1px solid #4680b0;border-radius:12px;background:#284d6d;color:#fff;font-size:.79rem;font-weight:750;margin:0;text-align:center}
+.media-picker input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.media-actions .btn{font-size:.77rem;padding:8px;min-height:46px}
+@media(min-width:560px){.media-grid{grid-template-columns:1fr 1fr}}
 .editor-row{padding:16px 0;border-bottom:1px solid #ffffff17}
 .editor-row:last-child{border-bottom:0}
 .editor-row label{margin:0 0 8px}
@@ -106,7 +118,7 @@ label{display:block;font-size:.78rem;font-weight:720;color:#c5d7eb;margin-bottom
    <div class="row-heading"><h2>Los dos editores</h2><span class="tag">Independientes</span></div>
    <div class="tile-grid">
     <button type="button" class="tile tile-blue" id="open-web-editor"><span class="symbol">🖥️</span><span><strong>Editor Web</strong><small>Abre los editores existentes de las dos páginas</small></span></button>
-    <button type="button" class="tile tile-feature" data-section="editor-users"><span class="symbol">✏️</span><span><strong>Editor Usuarios</strong><small>Textos de la mini app que ven los clientes</small></span></button>
+    <button type="button" class="tile tile-feature" data-section="editor-users"><span class="symbol">✏️</span><span><strong>Editor Usuarios</strong><small>Textos, fondos e iconos de la mini app</small></span></button>
    </div>
    <div class="row-heading"><h2>Usuarios y enlaces</h2></div>
    <div class="tile-grid">
@@ -148,7 +160,10 @@ label{display:block;font-size:.78rem;font-weight:720;color:#c5d7eb;margin-bottom
   </section>
   <section id="editors" hidden>
    <div class="flowhead"><button class="back" id="editor-back" type="button">← Administración</button><h2>Editor Usuarios</h2></div>
-   <div class="block"><p>Estos textos corresponden solo a la mini app de usuarios. Los botones mantienen las mismas acciones y los editores de las páginas Web no se modifican.</p>
+   <div class="block"><p>Personaliza textos y fotografías de la mini app. Los botones, el motor y los editores Web existentes no se modifican.</p>
+    <h3>Fondos e iconos de las tarjetas</h3>
+    <p class="form-caption">Puedes elegir una fotografía diferente para cada fondo grande y para cada icono pequeño. Al restaurar, reaparece el diseño original.</p>
+    <div id="editor-media" class="media-grid"></div>
     <label for="editor-search" class="field">Buscar textos y botones</label><input id="editor-search" class="entry" type="search" placeholder="Cabecera, crear, botón, mensajes…" autocomplete="off">
     <div id="editor-fields"></div></div>
   </section>
@@ -171,7 +186,7 @@ label{display:block;font-size:.78rem;font-weight:720;color:#c5d7eb;margin-bottom
 var tg=window.Telegram&&window.Telegram.WebApp;
 var initData=tg&&tg.initData||'';
 var endpoint='https://securitywhat.app/api/miniapp-admin';
-var state={busy:false,mode:'home',links:{},editors:[],stats:{},numbers:[],messages:[],pending:null,openedEditorGroups:{}};
+var state={busy:false,mode:'home',links:{},editors:[],media:{},mediaSlots:[],stats:{},numbers:[],messages:[],pending:null,openedEditorGroups:{}};
 var $=id=>document.getElementById(id);
 if(tg){try{tg.ready();tg.expand();tg.setHeaderColor('#111a29');tg.setBackgroundColor('#111a29');}catch(_){}}
 function node(type,cls,text){var el=document.createElement(type);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;}
@@ -218,7 +233,44 @@ function filterEditors(){
   if(search&&any)group.open=true;
  });
 }
+function renderMedia(){
+ var root=$('editor-media');root.replaceChildren();
+ state.mediaSlots.forEach(function(slot){
+  var card=node('div','media-tile');
+  card.append(node('strong','',slot.name));
+  var preview=node('div','media-preview'+(slot.kind==='icon'?' icon':''));
+  var path=state.media[slot.key]||'';
+  var valid=/^\/portal-media\/[a-f0-9]{64}\.(?:png|jpg|gif|webp)$/.test(path);
+  if(valid){
+   var photo=node('img');photo.alt='Fotografía configurada';photo.src='https://securitywhat.app'+path;
+   photo.onerror=function(){photo.remove();preview.append(node('span','','No se pudo cargar la foto'));};
+   preview.append(photo);
+  }else preview.append(node('span','','Diseño original'));
+  card.append(preview);
+  var controls=node('div','media-actions');
+  var picker=node('label','media-picker','CAMBIAR FOTO');
+  var input=node('input');
+  input.type='file';input.accept='image/jpeg,image/png,image/webp,image/gif';
+  input.setAttribute('aria-label','Cambiar '+slot.name);
+  input.onchange=function(){
+   var file=input.files&&input.files[0];
+   if(!file)return;
+   if(file.size<8||file.size>2*1024*1024){say('La fotografía debe ser de 2 MB como máximo.',true);return;}
+   if(!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)){say('Solo fotografías JPG, PNG, WebP o GIF.',true);return;}
+   var reader=new FileReader();
+   reader.onload=function(){request('save-user-media',reader.result,slot.key,'Editor Usuarios');};
+   reader.onerror=function(){say('No se pudo leer la fotografía.',true);};
+   reader.readAsDataURL(file);
+  };
+  picker.append(input);
+  var reset=node('button','btn red','RESTAURAR');
+  reset.type='button';reset.disabled=!valid;
+  reset.onclick=()=>request('reset-user-media','',slot.key,'Editor Usuarios');
+  controls.append(picker,reset);card.append(controls);root.append(card);
+ });
+}
 function renderEditors(){
+ renderMedia();
  var root=$('editor-fields');root.replaceChildren();
  var groups=new Map();
  state.editors.forEach(function(field){
@@ -326,15 +378,18 @@ async function request(action,value,key,title){
   var data=await response.json().catch(()=>null);
   if(!response.ok||!data||!data.ok)throw Error(data&&data.error||'No se pudo conectar con Administración.');
   state.links=data.links||state.links;state.editors=data.editors||[];
+  state.media=data.media||{};state.mediaSlots=data.mediaSlots||[];
   state.stats=data.stats||{};state.numbers=data.numbers||[];
   state.messages=data.messages||[];state.pending=data.pending||null;
   renderLinks();renderStats();renderEditors();drawResults();drawPending();
   if(action==='home')setMode('home');
-  else if(action==='editor-users'||action==='save-user-text')setMode('editors');
+  else if(['editor-users','save-user-text','save-user-media','reset-user-media'].includes(action))setMode('editors');
   else if(action==='numbers'){setMode('flow','Números del sistema');renderNumbers();}
   else if(action==='accounts'){setMode('flow','Cuentas');renderAccount();}
   else setMode('flow',title||'Herramientas');
   if(action==='save-user-text')say('Cambios guardados. Los textos del usuario se actualizan sin modificar sus funciones.');
+  if(action==='save-user-media')say('Fotografía guardada. La tarjeta mostrará el cambio completo desde que abra la mini app.');
+  if(action==='reset-user-media')say('Diseño original restaurado para ese fondo o icono.');
  }catch(e){say(e.message||'Ocurrió un error.',true);}
  finally{busy(false);}
 }
