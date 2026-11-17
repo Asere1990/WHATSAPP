@@ -3,6 +3,7 @@ import {publicWaCopyCatalog,publicWaCopyDefaults} from './public-wa-copy.js';
 
 const field=(key,name,group,defaultText,max=150,fallback=null)=>Object.freeze({key,name,group,defaultText,max,fallback});
 export const userMiniappFields=Object.freeze([
+  field('browserTitle','Nombre de la pestaña web','Cabecera','Mi espacio · WhatsApp y Cubamax',100),
   field('headerTitle','Cabecera · Nombre de la mini app y botón del bot','Cabecera','MI ESPACIO',64),
   field('headerSubtitle','Cabecera · Subtítulo','Cabecera','WHATSAPP · CUBAMAX',100),
   field('telegramBadge','Cabecera · Indicador','Cabecera','Telegram',35),
@@ -62,7 +63,9 @@ export const userMiniappFields=Object.freeze([
   field('photoFormat','Aviso · Formato de imagen','Avisos','Formato de imagen no permitido.',200),
   field('photoReadError','Aviso · Error lectura fotografía','Avisos','No se pudo leer la fotografía.',200),
   field('telegramOnly','Aviso · Abrir desde Telegram','Avisos','Para crear y administrar enlaces, abre esta mini app desde el bot de Telegram.',300),
-  field('previewOnly','Aviso · Vista previa fuera de Telegram','Avisos','Vista preliminar. Para crear enlaces, entra desde la mini app registrada en tu bot de Telegram.',300)
+  field('previewOnly','Aviso · Vista previa fuera de Telegram','Avisos','Vista preliminar. Para crear enlaces, entra desde la mini app registrada en tu bot de Telegram.',300),
+  field('serviceError','Aviso · Error de respuesta del servicio','Avisos','El servicio no pudo responder.',200),
+  field('genericError','Aviso · Error genérico','Avisos','No se pudo completar la acción.',200)
 ]);
 const configKey='miniapp_user_labels';
 function fallback(field,publicTexts={}){
