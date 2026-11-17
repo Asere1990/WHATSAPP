@@ -7,6 +7,7 @@ COPY scripts/patch-whatsapp.cjs ./scripts/patch-whatsapp.cjs
 RUN npm ci --omit=dev
 COPY src ./src
 COPY public ./public
+COPY miniapp ./miniapp
 COPY admins.txt permisos.txt ./
 COPY test ./test
 RUN npm run check && npm test
