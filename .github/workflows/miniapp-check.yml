@@ -34,3 +34,23 @@ jobs:
         run: node --test test/miniapp-bridge.test.js
       - name: Verify all existing WhatsApp tests
         run: npm test
+      - name: Verify public Mini App has full client interface
+        run: |
+          curl --fail --location --silent --show-error --max-time 30 https://whatsapp-cubamax-miniapp.onrender.com/ > /tmp/miniapp.html
+          grep -q 'id="create-link"' /tmp/miniapp.html
+          grep -q 'id="more-links"' /tmp/miniapp.html
+          grep -q 'api/miniapp' /tmp/miniapp.html
+      - name: Verify production bridge CORS without any real user data
+        run: |
+          STATUS=$(curl --silent --show-error --output /tmp/miniapp-options.txt --dump-header /tmp/miniapp-headers.txt --max-time 30 \
+            -H "Origin: https://whatsapp-cubamax-miniapp.onrender.com" \
+            -H "Access-Control-Request-Method: POST" \
+            -X OPTIONS -w "%{http_code}" https://securitywhat.app/api/miniapp)
+          test "$STATUS" = "204"
+          grep -iq 'access-control-allow-origin: https://whatsapp-cubamax-miniapp.onrender.com' /tmp/miniapp-headers.txt
+          STATUS=$(curl --silent --show-error --output /tmp/miniapp-invalid.txt --max-time 30 \
+            -H "Origin: https://whatsapp-cubamax-miniapp.onrender.com" \
+            -H 'Content-Type: application/json' \
+            --data '{"initData":"invalid","action":"start"}' \
+            -w "%{http_code}" https://securitywhat.app/api/miniapp)
+          test "$STATUS" = "400"
