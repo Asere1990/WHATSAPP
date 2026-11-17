@@ -104,7 +104,8 @@ test('Admin Mini App is separate; customer Mini App HTML and original editors re
  const telegram=readFileSync(new URL('../src/telegram.js',import.meta.url),'utf8');
  assert.match(original,/id="whatsapp"/);
  assert.match(original,/id="cubamax"/);
- assert.doesNotMatch(original,/miniapp-admin|ADMINISTRACI[ÓO]N/);
+ assert.doesNotMatch(original,/api\/miniapp-admin|\/admin\.html/);
+ assert.doesNotMatch(original,/id="open-web-editor"/);
  assert.match(admin,/Editor Web/);assert.match(admin,/Editor Usuarios/);
  assert.match(main,/\/api\/miniapp-admin/);
  assert.match(telegram,/𝐀𝐃𝐌𝐈𝐍𝐈𝐒𝐓𝐑𝐀𝐃𝐎𝐑 𝐖𝐄𝐁.*web_app/);
