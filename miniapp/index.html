@@ -244,6 +244,8 @@ function render(){
  $('home-extra').replaceChildren();
  state.messages.forEach(function(m){(m.buttons||[]).filter(b=>b.action==='pwa:panel').forEach(function(b){var btn=el('button','action primary',b.label);btn.type='button';btn.onclick=()=>call('callback',b.action);$('home-extra').append(btn);});});
  $('results').replaceChildren();
+ var linkInMessages=state.links.find(function(link){return state.messages.some(function(m){return (m.text||'').includes(link.url);});});
+ if(linkInMessages){var featured=el('section','link');addLink(featured,linkInMessages);$('results').append(featured);}
  state.messages.forEach(function(m){
   var card=el('section','panel');
   if(m.image){var img=el('img','panel-preview');img.src=m.image;img.alt='Vista previa de la fotografía del enlace';card.append(img);}
