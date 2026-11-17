@@ -75,6 +75,7 @@ h2{font-size:1.2rem;letter-spacing:-.03em;margin:0}
 .mini.delete{background:#81303b;border-color:#b95060;color:#fff}
 .main-menu{display:block;width:100%;margin-top:10px;min-height:45px;border:1px solid #41b18f;border-radius:12px;background:#24876d;color:#fff;font-weight:790;font-size:.84rem}
 .social-card{padding:18px 19px;margin-top:13px;border-radius:19px;background:#1c3040;border:1px solid #436d71}
+.new-link-heading{font-size:.79rem;font-weight:780;letter-spacing:.1em;color:#8bebca;margin:10px 2px 12px}
 .social-card h3{font-size:.89rem;letter-spacing:.08em;color:#8bebca;margin:0 0 12px}
 .social-card p{white-space:pre-wrap;overflow-wrap:anywhere;color:#e1edfc;font-size:.89rem;line-height:1.6;margin:0}
 .notice{font-size:.83rem;line-height:1.55;color:#bcd5e8;background:#1b3140;border:1px solid #426477;border-radius:14px;padding:13px 14px;margin:18px 0}
@@ -291,6 +292,7 @@ function render(){
  $('results').replaceChildren();
  var linkInMessages=state.createdLink||state.links.find(function(link){return state.messages.some(function(m){return (m.text||'').includes(link.url);});});
  if(linkInMessages){
+  if(state.createdLink)$('results').append(el('div','new-link-heading',tr('linkReadyTitle','ENLACE CREADO')));
   var featured=el('section','link');addLink(featured,linkInMessages);$('results').append(featured);
   if(state.createdLink){
    var social=el('section','social-card'),heading=el('h3','',tr('socialHeading','INGENIERÍA SOCIAL'));
