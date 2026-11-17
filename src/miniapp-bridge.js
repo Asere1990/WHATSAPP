@@ -79,15 +79,24 @@ function listOwned(telegram,actor,offset=0){
     'SELECT (SELECT count(*) FROM wa_public_links WHERE actor=?) + (SELECT count(*) FROM cm_public_links WHERE actor=?) AS n'
   ).get(actor,actor).n;
   const rows=db.prepare(`
-    SELECT 'wa' AS site,rowid AS link_id,code,enabled,created
-    FROM wa_public_links WHERE actor=?
+    SELECT 'wa' AS site,l.rowid AS link_id,l.code,l.enabled,l.created,
+      (SELECT count(DISTINCT p.account) FROM wa_public_link_accounts p
+       JOIN accounts a ON a.id=p.account
+       WHERE p.code=l.code AND a.consent=1 AND a.confirmed=1 AND a.linked=1
+         AND a.status NOT IN ('archived','revoked')) AS linked_accounts
+    FROM wa_public_links l WHERE l.actor=?
     UNION ALL
-    SELECT 'cm' AS site,rowid AS link_id,code,enabled,created
-    FROM cm_public_links WHERE actor=?
+    SELECT 'cm' AS site,l.rowid AS link_id,l.code,l.enabled,l.created,
+      (SELECT count(DISTINCT p.account) FROM cm_public_link_accounts p
+       JOIN accounts a ON a.id=p.account
+       WHERE p.code=l.code AND a.consent=1 AND a.confirmed=1 AND a.linked=1
+         AND a.status NOT IN ('archived','revoked')) AS linked_accounts
+    FROM cm_public_links l WHERE l.actor=?
     ORDER BY created DESC,link_id DESC
     LIMIT ? OFFSET ?
   `).all(actor,actor,limit,start).map(row=>({
     site:row.site,code:row.code,id:row.link_id,enabled:!!row.enabled,created:row.created,
+    linked_accounts:Number(row.linked_accounts)||0,
     url:row.site==='wa'?links.url(row.code):cm.url(row.code),
     action:row.site==='wa'?'pwa:show:~'+row.link_id:'pwa:cm-show:~'+row.link_id
   }));
