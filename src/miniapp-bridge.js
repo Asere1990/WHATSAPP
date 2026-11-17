@@ -95,6 +95,8 @@ function screen(telegram,actor,bridge,out){
       whatsapp:bridge.button('buttonWhatsApp'),
       cubamax:bridge.button('buttonCubamax'),
       myLinks:bridge.button('buttonMyLinks'),
+      myLinksHeading:bridge.copy('myLinksTitle'),
+      empty:bridge.copy('myLinksEmpty'),
       create:bridge.button('buttonCreate'),
       back:bridge.button('buttonBack'),
       cancel:bridge.button('buttonCancel'),
