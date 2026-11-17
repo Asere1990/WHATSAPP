@@ -60,10 +60,16 @@ function fixture(){
       row.enabled=0;return true;
     }
   };
-  const store={db:{prepare(sql){return {all(actor){
-    if(sql.includes('FROM cm_public_links'))return records.filter(x=>x.actor===actor);
-    return [];
-  }};}}};
+  const store={db:{prepare(sql){return {
+    get(actor){return {n:records.filter(x=>x.actor===actor).length};},
+    all(actor,unused,limit=40,offset=0){
+      if(sql.includes("SELECT 'wa' AS site"))return records
+        .filter(x=>x.actor===actor)
+        .slice(offset,offset+limit)
+        .map(x=>({site:'cm',link_id:x.id,code:x.code,enabled:x.enabled,created:x.created}));
+      return [];
+    }
+  };}}};
   const tg={
     config:{token},
     store,
@@ -121,4 +127,31 @@ test('Mini App cannot submit a photo or arbitrary message without prior bot flow
   assert.equal((await request(handler,{initData,action:'input',value:'no'})).status,400);
   assert.equal((await request(handler,{initData,action:'photo',value:'data:image/png;base64,AA=='})).status,400);
   assert.equal((await request(handler,{initData,action:'callback',value:'op:panel'})).status,400);
+});
+
+test('Mini App paginates many links without hiding revoked links',async()=>{
+  const {handler,records}=fixture(),actor='88888',initData=sign(actor);
+  for(let i=0;i<52;i++)records.push({
+    actor,code:'ejemplo'+i,id:i+1,link_id:i+1,enabled:i%2,created:Date.now()-i
+  });
+  const first=await request(handler,{initData,action:'start'});
+  assert.equal(first.status,200);
+  assert.equal(first.body.linksTotal,52);
+  assert.equal(first.body.links.length,40);
+  assert.equal(first.body.moreLinks,true);
+  const second=await request(handler,{initData,action:'page',value:40});
+  assert.equal(second.status,200);
+  assert.equal(second.body.links.length,12);
+  assert.equal(second.body.moreLinks,false);
+  assert.equal(second.body.links[1].enabled,false);
+  assert.equal((await request(handler,{initData,action:'page',value:-1})).status,400);
+});
+
+test('Existing Telegram menu contains a Mini App button and still retains all original actions',async()=>{
+  const {readFileSync}=await import('node:fs');
+  const bot=readFileSync(new URL('../src/public-wa-links-bot.js',import.meta.url),'utf8');
+  assert.match(bot,/web_app:\{url:'https:\/\/whatsapp-cubamax-miniapp\.onrender\.com'\}/);
+  assert.match(bot,/this\.button\('buttonWhatsApp'\),callback_data:'pwa:whatsapp'/);
+  assert.match(bot,/this\.button\('buttonCubamax'\),callback_data:'pwa:cubamax'/);
+  assert.match(bot,/this\.button\('buttonMyLinks'\),callback_data:'pwa:list:0'/);
 });
