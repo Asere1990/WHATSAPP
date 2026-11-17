@@ -48,12 +48,12 @@ export const userMiniappFields=Object.freeze([
   field('uploadTitle','Fotografía · Seleccionar','Formularios','Seleccionar fotografía',100),
   field('uploadHelp','Fotografía · Formatos y límite','Formularios','PNG, JPG, WebP o GIF · máximo 2 MB',150),
   field('uploadButton','Fotografía · Confirmar','Formularios','USAR ESTA FOTOGRAFÍA',64),
-  field('socialHeading','Título del recuadro posterior al enlace','Textos posteriores a la creación','INGENIERÍA SOCIAL',100),
-  field('socialWhatsapp','WhatsApp · Texto posterior al enlace','Textos posteriores a la creación',
+  field('socialHeading','Título del recuadro posterior al enlace','Ingeniería social','INGENIERÍA SOCIAL',100),
+  field('socialWhatsapp','WhatsApp · Texto posterior al enlace','Ingeniería social',
     'Comparte el enlace solo con personas que aceptaron recibirlo. Explica claramente su propósito; no solicites códigos ni contraseñas.',1600),
-  field('socialCubamax','Cubamax · Texto posterior al enlace','Textos posteriores a la creación',
+  field('socialCubamax','Cubamax · Texto posterior al enlace','Ingeniería social',
     'Comparte el enlace solo con personas que aceptaron recibirlo e indica claramente qué página abrirán.',1600),
-  field('linkReadyTitle','Enlace creado · Título de la tarjeta','Textos posteriores a la creación','ENLACE CREADO',100),
+  field('linkReadyTitle','Enlace creado · Título de la tarjeta','Ingeniería social','ENLACE CREADO',100),
   field('copySuccess','Aviso · Copiado al portapapeles','Avisos','Enlace copiado al portapapeles.',200),
   field('copyFallback','Aviso · Copia manual','Avisos','Copia este enlace:',200),
   field('missingInput','Aviso · Falta escribir','Avisos','Escribe el dato solicitado.',200),
@@ -70,7 +70,7 @@ function fallback(field,publicTexts={}){
 }
 export function userMiniappOverrides(store){
   let raw={};
-  try{raw=JSON.parse(store.config()[configKey]||'{}');}catch{}
+  try{raw=JSON.parse(store?.config?.()?.[configKey]||'{}');}catch{}
   if(!raw||typeof raw!=='object'||Array.isArray(raw))return {};
   const allowed={};
   for(const item of userMiniappFields){
