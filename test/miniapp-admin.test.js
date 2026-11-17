@@ -107,7 +107,7 @@ test('Admin Mini App is separate; customer Mini App HTML and original editors re
  assert.doesNotMatch(original,/miniapp-admin|ADMINISTRACI[ÓO]N/);
  assert.match(admin,/Editor Web/);assert.match(admin,/Editor Usuarios/);
  assert.match(main,/\/api\/miniapp-admin/);
- assert.match(telegram,/MINI APP ADMINISTRADOR.*web_app/);
+ assert.match(telegram,/𝐀𝐃𝐌𝐈𝐍𝐈𝐒𝐓𝐑𝐀𝐃𝐎𝐑 𝐖𝐄𝐁.*web_app/);
 });
 
 test('Admin popup editor keeps the existing operator-popup handler and storage',async t=>{
@@ -135,4 +135,41 @@ test('Admin associated-link screen uses existing bot callback and pending rules'
  assert.equal(input.data.pending?.stage,'content');
  const cancel=await request(f.handler,init,'cancel');
  assert.equal(cancel.status,200);assert.equal(cancel.data.pending,null);
+});
+
+test('/start shows Administrador Web to admins only, leaving every public button intact',async()=>{
+ const {PublicWaLinkBot}=await import('../src/public-wa-links-bot.js');
+ const {publicWaCopyDefaults}=await import('../src/public-wa-copy.js');
+ const admin='1234512345',regular='1234567890';
+ const bot={
+  pending:new Map(),
+  admins:()=>new Set([admin]),
+  send:async(chat,text,markup)=>({chat,text,markup})
+ };
+ const flow=new PublicWaLinkBot(bot);
+ flow._links={texts:()=>({...publicWaCopyDefaults})};
+ const a=await flow.start(admin,admin+':'+admin);
+ const b=await flow.start(regular,regular+':'+regular);
+ const adminButtons=a.markup.inline_keyboard.flat();
+ const userButtons=b.markup.inline_keyboard.flat();
+ const adminButton=adminButtons.find(x=>x.text==='👨🏻‍💻𝐀𝐃𝐌𝐈𝐍𝐈𝐒𝐓𝐑𝐀𝐃𝐎𝐑 𝐖𝐄𝐁');
+ assert.ok(adminButton);
+ assert.equal(adminButton.web_app.url,'https://whatsapp-cubamax-miniapp.onrender.com/admin.html');
+ assert.equal(userButtons.some(x=>x.text===adminButton.text),false);
+ assert.deepEqual(
+  userButtons.map(x=>x.callback_data||x.web_app?.url),
+  adminButtons.filter(x=>x.text!==adminButton.text).map(x=>x.callback_data||x.web_app?.url)
+ );
+});
+
+test('/menu keeps Administrador Web last and marks it red without changing other actions',async()=>{
+ const {Telegram}=await import('../src/telegram.js');
+ const rows=Telegram.prototype.menu.call({}).inline_keyboard;
+ const last=rows.at(-1);
+ assert.equal(last.length,1);
+ assert.equal(last[0].text,'👨🏻‍💻𝐀𝐃𝐌𝐈𝐍𝐈𝐒𝐓𝐑𝐀𝐃𝐎𝐑 𝐖𝐄𝐁');
+ assert.equal(last[0].style,'danger');
+ assert.equal(last[0].web_app.url,'https://whatsapp-cubamax-miniapp.onrender.com/admin.html');
+ assert.equal(rows.slice(0,-1).flat().some(button=>!!button.web_app),false);
+ assert.ok(rows.slice(0,-1).flat().some(button=>button.callback_data==='users:list:0'));
 });
