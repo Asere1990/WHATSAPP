@@ -189,6 +189,7 @@ function applyLabels(){
   'nav-links-label':['navLinks','Mis enlaces']
  };
  Object.entries(fields).forEach(([id,def])=>{$(id).textContent=tr(def[0],def[1]);});
+ document.title=tr('browserTitle','Mi espacio · WhatsApp y Cubamax');
 }
 if(tg){try{tg.ready();tg.expand();tg.setHeaderColor('#101622');tg.setBackgroundColor('#101622');}catch(_){}}
 function message(text,kind){
@@ -217,7 +218,7 @@ async function call(action,value){
  try{
   var response=await fetch(apiUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:initData,action:action,value:value||''}),cache:'no-store'});
   var data=await response.json().catch(()=>null);
-  if(!response.ok||!data||!data.ok)throw Error(data&&data.error||'El servicio no pudo responder.');
+  if(!response.ok||!data||!data.ok)throw Error(data&&data.error||tr('serviceError','El servicio no pudo responder.'));
   state.createdLink=['input','photo'].includes(action)
     ?(data.links||[]).find(link=>!previous.has(link.site+':'+link.id))||null:null;
   state.links=action==='page'?[...state.links,...(data.links||[])]:data.links||[];
@@ -232,7 +233,7 @@ async function call(action,value){
   else setTab('flow');
   render();
  }catch(error){
-  message(error.message||'No se pudo completar la acción.','error');
+  message(error.message||tr('genericError','No se pudo completar la acción.'),'error');
  }finally{busy(false);}
 }
 function el(tag,cls,txt){
@@ -256,7 +257,7 @@ async function copy(url){
  }
 }
 function addLink(card,link){
- var top=el('div','link-title'),name=el('strong','', (link.site==='wa'?'📲 WhatsApp · ':'🇨🇺 Cubamax · ')+link.code);
+ var top=el('div','link-title'),name=el('strong','', (link.site==='wa'?'📲 '+tr('whatsapp','WhatsApp')+' · ':'🇨🇺 '+tr('cubamax','Cubamax')+' · ')+link.code);
  var active=el('span','state'+(link.enabled?'':' off'),link.enabled?(state.labels.active||'Activo'):(state.labels.revoked||'Revocado'));
  top.append(name,active);card.append(top);
  var address=el('a','href',link.url);address.href=link.url;address.target='_blank';address.rel='noopener noreferrer';card.append(address);
