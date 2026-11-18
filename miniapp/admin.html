@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#111a29">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="WhatsApp Admin">
+<link rel="manifest" href="/admin.webmanifest">
 <meta name="color-scheme" content="dark">
 <title>Administración · WhatsApp &amp; Cubamax</title>
 <meta name="description" content="Panel exclusivo de administración desde Telegram">
@@ -22,6 +25,11 @@ a{text-decoration:none;color:inherit}
 .brand strong{display:block;font-size:.92rem;letter-spacing:.03em}.brand small{display:block;font-size:.68rem;margin-top:4px;color:#9daec7;letter-spacing:.085em}
 .role{display:flex;align-items:center;gap:7px;font-size:.73rem;border:1px solid #4d7d73;background:#193b36;color:#c4ffe5;padding:7px 10px;border-radius:99px}
 .role:before{content:"";width:7px;height:7px;border-radius:50%;background:#79e4ba}
+.web-login-card{max-width:440px;margin:12vh auto 0}
+.web-login-card h2{font-size:1.45rem;margin:0 0 10px}
+.web-login-card p{font-size:.84rem;color:#b1c2d5;line-height:1.6}
+.web-login-card .btn{margin-top:18px}
+#web-logout{width:auto;min-height:36px;font-size:.75rem;padding:7px 11px}
 .kicker{font-size:.71rem;color:#77ddbd;font-weight:760;letter-spacing:.16em;margin:0 0 9px}
 h1{font-size:clamp(2rem,8.2vw,3.1rem);line-height:1.1;letter-spacing:-.05em;margin:0 0 12px}
 h1 span{color:#c6d6ed}
@@ -108,10 +116,20 @@ label{display:block;font-size:.78rem;font-weight:720;color:#c5d7eb;margin-bottom
 <div class="container">
  <header class="header">
   <div class="brand"><span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 8 4v5c0 5-3.4 8.8-8 11-4.6-2.2-8-6-8-11V6l8-4Z"/><path d="m8.4 12.2 2.5 2.5 4.8-5"/></svg></span><span><strong>ADMINISTRACIÓN</strong><small>WHATSAPP · CUBAMAX</small></span></div>
-  <span class="role">Admin</span>
+  <div style="display:flex;align-items:center;gap:8px"><span class="role">Admin</span><button type="button" id="web-logout" class="btn ghost" hidden>SALIR</button></div>
  </header>
  <div id="notice" class="notice" role="status" hidden></div>
- <main>
+ <section class="block web-login-card" id="web-access" hidden>
+  <h2>Acceso de administrador</h2>
+  <p>Para entrar directamente desde Safari, utiliza tu Telegram ID autorizado y la contraseña de WHATSAPP.</p>
+  <form id="web-login-form" autocomplete="on">
+   <div class="field"><label for="web-telegram-id">Telegram ID</label><input id="web-telegram-id" name="username" class="entry" type="text" inputmode="numeric" pattern="[0-9]{5,20}" maxlength="20" autocomplete="username" required placeholder="Tu Telegram ID"></div>
+   <div class="field"><label for="web-password">Contraseña</label><input id="web-password" name="password" class="entry" type="password" autocomplete="current-password" maxlength="256" required placeholder="Contraseña"></div>
+   <button type="submit" class="btn green">ENTRAR</button>
+  </form>
+  <p>La sesión se guardará en este dispositivo durante un máximo de 30 días.</p>
+ </section>
+ <main id="admin-main" hidden>
   <section id="home">
    <div class="titlebar"><p class="kicker">Mi panel privado</p><h1>Tu espacio<br><span>de control.</span></h1><p class="subtitle">Todas tus herramientas, organizadas en un solo lugar. El motor y las webs originales siguen intactos.</p></div>
    <div class="stat-grid" id="stats"></div>
@@ -175,7 +193,7 @@ label{display:block;font-size:.78rem;font-weight:720;color:#c5d7eb;margin-bottom
   </section>
  </main>
 </div>
-<nav class="bottom" aria-label="Navegación administrativa"><div class="bottom-inner">
+<nav class="bottom" id="admin-nav" aria-label="Navegación administrativa" hidden><div class="bottom-inner">
  <button type="button" id="nav-home" class="nav selected">⌂ Inicio</button>
  <button type="button" id="nav-users" class="nav">👥 Usuarios</button>
  <button type="button" id="nav-editors" class="nav">✏️ Editores</button>
@@ -186,6 +204,19 @@ label{display:block;font-size:.78rem;font-weight:720;color:#c5d7eb;margin-bottom
 var tg=window.Telegram&&window.Telegram.WebApp;
 var initData=tg&&tg.initData||'';
 var endpoint='https://securitywhat.app/api/miniapp-admin';
+var webSessionKey='whatsapp-cubamax-admin-web-session-v1';
+var webSession='';
+if(!initData){try{webSession=localStorage.getItem(webSessionKey)||'';}catch(_){}}
+function showAdminAccess(verified){
+ $('web-access').hidden=!!verified||!!initData;
+ $('admin-main').hidden=!verified;
+ $('admin-nav').hidden=!verified;
+ $('web-logout').hidden=!!initData||!verified;
+}
+function clearWebSession(){
+ webSession='';
+ try{localStorage.removeItem(webSessionKey);}catch(_){}
+}
 var state={busy:false,mode:'home',links:{},editors:[],media:{},mediaSlots:[],stats:{},numbers:[],messages:[],pending:null,openedEditorGroups:{}};
 var $=id=>document.getElementById(id);
 if(tg){try{tg.ready();tg.expand();tg.setHeaderColor('#111a29');tg.setBackgroundColor('#111a29');}catch(_){}}
@@ -368,15 +399,19 @@ function renderAccount(){
 }
 async function request(action,value,key,title){
  if(state.busy)return;
- if(!initData){say('Abre la Mini App Administrador desde el botón de tu bot en Telegram.',true);return;}
+ if(!initData&&!webSession){showAdminAccess(false);say('Inicia sesión para entrar a Administración.',false);return;}
  busy(true);say('','');
  try{
   var response=await fetch(endpoint,{method:'POST',cache:'no-store',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({initData:initData,action:action,value:value===undefined?'':value,key:key||''})
+    body:JSON.stringify({initData:initData,webSession:initData?'':webSession,action:action,value:value===undefined?'':value,key:key||''})
   });
   var data=await response.json().catch(()=>null);
-  if(!response.ok||!data||!data.ok)throw Error(data&&data.error||'No se pudo conectar con Administración.');
+  if(!response.ok||!data||!data.ok){
+   if(!initData&&(response.status===401||response.status===403)){clearWebSession();showAdminAccess(false);}
+   throw Error(data&&data.error||'No se pudo conectar con Administración.');
+  }
+  showAdminAccess(true);
   state.links=data.links||state.links;state.editors=data.editors||[];
   state.media=data.media||{};state.mediaSlots=data.mediaSlots||[];
   state.stats=data.stats||{};state.numbers=data.numbers||[];
@@ -393,6 +428,43 @@ async function request(action,value,key,title){
  }catch(e){say(e.message||'Ocurrió un error.',true);}
  finally{busy(false);}
 }
+
+$('web-login-form').onsubmit=async function(event){
+ event.preventDefault();
+ if(initData||state.busy)return;
+ busy(true);say('',false);
+ var username=$('web-telegram-id').value.trim();
+ var password=$('web-password').value;
+ var loggedIn=false;
+ try{
+  var result=await fetch(endpoint,{method:'POST',cache:'no-store',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({action:'web-login',telegram_id:username,password:password})
+  });
+  var data=await result.json().catch(()=>null);
+  if(!result.ok||!data?.ok||typeof data.webSession!=='string')throw Error(data?.error||'No se pudo iniciar sesión.');
+  webSession=data.webSession;
+  try{localStorage.setItem(webSessionKey,webSession);}catch(_){}
+  $('web-password').value='';
+  loggedIn=true;
+ }catch(error){say(error.message||'No se pudo iniciar sesión.',true);}
+ finally{busy(false);}
+ if(loggedIn)request('home');
+};
+$('web-logout').onclick=async function(){
+ if(initData||!webSession||state.busy)return;
+ var token=webSession;
+ clearWebSession();
+ showAdminAccess(false);
+ say('Sesión cerrada. Puedes volver a entrar cuando quieras.',false);
+ try{
+  await fetch(endpoint,{method:'POST',cache:'no-store',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({action:'web-logout',webSession:token})
+  });
+ }catch(_){}
+};
+
 $('open-web-editor').onclick=()=>{renderLinks();setMode('webedit');};
 $('open-user-app').onclick=()=>{var target=new URL('/',location.href);if(location.hash.includes('tgWebAppData='))target.hash=location.hash;location.assign(target.href);};
 $('open-studio').onclick=()=>openUrl(state.links.studio);
@@ -420,8 +492,9 @@ $('upload-form').onsubmit=function(e){
  reader.onerror=()=>say('No se pudo leer el archivo.',true);
  reader.readAsDataURL(f);
 };
-if(initData)request('home');
-else say('Esta página requiere abrirse desde el botón ADMIN MINI APP del bot. No se mostrará información privada fuera de Telegram.',true);
+showAdminAccess(false);
+if(initData||webSession)request('home');
+else say('Entra con tu Telegram ID y la contraseña de WHATSAPP para acceder desde Safari.',false);
 })();
 </script>
 </body>

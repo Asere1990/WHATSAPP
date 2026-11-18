@@ -1,0 +1,11 @@
+{
+  "id": "/admin.html",
+  "name": "WhatsApp Cuba Max · Administración",
+  "short_name": "WhatsApp Admin",
+  "description": "Acceso privado al panel administrativo de WhatsApp y Cuba Max",
+  "start_url": "/admin.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#101927",
+  "theme_color": "#111a29"
+}
