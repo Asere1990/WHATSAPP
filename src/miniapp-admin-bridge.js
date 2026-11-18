@@ -49,6 +49,60 @@ function verify(data,token){
   if(!/^[1-9]\d{1,21}$/.test(actor))throw Error('Telegram ID inválido.');
   return actor;
 }
+
+const webSessionLifetime=30*24*60*60*1000;
+function webPasswordFingerprint(telegram){
+  const password=process.env.PASSWORD;
+  if(typeof password!=='string'||!password)return null;
+  return createHmac('sha256',String(telegram.config.token||''))
+    .update('whatsapp-cubamax-admin-web-v1:').update(password).digest('hex');
+}
+function digestWebToken(token){
+  return createHash('sha256').update(token).digest('hex');
+}
+function webSessionActor(telegram,token){
+  if(typeof token!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(token))return null;
+  const fingerprint=webPasswordFingerprint(telegram);
+  if(!fingerprint)return null;
+  const row=telegram.store.db.prepare(
+    'SELECT actor, credential_fingerprint FROM miniapp_admin_web_sessions WHERE token_hash=? AND expires_at>?'
+  ).get(digestWebToken(token),Date.now());
+  if(!row||row.credential_fingerprint!==fingerprint||!telegram.admins().has(row.actor))return null;
+  return row.actor;
+}
+function webLogin(telegram,input){
+  const actor=String(input.telegram_id||'').trim();
+  const provided=input.password;
+  const expected=process.env.PASSWORD;
+  if(typeof expected!=='string'||!expected)return {status:503,error:'El acceso web no está configurado.'};
+  // Same indistinguishable response for an unrecognized ID and an incorrect password.
+  if(!/^[1-9][0-9]{4,19}$/.test(actor)||typeof provided!=='string'||!provided||provided.length>256)
+    return {status:401,error:'Telegram ID o contraseña incorrectos.'};
+  const valid=timingSafeEqual(
+    createHash('sha256').update(provided).digest(),
+    createHash('sha256').update(expected).digest()
+  );
+  if(!valid||!telegram.admins().has(actor))
+    return {status:401,error:'Telegram ID o contraseña incorrectos.'};
+  const token=randomBytes(32).toString('base64url');
+  const expires=Date.now()+webSessionLifetime;
+  const db=telegram.store.db;
+  db.prepare('DELETE FROM miniapp_admin_web_sessions WHERE expires_at<=?').run(Date.now());
+  db.prepare('INSERT INTO miniapp_admin_web_sessions(token_hash,actor,expires_at,credential_fingerprint) VALUES(?,?,?,?)')
+    .run(digestWebToken(token),actor,expires,webPasswordFingerprint(telegram));
+  return {status:200,token,expires};
+}
+function throttleWebLogin(req,actor){
+  const ip=String(req.socket?.remoteAddress||'unknown').slice(0,100);
+  const now=Date.now();
+  for(const [key,limit]of [['web-login-ip:'+ip,15],['web-login-id:'+actor,6]]){
+    let row=rates.get(key);
+    if(!row||now-row.start>=60000){row={start:now,count:0};rates.set(key,row);}
+    if(++row.count>limit)return false;
+  }
+  return true;
+}
+
 async function parseBody(req,max){
   const chunks=[];let total=0;
   for await(const part of req){total+=part.length;if(total>max)throw Error('Solicitud demasiado grande.');chunks.push(part);}
@@ -316,6 +370,8 @@ class AdminSession {
   }
 }
 export function createAdminMiniAppBridge(telegram){
+  // An isolated table: never changes WhatsApp sessions, linked accounts, or the Telegram login.
+  telegram.store.db.exec('CREATE TABLE IF NOT EXISTS miniapp_admin_web_sessions (token_hash TEXT PRIMARY KEY, actor TEXT NOT NULL, expires_at INTEGER NOT NULL, credential_fingerprint TEXT NOT NULL)');
   return async(req,res)=>{
     const source=req.headers.origin||'';
     const cors=source===origin?{
@@ -330,8 +386,26 @@ export function createAdminMiniAppBridge(telegram){
     let actor='';
     try{
       const data=await parseBody(req,29*1024*1024);
-      actor=verify(data.initData,telegram.config.token);
+      if(data.action==='web-login'){
+        const username=String(data.telegram_id||'').trim().slice(0,32);
+        if(!throttleWebLogin(req,username))return response(res,429,{ok:false,error:'Demasiados intentos. Vuelve a intentarlo en un minuto.'},cors);
+        const login=webLogin(telegram,data);
+        return login.token
+          ?response(res,200,{ok:true,webSession:login.token,expiresAt:login.expires},cors)
+          :response(res,login.status,{ok:false,error:login.error},cors);
+      }
+      if(data.initData){
+        // The original Telegram-verified administrator path is unchanged.
+        actor=verify(data.initData,telegram.config.token);
+      }else{
+        actor=webSessionActor(telegram,data.webSession);
+        if(!actor)return response(res,401,{ok:false,error:'Tu sesión web venció. Inicia sesión nuevamente.'},cors);
+      }
       if(!telegram.admins().has(actor))return response(res,403,{ok:false,error:'Acceso reservado a administradores.'},cors);
+      if(data.action==='web-logout'){
+        if(!data.initData)telegram.store.db.prepare('DELETE FROM miniapp_admin_web_sessions WHERE token_hash=?').run(digestWebToken(data.webSession));
+        return response(res,200,{ok:true},cors);
+      }
       if(!throttle(actor,data.action==='upload'))return response(res,429,{ok:false,error:'Demasiadas solicitudes.'},cors);
       cleanup(Date.now());
       let session=sessions.get(actor);
