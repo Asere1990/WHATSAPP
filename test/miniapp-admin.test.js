@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createHmac} from 'node:crypto';
+import {createHmac,createHash} from 'node:crypto';
 import {mkdtempSync,rmSync,readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {Readable} from 'node:stream';
@@ -19,12 +19,15 @@ function sign(actor,secret=token){
  p.set('hash',createHmac('sha256',key).update(parts).digest('hex'));
  return p.toString();
 }
-async function request(handler,initData,action='home',value='',key='',from=origin){
- const payload=Buffer.from(JSON.stringify({initData,action,value,key}));
- const req=Readable.from([payload]);req.method='POST';req.headers={origin:from};
+async function requestJson(handler,body,from=origin){
+ const payload=Buffer.from(JSON.stringify(body));
+ const req=Readable.from([payload]);req.method='POST';req.headers={origin:from};req.socket={remoteAddress:'127.0.0.1'};
  const res={status:0,headers:{},body:'',writeHead(code,headers){this.status=code;this.headers=headers;},end(body){this.body=body||'';}};
  await handler(req,res);
  return {status:res.status,headers:res.headers,data:res.body?JSON.parse(res.body):null};
+}
+async function request(handler,initData,action='home',value='',key='',from=origin){
+ return requestJson(handler,{initData,action,value,key},from);
 }
 function fixture(){
  const dir=mkdtempSync(tmpdir()+'/wa-miniapp-admin-'),store=new Store(dir);
@@ -66,6 +69,54 @@ test('Admin bridge verifies Telegram signature and server-side admin role',async
  assert.equal(ok.data.links.editorCM,'https://securitywhat.app/editor?site=cm#signed-existing-panel-token');
  assert.equal(ok.data.links.panel,'https://securitywhat.app/panel#signed-existing-panel-token');
 });
+test('Safari admin password login persists securely and does not bypass Telegram role checks',async t=>{
+ const oldPassword=process.env.PASSWORD;
+ process.env.PASSWORD='ADMIN_PASSWORD_TEST_ONLY_2026';
+ t.after(()=>{if(oldPassword===undefined)delete process.env.PASSWORD;else process.env.PASSWORD=oldPassword;});
+ const f=fixture();t.after(f.close);
+ const denied=await requestJson(f.handler,{action:'web-login',telegram_id:'9999999999',password:process.env.PASSWORD});
+ assert.equal(denied.status,401);
+ assert.equal((await requestJson(f.handler,{action:'web-login',telegram_id:f.admin,password:'wrong'})).status,401);
+ const login=await requestJson(f.handler,{action:'web-login',telegram_id:f.admin,password:process.env.PASSWORD});
+ assert.equal(login.status,200);
+ assert.equal(login.data.ok,true);
+ assert.match(login.data.webSession,/^[A-Za-z0-9_-]{43}$/);
+ assert.ok(login.data.expiresAt>Date.now()+29*86400000);
+ assert.ok(!JSON.stringify(login.data).includes(process.env.PASSWORD));
+ const authenticated=await requestJson(f.handler,{action:'home',webSession:login.data.webSession});
+ assert.equal(authenticated.status,200);
+ assert.equal(authenticated.data.role,'admin');
+ assert.equal((await requestJson(f.handler,{action:'home',webSession:'not-a-token'})).status,401);
+ process.env.PASSWORD='CHANGED_PASSWORD_TEST';
+ assert.equal((await requestJson(f.handler,{action:'home',webSession:login.data.webSession})).status,401);
+ process.env.PASSWORD='ADMIN_PASSWORD_TEST_ONLY_2026';
+ const loggedOut=await requestJson(f.handler,{action:'web-logout',webSession:login.data.webSession});
+ assert.equal(loggedOut.status,200);
+ assert.equal((await requestJson(f.handler,{action:'home',webSession:login.data.webSession})).status,401);
+ // The original Telegram path continues to work regardless of PASSWORD.
+ assert.equal((await request(f.handler,sign(f.admin))).status,200);
+});
+test('Safari admin sessions expire and cannot be replayed after expiration',async t=>{
+ const oldPassword=process.env.PASSWORD;
+ process.env.PASSWORD='ADMIN_EXPIRY_TEST_ONLY_2026';
+ t.after(()=>{if(oldPassword===undefined)delete process.env.PASSWORD;else process.env.PASSWORD=oldPassword;});
+ const f=fixture();t.after(f.close);
+ const login=await requestJson(f.handler,{action:'web-login',telegram_id:f.admin,password:process.env.PASSWORD});
+ assert.equal(login.status,200);
+ const digest=createHash('sha256').update(login.data.webSession).digest('hex');
+ f.store.db.prepare('UPDATE miniapp_admin_web_sessions SET expires_at=? WHERE token_hash=?').run(Date.now()-1,digest);
+ assert.equal((await requestJson(f.handler,{action:'home',webSession:login.data.webSession})).status,401);
+});
+test('Admin browser UI has a separate Safari login and admin-specific home-screen launch',()=>{
+ const html=readFileSync(new URL('../miniapp/admin.html',import.meta.url),'utf8');
+ const manifest=JSON.parse(readFileSync(new URL('../miniapp/admin.webmanifest',import.meta.url),'utf8'));
+ assert.match(html,/id="web-login-form"/);
+ assert.match(html,/id="web-logout"/);
+ assert.match(html,/if\(initData\|\|webSession\)request\('home'\)/);
+ assert.equal(manifest.start_url,'/admin.html');
+ assert.equal(manifest.display,'standalone');
+});
+
 test('Editor Usuarios overrides only whitelisted Mini App labels and keeps existing texts',async t=>{
  const f=fixture();t.after(f.close);const init=sign(f.admin);
  const previous=f.store.config().wa_public_link_texts;
