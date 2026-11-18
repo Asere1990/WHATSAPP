@@ -64,6 +64,14 @@ h2{font-size:1.16rem;letter-spacing:-.02em;margin:0}
 .block p{font-size:.87rem;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;color:#e4eefb;margin:0}
 .block img{max-width:100%;max-height:360px;display:block;object-fit:contain;border-radius:13px;margin:0 auto 13px}
 .block .btn,.block .linkbtn{margin-top:9px}
+.user-list{display:grid;gap:9px;margin:13px 0}
+.user-item{display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;width:100%;padding:13px 14px;background:#1b2a3b;border:1px solid #ffffff25;border-radius:14px}
+.user-item strong{display:block;font-size:.87rem;overflow-wrap:anywhere}
+.user-item small{display:block;font-size:.74rem;color:#aebfd1;margin-top:5px;overflow-wrap:anywhere}
+.user-item .user-meta{min-width:0}
+.user-item .user-count{flex:none;font-size:.72rem;color:#c2e8db;font-weight:700}
+.user-paging{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+.user-paging .btn{min-height:43px}
 .field{margin:14px 0 5px}
 label{display:block;font-size:.78rem;font-weight:720;color:#c5d7eb;margin-bottom:7px}
 .entry{width:100%;border:1px solid #57708a;background:#0f1c2e;color:#fff;border-radius:12px;padding:13px 14px;outline:0;font-size:.94rem;min-height:47px}
@@ -140,7 +148,7 @@ label{display:block;font-size:.78rem;font-weight:720;color:#c5d7eb;margin-bottom
    </div>
    <div class="row-heading"><h2>Usuarios y enlaces</h2></div>
    <div class="tile-grid">
-    <button type="button" class="tile" data-callback="users:list:0"><span class="symbol">👥</span><span><strong>Usuarios</strong><small>Vinculados, bloqueos y enlaces</small></span></button>
+    <button type="button" class="tile" data-callback="users:list:0"><span class="symbol">👥</span><span><strong id="users-tile-label">Usuarios</strong><small>Vinculados, bloqueos y enlaces</small></span></button>
     <button type="button" class="tile" data-callback="assoc:list:0"><span class="symbol">🔗</span><span><strong>Enlaces asociados</strong><small>Consultar, crear y revocar</small></span></button>
     <button type="button" class="tile" id="open-user-app"><span class="symbol">📱</span><span><strong>Mis enlaces</strong><small>Mini app habitual, sin cambios</small></span></button>
     <button type="button" class="tile" data-callback="op:referral"><span class="symbol">↗️</span><span><strong>Generar enlace Web</strong><small>WhatsApp o Cubamax</small></span></button>
@@ -217,7 +225,7 @@ function clearWebSession(){
  webSession='';
  try{localStorage.removeItem(webSessionKey);}catch(_){}
 }
-var state={busy:false,mode:'home',links:{},editors:[],media:{},mediaSlots:[],stats:{},numbers:[],messages:[],pending:null,openedEditorGroups:{}};
+var state={busy:false,mode:'home',links:{},editors:[],media:{},mediaSlots:[],stats:{},numbers:[],messages:[],pending:null,openedEditorGroups:{},usersCache:[],usersScanOffset:0,usersDone:false,usersPage:0};
 var $=id=>document.getElementById(id);
 if(tg){try{tg.ready();tg.expand();tg.setHeaderColor('#111a29');tg.setBackgroundColor('#111a29');}catch(_){}}
 function node(type,cls,text){var el=document.createElement(type);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;}
@@ -247,6 +255,9 @@ function renderLinks(){
 function renderStats(){
  var a=state.stats;
  var values=[['Cuentas',a.connected],['WhatsApp',a.whatsapp],['Cubamax',a.cubamax],['Usuarios',a.users]];
+ var usersTotal=Math.max(0,Number(a.users)||0);
+ $('users-tile-label').textContent='USUARIOS ('+usersTotal+')';
+ $('nav-users').textContent='👥 USUARIOS ('+usersTotal+')';
  $('stats').replaceChildren();
  values.forEach(function(x){
   var v=node('article','stat');v.append(node('strong','',String(x[1]||0)),node('span','',x[0]));$('stats').append(v);
@@ -353,7 +364,8 @@ function drawResults(){
    var btn=b.url?node('a','linkbtn',b.label):node('button','btn',b.label);
    if(b.url){btn.href=b.url;btn.target='_blank';btn.rel='noopener noreferrer';}
    if(b.action){
-    btn.type='button';btn.onclick=()=>request('callback',b.action,null,b.label);
+    btn.type='button';btn.onclick=b.action==='users:list:0'&&/VOLVER A USUARIOS/i.test(b.label)
+      ?()=>loadUsersPage(state.usersPage,false):()=>request('callback',b.action,null,b.label);
     if(/confirm-|revoke-yes|delete-yes|clear-confirm|sys:send:/.test(b.action))btn.classList.add('red');
    }
    card.append(btn);
@@ -397,7 +409,104 @@ function renderAccount(){
  open.href=state.links.panel||'#';open.target='_blank';open.rel='noopener noreferrer';
  card.append(open);$('flow-results').append(card);
 }
+
+function readUsersBatch(data){
+ var message=(data.messages||[]).find(item=>(item.buttons||[]).some(button=>/^users:show:[1-9]\d{4,19}$/.test(button.action||'')))||(data.messages||[])[0]||{};
+ var text=String(message.text||'');
+ var allowed=new Set((message.buttons||[]).filter(button=>/^users:show:[1-9]\d{4,19}$/.test(button.action||''))
+  .map(button=>button.action.slice('users:show:'.length)));
+ var totalMatch=text.match(/(?:^|\n)(\d+) usuarios(?:\n|$)/);
+ if(!totalMatch)throw Error('No se pudo leer el total de la lista de usuarios.');
+ var rows=[],matched=0,pattern=/(?:^|\n\n)(\d+)\.\s+([\s\S]*?)\nTelegram ID:\s*([1-9]\d{4,19})\n([\s\S]*?)(?=\n\n\d+\.\s+|\n\nSelecciona un número|$)/g,match;
+ while((match=pattern.exec(text))){
+  var actor=match[3];
+  if(!allowed.has(actor))continue;
+  matched++;
+  var body=match[4];
+  var counts=body.match(/(?:^|\n)Enlaces:\s*(\d+)\s*\((\d+)\s+activos\)\s*·\s*Vinculaciones:\s*(\d+)/);
+  if(!counts)throw Error('No se pudieron leer los enlaces de un usuario.');
+  if(Number(counts[1])<1)continue;
+  var username=body.match(/(?:^|\n)Username:\s*([^\n]*)/);
+  rows.push({
+   actor:actor,name:match[2].trim()||'No disponible',
+   username:username?username[1].trim():'No disponible',
+   links:Number(counts[1]),active:Number(counts[2]),linked:Number(counts[3]),
+   banned:body.includes('🚫 BANEADO')
+  });
+ }
+ if(matched!==allowed.size)throw Error('No se pudo interpretar la lista completa de usuarios.');
+ return {rows:rows,read:allowed.size,total:Number(totalMatch[1])};
+}
+function drawUsersPage(){
+ var total=Math.max(0,Number(state.stats.users)||0);
+ var start=state.usersPage*20,rows=state.usersCache.slice(start,start+20);
+ var root=$('flow-results');root.replaceChildren();
+ root.append(node('p','form-caption',total+' usuarios con al menos un enlace · Página '+(state.usersPage+1)+' de '+Math.max(1,Math.ceil(total/20))));
+ if(!rows.length)root.append(node('div','empty','No hay usuarios con enlaces creados.'));
+ else{
+  var list=node('div','user-list');
+  rows.forEach(function(user){
+   var card=node('button','user-item');card.type='button';
+   var info=node('span','user-meta');
+   info.append(node('strong','',user.name),
+    node('small','','Telegram ID: '+user.actor+(user.username&&user.username!=='No disponible'?' · '+user.username:'')),
+    node('small','',user.active+' activos · '+user.linked+' vinculaciones'+(user.banned?' · 🚫 BANEADO':'')));
+   card.append(info,node('span','user-count',user.links+' enlaces'));
+   card.onclick=()=>request('callback','users:show:'+user.actor,'','Usuarios');
+   list.append(card);
+  });
+  root.append(list);
+ }
+ var paging=node('div','user-paging');
+ if(state.usersPage>0){
+  var previous=node('button','btn ghost','◀ ANTERIOR');previous.type='button';
+  previous.onclick=()=>loadUsersPage(state.usersPage-1,false);paging.append(previous);
+ }
+ if((state.usersPage+1)*20<total&&(!state.usersDone||state.usersCache.length>(state.usersPage+1)*20)){
+  var next=node('button','btn ghost','SIGUIENTE ▶');next.type='button';
+  next.onclick=()=>loadUsersPage(state.usersPage+1,false);paging.append(next);
+ }
+ if(paging.childElementCount)root.append(paging);
+ $('message-form').hidden=true;$('upload-form').hidden=true;$('cancel-flow').hidden=true;
+}
+async function loadUsersPage(page,reset){
+ if(state.busy)return;
+ if(!initData&&!webSession){showAdminAccess(false);say('Inicia sesión para entrar a Administración.');return;}
+ if(!Number.isInteger(page)||page<0)return;
+ if(reset){state.usersCache=[];state.usersScanOffset=0;state.usersDone=false;}
+ busy(true);say('',false);
+ try{
+  var requested=(page+1)*20;
+  while(state.usersCache.length<requested&&!state.usersDone){
+   var response=await fetch(endpoint,{method:'POST',cache:'no-store',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({initData:initData,webSession:initData?'':webSession,action:'callback',value:'users:list:'+state.usersScanOffset,key:''})
+   });
+   var data=await response.json().catch(()=>null);
+   if(!response.ok||!data||!data.ok){
+    if(!initData&&(response.status===401||response.status===403)){clearWebSession();showAdminAccess(false);}
+    throw Error(data&&data.error||'No se pudo consultar la lista de usuarios.');
+   }
+   showAdminAccess(true);
+   state.stats=data.stats||state.stats;renderStats();
+   var batch=readUsersBatch(data);
+   var seen=new Set(state.usersCache.map(user=>user.actor));
+   batch.rows.forEach(user=>{if(!seen.has(user.actor)){state.usersCache.push(user);seen.add(user.actor);}});
+   state.usersScanOffset+=batch.read;
+   if(!batch.read||state.usersScanOffset>=batch.total)state.usersDone=true;
+  }
+  if(page>0&&page*20>=state.usersCache.length&&state.usersDone)
+   page=Math.max(0,Math.ceil(state.usersCache.length/20)-1);
+  state.usersPage=page;
+  drawUsersPage();
+  setMode('flow','Usuarios');
+ }catch(error){say(error.message||'No se pudo cargar la lista de usuarios.',true);}
+ finally{busy(false);}
+}
+
 async function request(action,value,key,title){
+ if(action==='callback'&&typeof value==='string'&&/^users:list:\d+$/.test(value))
+  return loadUsersPage(Math.floor(Number(value.split(':')[2])/20),true);
  if(state.busy)return;
  if(!initData&&!webSession){showAdminAccess(false);say('Inicia sesión para entrar a Administración.',false);return;}
  busy(true);say('','');
@@ -416,6 +525,9 @@ async function request(action,value,key,title){
   state.media=data.media||{};state.mediaSlots=data.mediaSlots||[];
   state.stats=data.stats||{};state.numbers=data.numbers||[];
   state.messages=data.messages||[];state.pending=data.pending||null;
+  if(action==='callback'&&typeof value==='string'&&/^users:confirm-(?:revoke|activate|ban|unban):/.test(value)){
+   state.usersCache=[];state.usersScanOffset=0;state.usersDone=false;
+  }
   renderLinks();renderStats();renderEditors();drawResults();drawPending();
   if(action==='home')setMode('home');
   else if(['editor-users','save-user-text','save-user-media','reset-user-media'].includes(action))setMode('editors');
