@@ -196,7 +196,15 @@ async function execute(telegram,user,request){
     bridge._cubamax=telegram.publicWa.cubamax;
     if(telegram.publicWa._sender)bridge._sender=telegram.publicWa._sender;
     const action=request.action;
-    if(action==='start'){
+    if(action==='link-chat'){
+      const link=request.value;
+      const access=telegram.webPanel?.access;
+      const hasAccounts=telegram.autoPublicAccess?.eligible(user.actor)&&
+        access?.role(user.actor)&&access.linkAccounts(user.actor,link).length>0;
+      return {ok:true,chatUrl:hasAccounts
+        ?'https://securitywhat.app/panel?link='+encodeURIComponent(link)+'#'+access.permanent(user.actor)
+        :null};
+    }else if(action==='start'){
       await bridge.start(user.actor,key);
     }else if(action==='callback'){
       if(typeof request.value!=='string'||!request.value.startsWith('pwa:')||request.value.length>256)

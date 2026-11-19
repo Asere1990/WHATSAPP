@@ -46,5 +46,17 @@ export class PanelAccess{
  owner(account){return this.store.db.prepare('SELECT actor FROM panel_owners WHERE account=?').get(account)?.actor||null;}
  attach(account,referral){const who=this.referral(referral);if(!who)throw Error('El enlace de vinculación venció o fue revocado. Solicita uno nuevo en Telegram.');const old=this.owner(account);if(old&&old!==who.actor)throw Error('La cuenta ya está asignada a otro usuario.');this.store.db.prepare('INSERT OR IGNORE INTO panel_owners VALUES(?,?,?)').run(account,who.actor,Date.now());return who;}
  allowed(actor,account){const a=this.store.account(account);return !!a?.consent&&!!a.confirmed&&a.status!=='archived'&&(this.role(String(actor))==='admin'||this.role(String(actor))==='operator'&&this.owner(account)===String(actor));}
+ linkAccounts(actor,link){
+  const match=/^(wa|cm):([1-9][0-9]{0,15})$/.exec(link);
+  if(!match)return [];
+  const prefix=match[1]==='wa'?'wa_public':'cm_public';
+  return this.store.db.prepare(`
+   SELECT DISTINCT a.id FROM ${prefix}_links l
+   JOIN ${prefix}_link_accounts p ON p.code=l.code
+   JOIN accounts a ON a.id=p.account
+   WHERE l.rowid=? AND l.actor=? AND a.consent=1 AND a.confirmed=1
+     AND a.linked=1 AND a.status NOT IN ('archived','revoked')
+  `).all(Number(match[2]),String(actor)).filter(a=>this.allowed(actor,a.id)).map(a=>a.id);
+ }
  accounts(actor){return this.store.all().filter(a=>this.allowed(actor,a.id));}
 }

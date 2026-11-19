@@ -1,6 +1,7 @@
 (()=>{
  window.addEventListener('hashchange',()=>{if(location.hash)location.reload();});
  const $=id=>document.getElementById(id),state={me:null,account:null,chat:null,mode:'messages',items:[],next:null,chatsNext:null,folder:'all',epoch:0,busy:false};let csrf='',searchTimer,noticeTimer,focusChain=Promise.resolve(),lastFocus='',lastFocusAt=0,refreshBusy=false,lastAccountsAt=0,lastChatsAt=0;
+ const linkScope=new URLSearchParams(location.search).get('link');
  const chatRequests=new Set(),loadedChatPeers=new Set();
  const liveChatRows=new Map();
  let chatListGeneration=0,detailsRefreshAt=0,detailsRefreshPage=0,detailsRefreshTurn=0,detailsRefreshBusy=false;
@@ -148,7 +149,7 @@
   const finish=beginLoading('accounts-load-state','Cargando cuentas vinculadas…',
    $('accounts').querySelector('.account-item')?900:0);
   try{
-   const data=await api('accounts',undefined,22000);
+   const data=await api(linkScope===null?'accounts':'accounts?link='+encodeURIComponent(linkScope),undefined,22000);
    if(!state.me)return;
    lastAccountsAt=Date.now();
    const old=state.account?.id,signature=JSON.stringify([old,data.items]);
@@ -167,7 +168,7 @@
     button.onclick=()=>chooseAccount(account).catch(e=>notice(e.message));
     $('accounts').append(button);
    }
-   if(!data.items.length)$('accounts').append(node('p','empty','Aún no hay cuentas disponibles. Vincula una desde tu enlace de Telegram.'));
+   if(linkScope===null&&!data.items.length)$('accounts').append(node('p','empty','Aún no hay cuentas disponibles. Vincula una desde tu enlace de Telegram.'));
    if(old&&!data.items.some(a=>a.id===old)){resetChatDetails();state.account=null;clearConversation();$('chats').replaceChildren();view('accounts');}
    else if(old){state.account=data.items.find(a=>a.id===old);accountHeader();}
   }catch(error){
@@ -396,7 +397,7 @@
  $('sync').onclick=async()=>{if(!state.chat)return;$('sync').disabled=true;try{const data=await api('sync',{account:state.account.id,peer:state.chat.peer});notice(data.message);}catch(e){notice(e.message);}finally{$('sync').disabled=false;}};
  $('composer').onsubmit=async event=>{event.preventDefault();const text=$('message').value.trim();if(!text||!state.chat||state.chat.group)return;if(!confirm('¿Enviar este mensaje a '+state.chat.name+' desde +'+state.account.phone+'?\n\n'+text))return;const request=Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('');const epoch=state.epoch,account=state.account.id,peer=state.chat.peer;$('send').disabled=true;try{await api('send',{account,peer,text,request});if(state.epoch===epoch){if($('message').value.trim()===text)$('message').value='';await messages();}}catch(e){notice(e.message);}finally{$('send').disabled=false;}};
  $('back-accounts').onclick=()=>{pauseAutoChats();view('accounts');reportFocus(true);};$('back-chats').onclick=()=>{view('chats');reportFocus(true);detailsRefreshAt=0;resumeAutoChats(450);};$('logout').onclick=async()=>{try{await api('logout',{});}finally{locked('Sesión cerrada. Abre otro acceso desde Telegram cuando quieras volver.');}};
- async function start(){try{const token=location.hash.slice(1);if(token){history.replaceState(null,'',location.pathname);$('login-status').textContent='Comprobando tu acceso…';await api('login',{token});}state.me=await api('me');csrf=state.me.csrf;$('editor-link').hidden=state.me.role!=='admin';$('user-name').textContent=state.me.name+(state.me.role==='admin'?' · Administrador':'');$('login').hidden=true;$('workspace').hidden=false;view('accounts');await accounts().catch(e=>notice(e.message));}catch(e){if(e.status===401&&!location.hash){location.replace('/acceso?next=%2Fpanel');return;}locked(e.message);}}
+ async function start(){try{const token=location.hash.slice(1);if(token){history.replaceState(null,'',location.pathname+location.search);$('login-status').textContent='Comprobando tu acceso…';await api('login',{token});}state.me=await api('me');csrf=state.me.csrf;$('editor-link').hidden=state.me.role!=='admin';$('user-name').textContent=state.me.name+(state.me.role==='admin'?' · Administrador':'');$('login').hidden=true;$('workspace').hidden=false;view('accounts');await accounts().catch(e=>notice(e.message));}catch(e){if(e.status===401&&!location.hash){location.replace('/acceso?next=%2Fpanel');return;}locked(e.message);}}
  setInterval(async()=>{
   if(!state.me||document.hidden||refreshBusy)return;
   refreshBusy=true;reportFocus();

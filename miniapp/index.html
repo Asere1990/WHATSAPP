@@ -285,6 +285,16 @@ async function call(action,value){
   var response=await fetch(apiUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:initData,action:action,value:value||''}),cache:'no-store'});
   var data=await response.json().catch(()=>null);
   if(!response.ok||!data||!data.ok)throw Error(data&&data.error||tr('serviceError','El servicio no pudo responder.'));
+  if(action==='link-chat'){
+   if(data.chatUrl)openExternal(data.chatUrl);
+   else{
+    $('results').replaceChildren();
+    $('entry-form').hidden=true;
+    $('photo-form').hidden=true;
+    setTab('flow');
+   }
+   return;
+  }
   state.createdLink=['input','photo'].includes(action)
     ?(data.links||[]).find(link=>!previous.has(link.site+':'+link.id))||null:null;
   state.links=action==='page'?[...state.links,...(data.links||[])]:data.links||[];
@@ -351,6 +361,8 @@ function addLink(card,link){
   var button=el('button','mini '+item[2],item[0]);button.type='button';button.addEventListener('click',item[1]);controls.append(button);
  });
  card.append(controls);
+ var chat=el('button','main-menu','Ver Chat');
+ chat.type='button';chat.addEventListener('click',()=>call('link-chat',link.site+':'+link.id));card.append(chat);
  var main=el('button','main-menu',tr('mainMenuButton','MENÚ PRINCIPAL'));
  main.type='button';main.addEventListener('click',()=>call('start'));card.append(main);
 }
