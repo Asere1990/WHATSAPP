@@ -85,7 +85,8 @@ h2{font-size:1.2rem;letter-spacing:-.03em;margin:0}
 .mini:active{transform:scale(.98)}
 .mini.copy{background:#225eae;border-color:#4999f2;color:#fff}
 .mini.delete{background:#81303b;border-color:#b95060;color:#fff}
-.main-menu{display:block;width:100%;margin-top:10px;min-height:45px;border:1px solid #41b18f;border-radius:12px;background:#24876d;color:#fff;font-weight:790;font-size:.84rem}
+.main-menu,.link-chat{display:block;width:100%;margin-top:10px;min-height:45px;border:1px solid #41b18f;border-radius:12px;background:#24876d;color:#fff;font-weight:790;font-size:.84rem}
+.main-menu{border-color:#526e92;background:#324c70}
 .social-card{padding:18px 19px;margin-top:13px;border-radius:19px;background:#1c3040;border:1px solid #436d71}
 .new-link-heading{font-size:.79rem;font-weight:780;letter-spacing:.1em;color:#8bebca;margin:10px 2px 12px}
 .social-card h3{font-size:.89rem;letter-spacing:.08em;color:#8bebca;margin:0 0 12px}
@@ -361,7 +362,7 @@ function addLink(card,link){
   var button=el('button','mini '+item[2],item[0]);button.type='button';button.addEventListener('click',item[1]);controls.append(button);
  });
  card.append(controls);
- var chat=el('button','main-menu','Ver Chat');
+ var chat=el('button','link-chat','💬 Ver Chat');
  chat.type='button';chat.addEventListener('click',()=>call('link-chat',link.site+':'+link.id));card.append(chat);
  var main=el('button','main-menu',tr('mainMenuButton','MENÚ PRINCIPAL'));
  main.type='button';main.addEventListener('click',()=>call('start'));card.append(main);
