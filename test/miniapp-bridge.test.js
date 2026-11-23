@@ -40,7 +40,7 @@ function fixture(){
     record:()=>null
   };
   const cm={
-    url:code=>'https://cubamaxcom.online/'+encodeURIComponent(code),
+    url:code=>'https://cubamax.app/'+encodeURIComponent(code),
     record:code=>records.find(x=>x.code===code)||null,
     create(actor,code){
       methods.push(['create',actor,code]);
@@ -108,8 +108,8 @@ test('Mini App delegates create and revoke to the original Cubamax methods',asyn
   assert.equal(created.body.pending,null);
   assert.deepEqual(methods[0],['create','54321','ejemplo2026']);
   assert.equal(created.body.links.length,1);
-  assert.equal(created.body.links[0].url,'https://cubamaxcom.online/ejemplo2026');
-  assert.match(created.body.messages[0].text,/cubamaxcom\.online\/ejemplo2026/);
+  assert.equal(created.body.links[0].url,'https://cubamax.app/ejemplo2026');
+  assert.match(created.body.messages[0].text,/cubamax\.app\/ejemplo2026/);
   const prompt=await request(handler,{initData,action:'callback',value:'pwa:cm-revoke:~1'});
   assert.equal(prompt.status,200);
   assert.ok(prompt.body.messages[0].buttons.some(b=>b.action==='pwa:cm-revoke-yes:~1'));
