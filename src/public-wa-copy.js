@@ -22,7 +22,7 @@ export const publicWaCopyCatalog=Object.freeze({
  sendPreviewConsent:item('public-links-flow','Aviso de consentimiento antes del envío','Envía este mensaje solamente si el destinatario aceptó recibirlo.'),
  sendSuccess:item('public-links-flow','Confirmación de mensaje enviado · {numero}','✅ Mensaje enviado por WhatsApp a +{numero}.\n\nPuedes administrar este enlace desde MIS ENLACES.'),
  sendSkipped:item('public-links-flow','Envío omitido','Enlace guardado. No se envió ningún mensaje.'),
- cubamaxIntro:item('public-links-flow','Texto al elegir Cubamax','CUBAMAX\n\nhttps://cubamaxcom.online\n\nEl sistema de Cubamax conserva su funcionamiento actual.'),
+ cubamaxIntro:item('public-links-flow','Texto al elegir Cubamax','CUBAMAX\n\nhttps://cubamax.app\n\nEl sistema de Cubamax conserva su funcionamiento actual.'),
 
  cubamaxCodePrompt:item('public-links-flow','Cubamax · Solicitar código','🇨🇺 CUBAMAX\n\nEscribe el código de tu nuevo enlace.'),
  cubamaxCodeHelp:item('public-links-flow','Cubamax · Ayuda para el código','Por ejemplo: miweb2026.\nUsa /cancelar para salir.'),
