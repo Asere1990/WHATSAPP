@@ -54,11 +54,11 @@ test('Cubamax metadata and page are unaffected by WhatsApp-only settings',t=>{
  const dir=mkdtempSync(tmpdir()+'/wa-links-'),store=new Store(dir);
  t.after(()=>{store.db.close();rmSync(dir,{recursive:true,force:true})});
  const html='<html><head><title>Cubamax · Portal de trabajadores</title></head><body>Web Cubamax</body></html>';
- const previous=renderCubamaxPreview(html,store,'https://cubamaxcom.online','/cubamax');
+ const previous=renderCubamaxPreview(html,store,'https://cubamax.app','/cubamax');
  store.setConfig('wa_link_preview',JSON.stringify({
   name:'Otra marca',slogan:'Otro slogan',description:'Otro texto',image:'/portal-media/'+'c'.repeat(64)+'.jpg'
  }));
- const after=renderCubamaxPreview(html,store,'https://cubamaxcom.online','/cubamax');
+ const after=renderCubamaxPreview(html,store,'https://cubamax.app','/cubamax');
  assert.equal(after,previous);
  assert.doesNotMatch(after,/Otra marca|Otro slogan|Otro texto/);
 });
