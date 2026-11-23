@@ -22,7 +22,7 @@ export class PublicCubamaxLinks {
       throw Error('Ese formato numérico está reservado para enlaces existentes. Añade una letra al código.');
     return code;
   }
-  url(code){return 'https://cubamaxcom.online/'+encodeURIComponent(this.normalize(code));}
+  url(code){return 'https://cubamax.app/'+encodeURIComponent(this.normalize(code));}
   record(code){
     if(typeof code!=='string'||!code||code.length>64)return null;
     return this.db.prepare('SELECT rowid AS link_id,* FROM cm_public_links WHERE code=?').get(code)||null;
