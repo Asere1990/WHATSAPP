@@ -31,7 +31,7 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
    assert.match(landing,/id="another-account"/);assert.match(landing,/id="connected-account"/);assert.match(landing,/id="pairing-account"/);
   assert.match(landing,/id="country"/);assert.match(landing,/<form id="connect" autocomplete="off"/);
   assert.match(landing,/id="device-android"/);assert.match(landing,/id="device-iphone"/);
-  for(const host of ['cubamaxcom.online','www.cubamaxcom.online']){
+  for(const host of ['cubamax.app','www.cubamax.app']){
     const domainLanding=await new Promise((resolve,reject)=>get(url,{headers:{Host:host}},res=>{let text='';res.on('data',chunk=>text+=chunk);res.on('end',()=>resolve(text));}).on('error',reject));
     assert.match(domainLanding,/<body class="corporate-portal">/);
     const existingPortal=await(await fetch(`${url}/cubamax`)).text();
@@ -88,11 +88,11 @@ test('HTTP access requires a valid invitation, enforces origin and never exposes
   verify.db.close();
   const plain=await(await fetch(url+'/api/welcome-popup-state')).json();
   assert.equal(plain.popup,null);
-  const forbiddenDomain=await new Promise((resolve,reject)=>get(url+'/asociado/'+associated.token,{headers:{Host:'cubamaxcom.online'}},res=>{res.resume();res.on('end',()=>resolve(res.statusCode));}).on('error',reject));
+  const forbiddenDomain=await new Promise((resolve,reject)=>get(url+'/asociado/'+associated.token,{headers:{Host:'cubamax.app'}},res=>{res.resume();res.on('end',()=>resolve(res.statusCode));}).on('error',reject));
   assert.equal(forbiddenDomain,404);
 
   assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:'https://securitywhat.app.evil.example'},body:'{}'})).status,403);
-  assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:'https://cubamaxcom.online.evil.example'},body:'{}'})).status,403);
+  assert.equal((await fetch(`${url}/api/register`,{method:'POST',headers:{Origin:'https://cubamax.app.evil.example'},body:'{}'})).status,403);
   const portal=await(await fetch(`${url}/api/cubamax`)).json();assert.equal(portal.slides.length,4);assert.equal(portal.fields.headline,'CUBAMAX presente.');assert.equal(portal.telegram_offset,undefined);
   for(const slide of portal.slides){const asset=await fetch(url+slide.asset);assert.equal(asset.status,200);assert.match(asset.headers.get('content-type'),/image\/webp/);}
   assert.equal((await fetch(`${url}/portal-media/not-an-image.svg`)).status,404);
