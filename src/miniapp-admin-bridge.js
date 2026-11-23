@@ -315,7 +315,7 @@ class AdminSession {
       else if(value==='op:referral:wa'||value==='op:referral:cm'){
         const site=value.endsWith(':wa')?'wa':'cm',access=this.telegram.webPanel.access;
         const token=access.token(chat,'referral',{site}),short=access.short(token);
-        const link=(site==='wa'?'https://securitywhat.app/'+short.padStart(6,'0'):'https://cubamaxcom.online/'+short);
+        const link=(site==='wa'?'https://securitywhat.app/'+short.padStart(6,'0'):'https://cubamax.app/'+short);
         this.capture('Enlace de vinculación Web para '+(site==='wa'?'WhatsApp':'Cubamax')+':\n'+link);
       }else if(value==='pwa:menu')this.capture('La mini app de usuarios conserva el flujo de enlaces original.',{
         inline_keyboard:[[{text:'Abrir Mini App Usuarios',url:origin+'/'}]]
