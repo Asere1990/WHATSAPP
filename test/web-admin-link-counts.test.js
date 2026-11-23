@@ -76,7 +76,7 @@ test('admin web counts every verifiable WhatsApp, Cubamax and old link without c
   'Cubamax · vinculación anterior','Web personalizada','WhatsApp · asociado a cuenta'
  ]));
  assert.ok(links.some(link=>link.url==='https://securitywhat.app/'+String(shortWa).padStart(6,'0')));
- assert.ok(links.some(link=>link.url==='https://cubamaxcom.online/'+String(shortCm).padStart(5,'0')));
+ assert.ok(links.some(link=>link.url==='https://cubamax.app/'+String(shortCm).padStart(5,'0')));
  assert.ok(links.some(link=>link.url===custom.url));
  assert.ok(links.some(link=>link.url==='https://securitywhat.app/12025550123'));
  assert.ok(!links.some(link=>link.code.includes('12025550999')),
