@@ -20,7 +20,7 @@ function setup(t){
 test('Cubamax codes are independent, copyable and revocable; existing numeric referrals are reserved',t=>{
  const {wa,cm}=setup(t),actor='12345',row=cm.create(actor,'MiWeb2026');
  assert.equal(row.code,'miweb2026');
- assert.equal(cm.url(row.code),'https://cubamaxcom.online/miweb2026');
+ assert.equal(cm.url(row.code),'https://cubamax.app/miweb2026');
  assert.equal(wa.record(row.code),null);
  assert.throws(()=>cm.create(actor,'MIWEB2026'),/utilizando/);
  assert.throws(()=>cm.create(actor,'00001'),/reservado/);
