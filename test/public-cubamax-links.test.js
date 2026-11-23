@@ -60,7 +60,7 @@ test('CREAR ENLACE selects a site, Cubamax skips WhatsApp sending and WhatsApp i
  await flow.input(actor,key,actor,{text:'MiWeb2026'});
  assert.equal(bot.pending.has(key),false);
  assert.equal(cm.record('miweb2026')?.code,'miweb2026');
- assert.match(sent.at(-1)[1],/https:\/\/cubamaxcom.online\/miweb2026/);
+ assert.match(sent.at(-1)[1],/https:\/\/cubamax\.app\/miweb2026/);
  assert.equal(sent.at(-1)[2].inline_keyboard.flat().some(b=>b.callback_data.startsWith('pwa:send:')),false);
  await flow.list(actor,actor);
  assert.match(sent.at(-1)[1],/Cubamax/);
