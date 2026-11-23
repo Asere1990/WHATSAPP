@@ -24,7 +24,7 @@ const dir=process.env.DATA_DIR||'./data',store=new Store(dir);
 initializeSystemNumber(store);
 const welcomeTokens=welcomeIdentity(store);
 const url=(process.env.PUBLIC_URL||process.env.RENDER_EXTERNAL_URL||'http://localhost:10000').replace(/\/$/,'');
-const cubamaxHosts=new Set(['cubamaxcom.online','www.cubamaxcom.online']);
+const cubamaxHosts=new Set(['cubamax.app','www.cubamax.app']);
 const whatsappHosts=new Set(['securitywhat.app','www.securitywhat.app']);
 const whatsappUrl='https://securitywhat.app';
 const allowedOrigins=new Set([url,...[...cubamaxHosts,...whatsappHosts].map(host=>'https://'+host)]);
