@@ -378,7 +378,7 @@ export class WebPanel{
       String(link.short_id).padStart(wa?6:5,'0');
      items.push({site:wa?'WhatsApp · vinculación anterior':'Cubamax · vinculación anterior',
       code,enabled:role&&link.expires>now,linked_accounts:null,
-      url:link.short_id==null?'':(wa?'https://securitywhat.app/':'https://cubamaxcom.online/')+code});
+      url:link.short_id==null?'':(wa?'https://securitywhat.app/':'https://cubamax.app/')+code});
     }
     for(const link of db.prepare(`SELECT l.page,l.token,p.name,p.published
       FROM studio_links l LEFT JOIN studio_pages p ON p.id=l.page
